@@ -109,7 +109,7 @@ const HolidayCalendar = () => {
   const getHolidayTypeColor = (type) => {
     switch (type) {
       case "National":
-        return "bg-orange-100 text-orange-800 border-orange-200";
+        return "bg-sky-100 text-sky-800 border-sky-200";
       case "Religious":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "Weekend Holiday":
@@ -185,7 +185,7 @@ const HolidayCalendar = () => {
                         transition-all duration-200 rounded text-sm font-medium
                         ${!day ? 'invisible' : ''}
                         ${isCurrentDay ? 'bg-blue-600 text-white shadow-md' : ''}
-                        ${holiday ? 'bg-gradient-to-br from-orange-100 to-purple-100 text-gray-800 shadow-sm' : ''}
+                        ${holiday ? 'bg-gradient-to-br from-sky-100 to-purple-100 text-gray-800 shadow-sm' : ''}
                         ${!holiday && !isCurrentDay ? 'hover:bg-gray-100' : ''}
                         ${isWeekend && !holiday && !isCurrentDay ? 'text-gray-500' : ''}
                         ${selectedDate === day ? 'ring-2 ring-blue-400' : ''}
@@ -291,8 +291,8 @@ const HolidayCalendar = () => {
             </CardHeader>
             <CardContent className="p-2 space-y-1">
               <div className="flex items-center justify-between p-1 bg-orange-50 rounded">
-                <span className="text-orange-800 font-medium text-xs">National</span>
-                <Badge className="bg-orange-200 text-orange-800 text-xs">
+                <span className="text-sky-800 font-medium text-xs">National</span>
+                <Badge className="bg-sky-200 text-sky-800 text-xs">
                   {holidays.filter(h => h.type === "National").length}
                 </Badge>
               </div>

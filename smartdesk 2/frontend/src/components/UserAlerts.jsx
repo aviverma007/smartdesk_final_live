@@ -126,7 +126,7 @@ const UserAlerts = () => {
       case 'urgent':
         return 'bg-red-500 border-red-600';
       case 'high':
-        return 'bg-orange-500 border-orange-600';
+        return 'bg-sky-500 border-sky-600';
       case 'medium':
         return 'bg-blue-500 border-blue-600';
       case 'low':

@@ -73,7 +73,7 @@ const Attendance = () => {
       case 'late':
         return 'bg-yellow-100 text-yellow-800';
       case 'half_day':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-sky-100 text-sky-800';
       case 'absent':
         return 'bg-red-100 text-red-800';
       default:
