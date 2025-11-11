@@ -25,7 +25,7 @@ const Header = () => {
                 className="object-contain rounded-lg h-12 w-12 shadow-sm"
               />
               <div>
-                <p className="font-semibold text-blue-600 text-lg typing-text">
+                <p className="font-extrabold text-blue-700 text-xl typing-text">
                   SMARTDESKK
                 </p>
               </div>
