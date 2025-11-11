@@ -37,11 +37,11 @@ const LoginForm = () => {
   }, [login, isAuthenticated]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 flex items-center justify-center p-4 overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-br from-blue-700 via-blue-500 to-blue-900 flex items-center justify-center p-4 overflow-hidden relative">
       {/* Animated background particles */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl -top-48 -left-48 animate-pulse"></div>
-        <div className="absolute w-96 h-96 bg-purple-300/10 rounded-full blur-3xl -bottom-48 -right-48 animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute w-96 h-96 bg-sky-300/10 rounded-full blur-3xl -bottom-48 -right-48 animate-pulse" style={{animationDelay: '1s'}}></div>
         <div className="absolute w-64 h-64 bg-blue-300/10 rounded-full blur-3xl top-1/2 left-1/2 animate-pulse" style={{animationDelay: '2s'}}></div>
       </div>
 
