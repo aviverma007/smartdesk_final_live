@@ -134,7 +134,7 @@ const HolidayCalendar = () => {
         {/* Calendar - Further Reduced Size */}
         <div className="lg:col-span-3">
           <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-900 text-white py-2">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => navigateMonth('prev')}
@@ -209,7 +209,7 @@ const HolidayCalendar = () => {
           {/* Selected Date Details */}
           {selectedDate && (
             <Card className="shadow-lg border-0">
-              <CardHeader className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white py-1">
+              <CardHeader className="bg-gradient-to-r from-blue-700 to-blue-600 text-white py-1">
                 <CardTitle className="text-xs flex items-center space-x-1">
                   <CalendarDays className="h-3 w-3" />
                   <span>{months[currentMonth]} {selectedDate}</span>
@@ -286,7 +286,7 @@ const HolidayCalendar = () => {
 
           {/* Holiday Stats - Very Compact */}
           <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-indigo-600 to-indigo-600 text-white py-1">
+            <CardHeader className="bg-gradient-to-r from-blue-700 to-blue-900 text-white py-1">
               <CardTitle className="text-xs">Stats</CardTitle>
             </CardHeader>
             <CardContent className="p-2 space-y-1">
@@ -315,7 +315,7 @@ const HolidayCalendar = () => {
 
           {/* Full Holiday List for 2025 */}
           <Card className="shadow-lg border-0 bg-blue-50">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-1">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-900 text-white py-1">
               <CardTitle className="text-xs">All Holidays 2025</CardTitle>
             </CardHeader>
             <CardContent className="p-2 max-h-60 overflow-y-auto">
