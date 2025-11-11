@@ -26,7 +26,7 @@ const Header = () => {
               />
               <div>
                 <p className="font-semibold text-blue-600 text-lg typing-text">
-                  SMARTDESK
+                  SMARTDESKK
                 </p>
               </div>
             </div>
