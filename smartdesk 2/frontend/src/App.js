@@ -16,14 +16,15 @@ import HolidayCalendar from "./components/HolidayCalendar";
 import Dashboard from "./components/Dashboard";
 
 const AppContent = () => {
-  const { isAuthenticated, initializeAuth } = useAuth();
+  const { isAuthenticated, showLoading, initializeAuth } = useAuth();
   const [activeTab, setActiveTab] = useState("home");
 
   useEffect(() => {
     initializeAuth();
   }, []);
 
-  if (!isAuthenticated) {
+  // Always show loading screen for 3 seconds
+  if (showLoading || !isAuthenticated) {
     return <LoginForm />;
   }
 
