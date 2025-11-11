@@ -21,57 +21,57 @@ const Dashboard = () => {
       id: 'po-dashboard',
       title: 'PO Dashboard',
       description: 'Purchase Order Analytics and Tracking',
-      icon: <FileText className="h-6 w-6 text-blue-600" />,
+      icon: <FileText className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=8eff9893-39e5-44ff-8393-eed2716e5c86&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-blue-500 to-blue-700'
+      color: 'from-blue-600 to-blue-800'
     },
     {
       id: 'qms-dashboard',
       title: 'QMS Dashboard',
       description: 'Quality Management System Analytics',
-      icon: <TrendingUp className="h-6 w-6 text-green-600" />,
+      icon: <TrendingUp className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=ff391e55-8a76-42c8-b62c-1c209a6c2663&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-green-500 to-green-700'
+      color: 'from-blue-500 to-blue-700'
     },
     {
       id: 'assets-dashboard',
       title: 'Asset Dashboard',
       description: 'Asset Management and Tracking',
-      icon: <BarChart3 className="h-6 w-6 text-purple-600" />,
+      icon: <BarChart3 className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=95bc0742-cbfd-46a6-81da-e05ee4b628e8&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-purple-500 to-purple-700'
+      color: 'from-blue-400 to-blue-600'
     },
     {
       id: 'attendance-dashboard',
       title: 'Employee Attendance',
       description: 'Employee Attendance Analytics',
-      icon: <Users className="h-6 w-6 text-orange-600" />,
+      icon: <Users className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=4be8796e-c0a4-4712-879c-9cd9a183e365&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-orange-500 to-orange-700'
+      color: 'from-sky-500 to-blue-700'
     },
     {
       id: 'pr-dashboard',
       title: 'PR Dashboard',  
       description: 'Purchase Request Analytics',
-      icon: <FileText className="h-6 w-6 text-indigo-600" />,
+      icon: <FileText className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=b9bb2eaa-6315-4235-a051-d41d2219a899&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-indigo-500 to-indigo-700'
+      color: 'from-blue-700 to-blue-900'
     },
     {
       id: 'Cost-dashboard',
       title: 'COST Dashboard',  
       description: 'Cost Analytics',
-      icon: <BarChart3 className="h-6 w-6 text-purple-600" />,
+      icon: <BarChart3 className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=f4504691-4814-43a1-819b-593c95de9489&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-purple-500 to-purple-700'
+      color: 'from-sky-600 to-blue-800'
     },
     {
       id: 'Sales-dashboard',
       title: 'SALES Dashboard',  
       description: 'Sales Analytics',
-      icon: <BarChart2 className="h-6 w-6 text-indigo-600" />,
+      icon: <BarChart2 className="h-6 w-6 text-white" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=cbd8199b-de56-4600-b634-3147e2357ac1&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
-      color: 'from-indigo-500 to-indigo-700'
+      color: 'from-blue-500 to-sky-700'
     }
   ];
 
