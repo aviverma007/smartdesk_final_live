@@ -47,11 +47,17 @@ const Header = () => {
 
       <style jsx>{`
         @keyframes typing {
-          from {
+          0% {
             width: 0;
           }
-          to {
+          33% {
             width: 100%;
+          }
+          66% {
+            width: 100%;
+          }
+          100% {
+            width: 0;
           }
         }
 
@@ -61,12 +67,30 @@ const Header = () => {
           }
         }
 
+        @keyframes textGlow {
+          0%, 100% {
+            text-shadow: 0 0 8px rgba(37, 99, 235, 0.3),
+                         0 0 15px rgba(37, 99, 235, 0.2);
+          }
+          50% {
+            text-shadow: 0 0 12px rgba(37, 99, 235, 0.5),
+                         0 0 20px rgba(37, 99, 235, 0.3),
+                         0 0 25px rgba(37, 99, 235, 0.2);
+          }
+        }
+
         .typing-text {
           display: inline-block;
           overflow: hidden;
-          border-right: 2px solid #2563eb;
+          border-right: 3px solid #2563eb;
           white-space: nowrap;
-          animation: typing 2s steps(10, end) infinite alternate, blink 0.75s step-end infinite;
+          padding: 2px 8px;
+          background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(59, 130, 246, 0.15) 100%);
+          border-radius: 4px;
+          animation: 
+            typing 6s steps(10, end) infinite,
+            blink 0.75s step-end infinite,
+            textGlow 2s ease-in-out infinite;
         }
       `}</style>
     </header>
