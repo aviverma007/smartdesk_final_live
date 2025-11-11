@@ -75,25 +75,6 @@ const LoginForm = () => {
 
         {/* Enhanced Loading Section */}
         <div className="w-full space-y-4 fade-in-up" style={{animationDelay: '0.3s'}}>
-          {/* Progress Bar Container */}
-          <div className="relative">
-            <div className="h-2 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
-              <div 
-                className="h-full bg-gradient-to-r from-white via-blue-200 to-white rounded-full transition-all duration-300 ease-out relative overflow-hidden"
-                style={{width: `${progress}%`}}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent shimmer"></div>
-              </div>
-            </div>
-            
-            {/* Progress percentage */}
-            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-              <span className="text-white font-semibold text-lg drop-shadow-lg">
-                {Math.round(progress)}%
-              </span>
-            </div>
-          </div>
-
           {/* Loading Text */}
           <div className="text-center">
             <p className="text-white text-lg font-medium drop-shadow-lg loading-text">
