@@ -64,7 +64,7 @@ const Workflows = () => {
         <Card className="text-center hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex justify-center mb-2">
-              <Clock className="h-8 w-8 text-purple-600" />
+              <Clock className="h-8 w-8 text-indigo-600" />
             </div>
             <CardTitle className="text-lg">Time Tracking</CardTitle>
           </CardHeader>

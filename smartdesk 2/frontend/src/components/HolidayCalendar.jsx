@@ -111,7 +111,7 @@ const HolidayCalendar = () => {
       case "National":
         return "bg-sky-100 text-sky-800 border-sky-200";
       case "Religious":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+        return "bg-indigo-100 text-indigo-800 border-indigo-200";
       case "Weekend Holiday":
         return "bg-blue-100 text-blue-800 border-blue-200";
       default:
@@ -134,7 +134,7 @@ const HolidayCalendar = () => {
         {/* Calendar - Further Reduced Size */}
         <div className="lg:col-span-3">
           <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => navigateMonth('prev')}
@@ -185,7 +185,7 @@ const HolidayCalendar = () => {
                         transition-all duration-200 rounded text-sm font-medium
                         ${!day ? 'invisible' : ''}
                         ${isCurrentDay ? 'bg-blue-600 text-white shadow-md' : ''}
-                        ${holiday ? 'bg-gradient-to-br from-sky-100 to-purple-100 text-gray-800 shadow-sm' : ''}
+                        ${holiday ? 'bg-gradient-to-br from-sky-100 to-indigo-100 text-gray-800 shadow-sm' : ''}
                         ${!holiday && !isCurrentDay ? 'hover:bg-gray-100' : ''}
                         ${isWeekend && !holiday && !isCurrentDay ? 'text-gray-500' : ''}
                         ${selectedDate === day ? 'ring-2 ring-blue-400' : ''}
@@ -209,7 +209,7 @@ const HolidayCalendar = () => {
           {/* Selected Date Details */}
           {selectedDate && (
             <Card className="shadow-lg border-0">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-1">
+              <CardHeader className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white py-1">
                 <CardTitle className="text-xs flex items-center space-x-1">
                   <CalendarDays className="h-3 w-3" />
                   <span>{months[currentMonth]} {selectedDate}</span>
@@ -286,7 +286,7 @@ const HolidayCalendar = () => {
 
           {/* Holiday Stats - Very Compact */}
           <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-1">
+            <CardHeader className="bg-gradient-to-r from-indigo-600 to-indigo-600 text-white py-1">
               <CardTitle className="text-xs">Stats</CardTitle>
             </CardHeader>
             <CardContent className="p-2 space-y-1">
@@ -297,8 +297,8 @@ const HolidayCalendar = () => {
                 </Badge>
               </div>
               <div className="flex items-center justify-between p-1 bg-purple-50 rounded">
-                <span className="text-purple-800 font-medium text-xs">Religious</span>
-                <Badge className="bg-purple-200 text-purple-800 text-xs">
+                <span className="text-indigo-800 font-medium text-xs">Religious</span>
+                <Badge className="bg-indigo-200 text-indigo-800 text-xs">
                   {holidays.filter(h => h.type === "Religious").length}
                 </Badge>
               </div>
@@ -315,7 +315,7 @@ const HolidayCalendar = () => {
 
           {/* Full Holiday List for 2025 */}
           <Card className="shadow-lg border-0 bg-blue-50">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-1">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-1">
               <CardTitle className="text-xs">All Holidays 2025</CardTitle>
             </CardHeader>
             <CardContent className="p-2 max-h-60 overflow-y-auto">
