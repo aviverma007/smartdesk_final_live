@@ -140,7 +140,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Auto Slider Section */}
+      {/* Auto Slider Section with Power BI Previews */}
       <div className="mt-12">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Featured Dashboards</h2>
         
@@ -151,7 +151,7 @@ const Dashboard = () => {
           onMouseLeave={() => setIsPaused(false)}
         >
           {/* Slider Container */}
-          <div className="relative h-96">
+          <div className="relative h-[600px]">
             {dashboards.map((dashboard, index) => (
               <div
                 key={dashboard.id}
@@ -163,22 +163,41 @@ const Dashboard = () => {
                     : 'opacity-0 translate-x-full'
                 }`}
               >
-                <div className="h-full flex items-center justify-center p-12">
-                  <div className="text-center max-w-2xl">
-                    <div className={`inline-block p-6 rounded-full bg-gradient-to-br ${dashboard.color} mb-6`}>
-                      <div className="scale-150">
+                <div className="h-full flex flex-col p-6">
+                  {/* Dashboard Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-3 rounded-lg bg-gradient-to-br ${dashboard.color}`}>
                         {dashboard.icon}
                       </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-800">{dashboard.title}</h3>
+                        <p className="text-sm text-gray-600">{dashboard.description}</p>
+                      </div>
                     </div>
-                    <h3 className="text-4xl font-bold text-gray-800 mb-4">{dashboard.title}</h3>
-                    <p className="text-xl text-gray-600 mb-8">{dashboard.description}</p>
                     <button
                       onClick={() => handleDashboardClick(dashboard)}
-                      className={`px-8 py-4 bg-gradient-to-r ${dashboard.color} text-white font-semibold rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center mx-auto space-x-2`}
+                      className={`px-6 py-3 bg-gradient-to-r ${dashboard.color} text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2`}
                     >
-                      <span>Open Dashboard</span>
+                      <span>Open Full View</span>
                       <ExternalLink className="h-5 w-5" />
                     </button>
+                  </div>
+
+                  {/* Power BI Dashboard Preview */}
+                  <div className="flex-1 bg-gray-100 rounded-lg overflow-hidden shadow-inner relative">
+                    <iframe
+                      src={dashboard.url}
+                      className="w-full h-full border-0"
+                      allowFullScreen={true}
+                      title={dashboard.title}
+                    />
+                    {/* Overlay to prevent interaction in preview */}
+                    <div 
+                      className="absolute inset-0 cursor-pointer hover:bg-blue-500/5 transition-colors"
+                      onClick={() => handleDashboardClick(dashboard)}
+                      title="Click to open full dashboard"
+                    />
                   </div>
                 </div>
               </div>
