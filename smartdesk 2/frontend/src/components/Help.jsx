@@ -148,7 +148,7 @@ const Help = () => {
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-100 text-red-800';
+        return 'bg-blue-200 text-blue-900';
       case 'medium':
         return 'bg-sky-100 text-sky-800';
       case 'normal':

@@ -124,7 +124,7 @@ const UserAlerts = () => {
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'urgent':
-        return 'bg-red-500 border-red-600';
+        return 'bg-blue-700 border-blue-700';
       case 'high':
         return 'bg-sky-500 border-sky-600';
       case 'medium':
@@ -197,7 +197,7 @@ const UserAlerts = () => {
           >
             <Bell className="h-5 w-5" />
             {alerts.length > 1 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+              <span className="absolute -top-1 -right-1 bg-blue-700 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
                 {alerts.length}
               </span>
             )}

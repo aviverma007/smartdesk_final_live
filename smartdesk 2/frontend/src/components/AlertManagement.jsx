@@ -143,7 +143,7 @@ const AlertManagement = () => {
 
   const getAlertColors = (type) => {
     switch (type) {
-      case 'error': return 'bg-red-100 text-red-800 border-red-200';
+      case 'error': return 'bg-blue-200 text-blue-900 border-blue-300';
       case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'success': return 'bg-blue-100 text-blue-800 border-blue-200';
       default: return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -152,7 +152,7 @@ const AlertManagement = () => {
 
   const getPriorityColors = (priority) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-700';
+      case 'high': return 'bg-blue-200 text-red-700';
       case 'low': return 'bg-gray-100 text-gray-700';
       default: return 'bg-blue-100 text-blue-700';
     }
@@ -352,7 +352,7 @@ const AlertManagement = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(alert.id)}
-                        className="h-8 text-red-600 hover:text-red-800"
+                        className="h-8 text-blue-700 hover:text-blue-900"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

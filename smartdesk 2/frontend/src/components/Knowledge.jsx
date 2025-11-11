@@ -126,7 +126,7 @@ const Knowledge = () => {
   const getCategoryColor = (category) => {
     switch (category) {
       case 'policy':
-        return 'bg-red-100 text-red-800';
+        return 'bg-blue-200 text-blue-900';
       case 'process':
         return 'bg-blue-100 text-blue-800';
       case 'training':

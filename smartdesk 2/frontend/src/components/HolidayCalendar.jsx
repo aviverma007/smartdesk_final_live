@@ -194,7 +194,7 @@ const HolidayCalendar = () => {
                     >
                       {day}
                       {holiday && (
-                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-700 rounded-full border border-white"></div>
                       )}
                     </div>
                   );
@@ -222,7 +222,7 @@ const HolidayCalendar = () => {
                     return (
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-blue-700 rounded-full"></div>
                           <span className="font-semibold text-gray-800 text-xs">{holiday.name}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">

@@ -339,7 +339,7 @@ const MeetingRooms = () => {
                 <Badge 
                   className={room.status === 'vacant' 
                     ? 'bg-blue-100 text-blue-800 border-green-300' 
-                    : 'bg-red-100 text-red-800 border-red-300'}
+                    : 'bg-blue-200 text-blue-900 border-red-300'}
                 >
                   {room.status === 'vacant' ? '✅ VACANT' : '🔴 OCCUPIED'}
                 </Badge>
@@ -363,8 +363,8 @@ const MeetingRooms = () => {
 
                 {/* Show current/active booking if exists */}
                 {room.current_booking && (
-                  <div className="bg-red-50 border border-red-200 p-3 rounded-md">
-                    <div className="flex items-center text-sm text-red-800 mb-2">
+                  <div className="bg-red-50 border border-blue-300 p-3 rounded-md">
+                    <div className="flex items-center text-sm text-blue-900 mb-2">
                       <Clock className="mr-1 h-4 w-4" />
                       🔴 Currently Occupied
                     </div>
@@ -396,7 +396,7 @@ const MeetingRooms = () => {
                           <div className="flex justify-between items-center mt-1">
                             <span className={`text-xs px-2 py-1 rounded ${
                               new Date(booking.start_time) <= new Date() && new Date() <= new Date(booking.end_time)
-                                ? 'bg-red-100 text-red-700' 
+                                ? 'bg-blue-200 text-red-700' 
                                 : new Date(booking.start_time) > new Date()
                                 ? 'bg-yellow-100 text-yellow-700'
                                 : 'bg-gray-100 text-gray-700'
