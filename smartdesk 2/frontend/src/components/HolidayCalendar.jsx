@@ -355,9 +355,9 @@ const HolidayCalendar = () => {
       </div>
 
       {/* Compact Note */}
-      <Card className="mt-4 border-l-4 border-yellow-500 bg-yellow-50">
+      <Card className="mt-4 border-l-4 border-sky-400 bg-sky-50">
         <CardContent className="p-3">
-          <p className="text-xs text-yellow-800">
+          <p className="text-xs text-sky-800">
             <strong>Note:</strong> Roaster system to be followed for Sales, CRM and site teams as approved by respective HOD's. 
             Weekend holidays are observed on the actual dates but may not result in additional leave days.
           </p>

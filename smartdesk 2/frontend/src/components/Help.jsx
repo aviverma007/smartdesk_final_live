@@ -137,7 +137,7 @@ const Help = () => {
       case 'open':
         return 'bg-blue-100 text-blue-800';
       case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-sky-50 text-sky-800';
       case 'resolved':
         return 'bg-blue-100 text-blue-800';
       default:

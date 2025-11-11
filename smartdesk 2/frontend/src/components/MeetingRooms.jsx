@@ -398,7 +398,7 @@ const MeetingRooms = () => {
                               new Date(booking.start_time) <= new Date() && new Date() <= new Date(booking.end_time)
                                 ? 'bg-blue-200 text-red-700' 
                                 : new Date(booking.start_time) > new Date()
-                                ? 'bg-yellow-100 text-yellow-700'
+                                ? 'bg-sky-50 text-yellow-700'
                                 : 'bg-gray-100 text-gray-700'
                             }`}>
                               {new Date(booking.start_time) <= new Date() && new Date() <= new Date(booking.end_time)

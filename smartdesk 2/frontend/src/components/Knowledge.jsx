@@ -134,7 +134,7 @@ const Knowledge = () => {
       case 'announcement':
         return 'bg-indigo-100 text-indigo-800';
       case 'guideline':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-sky-50 text-sky-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }

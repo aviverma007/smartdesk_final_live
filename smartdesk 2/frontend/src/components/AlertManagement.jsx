@@ -144,7 +144,7 @@ const AlertManagement = () => {
   const getAlertColors = (type) => {
     switch (type) {
       case 'error': return 'bg-blue-200 text-blue-900 border-blue-300';
-      case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'warning': return 'bg-sky-50 text-sky-800 border-sky-200';
       case 'success': return 'bg-blue-100 text-blue-800 border-blue-200';
       default: return 'bg-blue-100 text-blue-800 border-blue-200';
     }
