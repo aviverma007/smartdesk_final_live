@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
 const LoginForm = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const [loadingText, setLoadingText] = useState('Initializing');
 
   useEffect(() => {
@@ -13,26 +13,28 @@ const LoginForm = () => {
       setTimeout(() => setLoadingText('Almost Ready'), 2000),
     ];
 
-    // Auto-redirect after 3 seconds
+    // Auto-login after 3 seconds only if not already authenticated
     const redirectTimer = setTimeout(() => {
-      const userData = {
-        name: 'User',
-        role: 'user',
-        employeeId: '',
-        loginTime: new Date().toISOString()
-      };
-      login(userData);
-      toast.success('Welcome to SmartDesk! 👋', {
-        description: 'Your employee directory system is ready',
-        duration: 3000
-      });
+      if (!isAuthenticated) {
+        const userData = {
+          name: 'User',
+          role: 'user',
+          employeeId: '',
+          loginTime: new Date().toISOString()
+        };
+        login(userData);
+        toast.success('Welcome to SmartDesk! 👋', {
+          description: 'Your employee directory system is ready',
+          duration: 3000
+        });
+      }
     }, 3000);
 
     return () => {
       textTimers.forEach(timer => clearTimeout(timer));
       clearTimeout(redirectTimer);
     };
-  }, [login]);
+  }, [login, isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 flex items-center justify-center p-4 overflow-hidden relative">
