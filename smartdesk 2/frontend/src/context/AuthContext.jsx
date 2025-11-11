@@ -33,12 +33,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   const initializeAuth = () => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      setIsAuthenticated(true);
-    }
+    // Always show loading screen for 3 seconds
+    setShowLoading(true);
+    
+    setTimeout(() => {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        setIsAuthenticated(true);
+      }
+      setShowLoading(false);
+    }, 3000);
   };
 
   const isAdmin = () => {
