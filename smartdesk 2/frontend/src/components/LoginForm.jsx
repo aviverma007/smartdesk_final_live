@@ -4,29 +4,16 @@ import { toast } from 'sonner';
 
 const LoginForm = () => {
   const { login } = useAuth();
-  const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('Initializing');
 
   useEffect(() => {
-    // Progress bar animation
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return prev + 2.5; // Will reach 100 in 4 seconds
-      });
-    }, 100);
-
     // Loading text changes
     const textTimers = [
       setTimeout(() => setLoadingText('Loading Resources'), 1000),
-      setTimeout(() => setLoadingText('Preparing Dashboard'), 2000),
-      setTimeout(() => setLoadingText('Almost Ready'), 3000),
+      setTimeout(() => setLoadingText('Almost Ready'), 2000),
     ];
 
-    // Auto-redirect after 4 seconds
+    // Auto-redirect after 3 seconds
     const redirectTimer = setTimeout(() => {
       const userData = {
         name: 'User',
@@ -39,10 +26,9 @@ const LoginForm = () => {
         description: 'Your employee directory system is ready',
         duration: 3000
       });
-    }, 4000);
+    }, 3000);
 
     return () => {
-      clearInterval(progressInterval);
       textTimers.forEach(timer => clearTimeout(timer));
       clearTimeout(redirectTimer);
     };
