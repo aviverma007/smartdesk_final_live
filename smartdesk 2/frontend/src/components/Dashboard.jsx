@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -6,10 +6,16 @@ import {
   Calendar,
   FileText,
   ExternalLink,
-  BarChart2
+  BarChart2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const Dashboard = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const sliderRef = useRef(null);
+
   const dashboards = [
     {
       id: 'po-dashboard',
@@ -58,8 +64,7 @@ const Dashboard = () => {
       icon: <BarChart3 className="h-6 w-6 text-purple-600" />,
       url: 'https://app.powerbi.com/reportEmbed?reportId=f4504691-4814-43a1-819b-593c95de9489&autoAuth=true&ctid=711f4066-07b7-45a1-9e32-978e86528cad',
       color: 'from-purple-500 to-purple-700'
-    }
-    ,
+    },
     {
       id: 'Sales-dashboard',
       title: 'SALES Dashboard',  
@@ -70,8 +75,31 @@ const Dashboard = () => {
     }
   ];
 
+  // Auto-slide effect
+  useEffect(() => {
+    if (!isPaused) {
+      const interval = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % dashboards.length);
+      }, 2000); // Change slide every 2 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [isPaused, dashboards.length]);
+
   const handleDashboardClick = (dashboard) => {
     window.open(dashboard.url, '_blank');
+  };
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+  };
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % dashboards.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + dashboards.length) % dashboards.length);
   };
 
   return (
@@ -83,7 +111,7 @@ const Dashboard = () => {
       </div>
 
       {/* All Dashboards in Single Grid Layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 mb-8">
         {dashboards.map(dashboard => (
           <div
             key={dashboard.id}
@@ -110,6 +138,89 @@ const Dashboard = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Auto Slider Section */}
+      <div className="mt-12">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Featured Dashboards</h2>
+        
+        <div 
+          ref={sliderRef}
+          className="relative bg-white rounded-2xl shadow-2xl overflow-hidden"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          {/* Slider Container */}
+          <div className="relative h-96">
+            {dashboards.map((dashboard, index) => (
+              <div
+                key={dashboard.id}
+                className={`absolute inset-0 transition-all duration-500 ease-in-out ${
+                  index === currentSlide 
+                    ? 'opacity-100 translate-x-0' 
+                    : index < currentSlide 
+                    ? 'opacity-0 -translate-x-full' 
+                    : 'opacity-0 translate-x-full'
+                }`}
+              >
+                <div className="h-full flex items-center justify-center p-12">
+                  <div className="text-center max-w-2xl">
+                    <div className={`inline-block p-6 rounded-full bg-gradient-to-br ${dashboard.color} mb-6`}>
+                      <div className="scale-150">
+                        {dashboard.icon}
+                      </div>
+                    </div>
+                    <h3 className="text-4xl font-bold text-gray-800 mb-4">{dashboard.title}</h3>
+                    <p className="text-xl text-gray-600 mb-8">{dashboard.description}</p>
+                    <button
+                      onClick={() => handleDashboardClick(dashboard)}
+                      className={`px-8 py-4 bg-gradient-to-r ${dashboard.color} text-white font-semibold rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center mx-auto space-x-2`}
+                    >
+                      <span>Open Dashboard</span>
+                      <ExternalLink className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Navigation Arrows */}
+          <button
+            onClick={prevSlide}
+            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+          >
+            <ChevronLeft className="h-6 w-6 text-gray-800" />
+          </button>
+          <button
+            onClick={nextSlide}
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+          >
+            <ChevronRight className="h-6 w-6 text-gray-800" />
+          </button>
+
+          {/* Slide Indicators */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2">
+            {dashboards.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`transition-all duration-300 rounded-full ${
+                  index === currentSlide 
+                    ? 'w-8 h-3 bg-blue-600' 
+                    : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Pause Indicator */}
+          {isPaused && (
+            <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+              Paused
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
