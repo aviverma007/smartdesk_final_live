@@ -69,9 +69,6 @@ const LoginForm = () => {
           <h1 className="text-5xl font-bold text-white tracking-wide mb-2 drop-shadow-lg">
             SMARTDESK
           </h1>
-          <p className="text-xl text-blue-100 mt-2 font-light">
-            Employee Directory System
-          </p>
           <div className="mt-4 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent w-64 mx-auto"></div>
         </div>
 
