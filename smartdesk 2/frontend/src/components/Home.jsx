@@ -751,7 +751,7 @@ const Home = () => {
                       <CardTitle className="text-base font-bold">{tile.title}</CardTitle>
                     </div>
                     {tile.title === "NEW JOINEES" && employees.length > 0 && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
                         Last 30 days
                       </span>
                     )}
@@ -1193,7 +1193,7 @@ const Home = () => {
               
               {/* Welcome message */}
               <div className="mt-6 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-4 text-center">
-                <PartyPopper className="h-6 w-6 text-green-500 mx-auto mb-2" />
+                <PartyPopper className="h-6 w-6 text-blue-500 mx-auto mb-2" />
                 <p className="text-sm font-medium text-gray-700">Welcome to the team!</p>
                 <p className="text-xs text-gray-500 mt-1">We're excited to have you aboard</p>
               </div>

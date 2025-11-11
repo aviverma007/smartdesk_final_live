@@ -246,7 +246,7 @@ const HolidayCalendar = () => {
 
           {/* Monthly Holidays List - Very Compact */}
           <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-green-600 to-blue-600 text-white py-1">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-600 text-white py-1">
               <CardTitle className="text-xs">
                 {months[currentMonth]} ({currentMonthHolidays.length})
               </CardTitle>

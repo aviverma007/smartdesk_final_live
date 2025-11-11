@@ -338,7 +338,7 @@ const MeetingRooms = () => {
                 <CardTitle className="text-lg">{room.name}</CardTitle>
                 <Badge 
                   className={room.status === 'vacant' 
-                    ? 'bg-green-100 text-green-800 border-green-300' 
+                    ? 'bg-blue-100 text-blue-800 border-green-300' 
                     : 'bg-red-100 text-red-800 border-red-300'}
                 >
                   {room.status === 'vacant' ? '✅ VACANT' : '🔴 OCCUPIED'}
@@ -424,8 +424,8 @@ const MeetingRooms = () => {
 
                 {/* Show truly vacant status */}
                 {(!room.bookings || room.bookings.length === 0) && (
-                  <div className="bg-green-50 border border-green-200 p-3 rounded-md">
-                    <div className="flex items-center text-sm text-green-800">
+                  <div className="bg-green-50 border border-blue-200 p-3 rounded-md">
+                    <div className="flex items-center text-sm text-blue-800">
                       <CheckCircle className="mr-2 h-4 w-4" />
                       ✅ Available - No bookings scheduled
                     </div>

@@ -50,7 +50,7 @@ const Workflows = () => {
         <Card className="text-center hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex justify-center mb-2">
-              <ArrowRight className="h-8 w-8 text-green-600" />
+              <ArrowRight className="h-8 w-8 text-blue-600" />
             </div>
             <CardTitle className="text-lg">Step-by-Step Guidance</CardTitle>
           </CardHeader>

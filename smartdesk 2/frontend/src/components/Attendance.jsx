@@ -69,7 +69,7 @@ const Attendance = () => {
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'present':
-        return 'bg-green-100 text-green-800';
+        return 'bg-blue-100 text-blue-800';
       case 'late':
         return 'bg-yellow-100 text-yellow-800';
       case 'half_day':
@@ -247,7 +247,7 @@ const Attendance = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
-              <Clock className="h-8 w-8 text-green-500" />
+              <Clock className="h-8 w-8 text-blue-500" />
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Present Today</p>
                 <p className="text-2xl font-bold">

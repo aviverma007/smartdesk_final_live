@@ -130,7 +130,7 @@ const UserAlerts = () => {
       case 'medium':
         return 'bg-blue-500 border-blue-600';
       case 'low':
-        return 'bg-green-500 border-green-600';
+        return 'bg-green-500 border-blue-600';
       default:
         return 'bg-blue-500 border-blue-600';
     }
