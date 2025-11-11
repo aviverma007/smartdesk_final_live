@@ -1,0 +1,57 @@
+{
+  "name": "smartworld-employee-portal",
+  "version": "1.0.0",
+  "description": "SMARTWORLD DEVELOPERS Employee Management System",
+  "main": "production-server.js",
+  "scripts": {
+    "start": "node production-server.js",
+    "dev": "nodemon production-server.js",
+    "build": "cd frontend && npm run build",
+    "install-deps": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "deploy": "npm run install-deps && npm run build && pm2 start ecosystem.config.js",
+    "logs": "pm2 logs",
+    "status": "pm2 status",
+    "restart": "pm2 restart all",
+    "stop": "pm2 stop all"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6",
+    "compression": "^1.7.4",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "employee-management",
+    "smartworld-developers",
+    "corporate-portal",
+    "windows-server"
+  ],
+  "author": "SMARTWORLD DEVELOPERS IT Department",
+  "license": "Proprietary",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "internal"
+  },
+  "private": true,
+  "config": {
+    "company": "SMARTWORLD DEVELOPERS PVT. LTD.",
+    "server": "81096-LP2",
+    "ip": "192.168.166.171",
+    "domain": "smartworldemployee.com",
+    "maxEmployees": 1000
+  }
+}
