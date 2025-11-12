@@ -180,33 +180,33 @@ const Dashboard = () => {
             <h1 className="text-xl font-bold text-gray-800 mb-1">Power BI Dashboard</h1>
             <p className="text-xs text-gray-600">View and analyze your business intelligence reports</p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {isAuthenticated ? (
               <>
-                <div className="flex items-center space-x-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
-                  <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">Signed In</span>
+                <div className="flex items-center space-x-1.5 text-green-600 bg-green-50 px-3 py-1.5 rounded-lg">
+                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-medium">Signed In</span>
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3.5 w-3.5" />
                   <span>Sign Out</span>
                 </button>
               </>
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105"
               >
-                <LogIn className="h-5 w-5" />
+                <LogIn className="h-4 w-4" />
                 <span className="font-semibold">Sign In to Power BI</span>
               </button>
             )}
           </div>
         </div>
-        <div className="h-px bg-gray-300 w-full mt-4"></div>
+        <div className="h-px bg-gray-300 w-full mt-2"></div>
       </div>
 
       {/* Authentication Modal */}
