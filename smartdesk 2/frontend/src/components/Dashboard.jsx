@@ -97,8 +97,55 @@ const Dashboard = () => {
     }
   }, [isPaused, dashboards.length]);
 
+  // Handle Power BI authentication
+  const handleSignIn = () => {
+    setIsLoading(true);
+    setError(null);
+    
+    // Open Power BI authentication in popup
+    const width = 600;
+    const height = 700;
+    const left = (window.screen.width / 2) - (width / 2);
+    const top = (window.screen.height / 2) - (height / 2);
+    
+    const authWindow = window.open(
+      'https://app.powerbi.com/',
+      'Power BI Sign In',
+      `width=${width},height=${height},top=${top},left=${left},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
+
+    // Check if popup was blocked
+    if (!authWindow) {
+      setError('Popup blocked! Please allow popups for this site.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Monitor popup
+    const checkPopup = setInterval(() => {
+      if (authWindow.closed) {
+        clearInterval(checkPopup);
+        setIsLoading(false);
+        // Simulate successful authentication
+        setIsAuthenticated(true);
+        setShowAuthModal(false);
+        setError(null);
+      }
+    }, 500);
+  };
+
+  const handleSignOut = () => {
+    setIsAuthenticated(false);
+    setEmbedToken(null);
+    setError(null);
+  };
+
   const handleDashboardClick = (dashboard) => {
-    window.open(dashboard.url, '_blank');
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+    } else {
+      window.open(dashboard.url, '_blank');
+    }
   };
 
   const goToSlide = (index) => {
