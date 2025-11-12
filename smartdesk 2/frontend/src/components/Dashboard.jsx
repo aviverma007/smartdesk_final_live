@@ -162,11 +162,143 @@ const Dashboard = () => {
 
   return (
     <div className="h-full p-6">
-      {/* Simple Header */}
+      {/* Header with Auth Status */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Dashboard</h1>
-        <div className="h-px bg-gray-300 w-full"></div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">Power BI Dashboard</h1>
+            <p className="text-sm text-gray-600">View and analyze your business intelligence reports</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center space-x-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg">
+                  <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Signed In</span>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              >
+                <LogIn className="h-5 w-5" />
+                <span className="font-semibold">Sign In to Power BI</span>
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="h-px bg-gray-300 w-full mt-4"></div>
       </div>
+
+      {/* Authentication Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Sign In to Power BI</h2>
+                <button 
+                  onClick={() => setShowAuthModal(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="mt-2 text-blue-100">Access your Power BI reports and dashboards</p>
+            </div>
+            
+            <div className="p-6">
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-red-800 font-medium">Authentication Error</p>
+                    <p className="text-sm text-red-600 mt-1">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">Before you continue:</h3>
+                  <ul className="text-sm text-blue-800 space-y-2">
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Make sure popups are enabled for this site</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>You'll be redirected to Microsoft login</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Sign in with your organization account</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={handleSignIn}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="h-5 w-5 animate-spin" />
+                      <span className="font-semibold">Opening Sign In...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="h-5 w-5" />
+                      <span className="font-semibold">Sign In with Microsoft</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowAuthModal(false)}
+                  className="w-full px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show sign-in prompt if not authenticated */}
+      {!isAuthenticated && (
+        <div className="mb-8 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-8 text-center">
+          <div className="max-w-2xl mx-auto">
+            <div className="mb-4">
+              <BarChart3 className="h-16 w-16 text-blue-600 mx-auto" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Power BI Dashboard</h2>
+            <p className="text-gray-600 mb-6">
+              Sign in to access your business intelligence reports and interactive dashboards. 
+              View real-time analytics, track KPIs, and make data-driven decisions.
+            </p>
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <LogIn className="h-6 w-6" />
+              <span className="font-semibold text-lg">Sign In to Get Started</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* All Dashboards in Single Grid Layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 mb-8">
