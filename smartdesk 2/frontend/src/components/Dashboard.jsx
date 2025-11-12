@@ -388,44 +388,8 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
-
-          {/* Navigation Arrows */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
-          >
-            <ChevronLeft className="h-6 w-6 text-gray-800" />
-          </button>
-          <button
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
-          >
-            <ChevronRight className="h-6 w-6 text-gray-800" />
-          </button>
-
-          {/* Slide Indicators */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2">
-            {dashboards.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`transition-all duration-300 rounded-full ${
-                  index === currentSlide 
-                    ? 'w-8 h-3 bg-blue-600' 
-                    : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Pause Indicator */}
-          {isPaused && (
-            <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-              Paused
-            </div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
