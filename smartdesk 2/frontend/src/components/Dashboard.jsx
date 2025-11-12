@@ -333,20 +333,20 @@ const Dashboard = () => {
 
       {/* Auto-Rotating Slider with All Reports - Shows after authentication */}
       {isAuthenticated && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Your Power BI Reports</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Auto-rotating every 2 seconds • Hover to pause • {dashboards.length} reports available
+              <h2 className="text-lg font-bold text-gray-800">Your Power BI Reports</h2>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Auto-rotating every 2 seconds • Hover to pause • {dashboards.length} reports
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-xs text-gray-600">
                 Report {currentSlide + 1} of {dashboards.length}
               </span>
               {isPaused && (
-                <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium border border-yellow-300">
+                <div className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-medium border border-yellow-300">
                   Paused
                 </div>
               )}
@@ -356,12 +356,12 @@ const Dashboard = () => {
           {/* Main Slider Container */}
           <div 
             ref={sliderRef}
-            className="relative bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-gray-200"
+            className="relative bg-white rounded-xl shadow-xl overflow-hidden border-2 border-gray-200"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
             {/* Slider Content */}
-            <div className="relative h-[750px]">
+            <div className="relative h-[500px]">
               {dashboards.map((dashboard, index) => (
                 <div
                   key={dashboard.id}
