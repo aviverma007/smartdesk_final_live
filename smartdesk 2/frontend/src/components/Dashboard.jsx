@@ -332,63 +332,56 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Auto Slider Section with Power BI Previews */}
-      <div className="mt-12">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Featured Dashboards</h2>
-        
-        <div 
-          ref={sliderRef}
-          className="relative bg-white rounded-2xl shadow-2xl overflow-hidden"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-        >
-          {/* Slider Container */}
-          <div className="relative h-[600px]">
+      {/* Scrollable Dashboards Section - Shows after authentication */}
+      {isAuthenticated && (
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Your Power BI Reports</h2>
+            <div className="text-sm text-gray-600">
+              Scroll down to view all {dashboards.length} reports
+            </div>
+          </div>
+          
+          {/* Scrollable Container with All Reports */}
+          <div className="space-y-8">
             {dashboards.map((dashboard, index) => (
-              <div
+              <div 
                 key={dashboard.id}
-                className={`absolute inset-0 transition-all duration-500 ease-in-out ${
-                  index === currentSlide 
-                    ? 'opacity-100 translate-x-0' 
-                    : index < currentSlide 
-                    ? 'opacity-0 -translate-x-full' 
-                    : 'opacity-0 translate-x-full'
-                }`}
+                className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-300"
               >
-                <div className="h-full flex flex-col p-6">
+                <div className="flex flex-col">
                   {/* Dashboard Header */}
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-gray-200">
                     <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-lg bg-gradient-to-br ${dashboard.color}`}>
+                      <div className={`p-3 rounded-lg bg-gradient-to-br ${dashboard.color} shadow-lg`}>
                         {dashboard.icon}
                       </div>
                       <div>
                         <h3 className="text-2xl font-bold text-gray-800">{dashboard.title}</h3>
-                        <p className="text-sm text-gray-600">{dashboard.description}</p>
+                        <p className="text-sm text-gray-600 mt-1">{dashboard.description}</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDashboardClick(dashboard)}
-                      className={`px-6 py-3 bg-gradient-to-r ${dashboard.color} text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2`}
-                    >
-                      <span>Open Full View</span>
-                      <ExternalLink className="h-5 w-5" />
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
+                        Report {index + 1} of {dashboards.length}
+                      </div>
+                      <button
+                        onClick={() => window.open(dashboard.url, '_blank')}
+                        className={`px-6 py-3 bg-gradient-to-r ${dashboard.color} text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2`}
+                      >
+                        <span>Open Full View</span>
+                        <ExternalLink className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Power BI Dashboard Preview */}
-                  <div className="flex-1 bg-gray-100 rounded-lg overflow-hidden shadow-inner relative">
+                  {/* Power BI Dashboard Embed */}
+                  <div className="h-[700px] bg-gray-50 relative">
                     <iframe
                       src={dashboard.url}
                       className="w-full h-full border-0"
                       allowFullScreen={true}
                       title={dashboard.title}
-                    />
-                    {/* Overlay to prevent interaction in preview */}
-                    <div 
-                      className="absolute inset-0 cursor-pointer hover:bg-blue-500/5 transition-colors"
-                      onClick={() => handleDashboardClick(dashboard)}
-                      title="Click to open full dashboard"
                     />
                   </div>
                 </div>
