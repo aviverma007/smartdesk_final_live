@@ -411,29 +411,29 @@ const Dashboard = () => {
             {/* Navigation Arrows */}
             <button
               onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-full shadow-xl transition-all duration-300 hover:scale-110 z-20 border-2 border-blue-200"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-2 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-20 border border-blue-200"
               aria-label="Previous report"
             >
-              <ChevronLeft className="h-6 w-6 text-gray-800" />
+              <ChevronLeft className="h-5 w-5 text-gray-800" />
             </button>
             <button
               onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-full shadow-xl transition-all duration-300 hover:scale-110 z-20 border-2 border-blue-200"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-2 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-20 border border-blue-200"
               aria-label="Next report"
             >
-              <ChevronRight className="h-6 w-6 text-gray-800" />
+              <ChevronRight className="h-5 w-5 text-gray-800" />
             </button>
 
             {/* Slide Indicators */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-2 bg-white/90 px-4 py-2 rounded-full shadow-lg z-20">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 bg-white/90 px-3 py-1.5 rounded-full shadow-md z-20">
               {dashboards.map((dashboard, index) => (
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
                   className={`transition-all duration-300 rounded-full ${
                     index === currentSlide 
-                      ? 'w-10 h-3 bg-blue-600' 
-                      : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
+                      ? 'w-8 h-2.5 bg-blue-600' 
+                      : 'w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400'
                   }`}
                   aria-label={`Go to ${dashboard.title}`}
                   title={dashboard.title}
@@ -443,27 +443,27 @@ const Dashboard = () => {
 
             {/* Auto-rotate indicator */}
             {!isPaused && (
-              <div className="absolute top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2 shadow-lg z-20 animate-pulse">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-                <span>Auto-rotating</span>
+              <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1.5 shadow-md z-20 animate-pulse">
+                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                <span>Auto</span>
               </div>
             )}
           </div>
 
           {/* Quick Navigation Grid */}
-          <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="mt-3 grid grid-cols-7 gap-2">
             {dashboards.map((dashboard, index) => (
               <button
                 key={dashboard.id}
                 onClick={() => goToSlide(index)}
-                className={`p-4 rounded-lg border-2 transition-all duration-300 ${
+                className={`p-2 rounded-lg border transition-all duration-300 ${
                   index === currentSlide
-                    ? 'border-blue-600 bg-blue-50 shadow-lg scale-105'
-                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                    ? 'border-blue-600 bg-blue-50 shadow-md scale-105'
+                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow'
                 }`}
               >
-                <div className={`mb-2 p-2 rounded-lg bg-gradient-to-br ${dashboard.color} inline-block`}>
-                  {dashboard.icon}
+                <div className={`mb-1 p-1.5 rounded-md bg-gradient-to-br ${dashboard.color} inline-block`}>
+                  {React.cloneElement(dashboard.icon, { className: "h-4 w-4 text-white" })}
                 </div>
                 <h4 className="text-xs font-semibold text-gray-800 truncate">{dashboard.title}</h4>
               </button>
