@@ -86,16 +86,16 @@ const Dashboard = () => {
     }
   ];
 
-  // Auto-slide effect
+  // Auto-slide effect - only works when authenticated
   useEffect(() => {
-    if (!isPaused) {
+    if (isAuthenticated && !isPaused) {
       const interval = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % dashboards.length);
       }, 2000); // Change slide every 2 seconds
 
       return () => clearInterval(interval);
     }
-  }, [isPaused, dashboards.length]);
+  }, [isAuthenticated, isPaused, dashboards.length]);
 
   // Handle Power BI authentication
   const handleSignIn = () => {
