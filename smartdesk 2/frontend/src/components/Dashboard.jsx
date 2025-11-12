@@ -134,6 +134,17 @@ const Dashboard = () => {
     }, 500);
   };
 
+  // Demo/Testing function - remove in production
+  const handleDemoAuth = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsAuthenticated(true);
+      setShowAuthModal(false);
+      setIsLoading(false);
+      setError(null);
+    }, 1000);
+  };
+
   const handleSignOut = () => {
     setIsAuthenticated(false);
     setEmbedToken(null);
