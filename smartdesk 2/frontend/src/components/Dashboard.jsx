@@ -276,6 +276,25 @@ const Dashboard = () => {
                   )}
                 </button>
 
+                {/* Demo/Testing Button - Remove in production */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or for testing</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleDemoAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="font-medium">Simulate Successful Auth (Demo)</span>
+                </button>
+
                 <button
                   onClick={() => setShowAuthModal(false)}
                   className="w-full px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
