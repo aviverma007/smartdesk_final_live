@@ -172,13 +172,13 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="h-full p-6">
+    <div className="h-full p-4">
       {/* Header with Auth Status */}
-      <div className="mb-6">
+      <div className="mb-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Power BI Dashboard</h1>
-            <p className="text-sm text-gray-600">View and analyze your business intelligence reports</p>
+            <h1 className="text-xl font-bold text-gray-800 mb-1">Power BI Dashboard</h1>
+            <p className="text-xs text-gray-600">View and analyze your business intelligence reports</p>
           </div>
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
