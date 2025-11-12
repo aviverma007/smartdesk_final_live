@@ -375,22 +375,22 @@ const Dashboard = () => {
                 >
                   <div className="h-full flex flex-col">
                     {/* Dashboard Header */}
-                    <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-gray-200">
-                      <div className="flex items-center space-x-4">
-                        <div className={`p-3 rounded-lg bg-gradient-to-br ${dashboard.color} shadow-lg`}>
-                          {dashboard.icon}
+                    <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg bg-gradient-to-br ${dashboard.color} shadow-md`}>
+                          {React.cloneElement(dashboard.icon, { className: "h-5 w-5 text-white" })}
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold text-gray-800">{dashboard.title}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{dashboard.description}</p>
+                          <h3 className="text-lg font-bold text-gray-800">{dashboard.title}</h3>
+                          <p className="text-xs text-gray-600">{dashboard.description}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => window.open(dashboard.url, '_blank')}
-                        className={`px-6 py-3 bg-gradient-to-r ${dashboard.color} text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2`}
+                        className={`px-4 py-2 bg-gradient-to-r ${dashboard.color} text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2`}
                       >
                         <span>Open Full View</span>
-                        <ExternalLink className="h-5 w-5" />
+                        <ExternalLink className="h-4 w-4" />
                       </button>
                     </div>
 
