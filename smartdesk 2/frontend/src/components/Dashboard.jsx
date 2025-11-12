@@ -330,37 +330,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* All Dashboards in Single Grid Layout */}
-      {isAuthenticated && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 mb-8">
-          {dashboards.map(dashboard => (
-            <div
-              key={dashboard.id}
-              onClick={() => handleDashboardClick(dashboard)}
-              className="cursor-pointer group relative overflow-hidden rounded-xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-            >
-              <div className={`h-32 bg-gradient-to-br ${dashboard.color} p-4 flex flex-col justify-between text-white`}>
-                <div className="flex items-center justify-between">
-                  {dashboard.icon}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <ExternalLink className="h-5 w-5" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">{dashboard.title}</h3>
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-600">{dashboard.description}</p>
-                <div className="mt-3 flex items-center text-blue-600 text-sm font-medium">
-                  <span>View Dashboard</span>
-                  <ExternalLink className="ml-1 h-4 w-4" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Removed grid layout - all reports now shown in slider after authentication */}
 
       {/* Auto-Rotating Slider with All Reports - Shows after authentication */}
       {isAuthenticated && (
