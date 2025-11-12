@@ -362,38 +362,59 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Scrollable Dashboards Section - Shows after authentication */}
+      {/* Auto-Rotating Slider with All Reports - Shows after authentication */}
       {isAuthenticated && (
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Your Power BI Reports</h2>
-            <div className="text-sm text-gray-600">
-              Scroll down to view all {dashboards.length} reports
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800">Your Power BI Reports</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Auto-rotating every 2 seconds • Hover to pause • {dashboards.length} reports available
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">
+                Report {currentSlide + 1} of {dashboards.length}
+              </span>
+              {isPaused && (
+                <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium border border-yellow-300">
+                  Paused
+                </div>
+              )}
             </div>
           </div>
           
-          {/* Scrollable Container with All Reports */}
-          <div className="space-y-8">
-            {dashboards.map((dashboard, index) => (
-              <div 
-                key={dashboard.id}
-                className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-300"
-              >
-                <div className="flex flex-col">
-                  {/* Dashboard Header */}
-                  <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-gray-200">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-lg bg-gradient-to-br ${dashboard.color} shadow-lg`}>
-                        {dashboard.icon}
-                      </div>
-                      <div>
-                        <h3 className="text-2xl font-bold text-gray-800">{dashboard.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{dashboard.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
-                        Report {index + 1} of {dashboards.length}
+          {/* Main Slider Container */}
+          <div 
+            ref={sliderRef}
+            className="relative bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-gray-200"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
+            {/* Slider Content */}
+            <div className="relative h-[750px]">
+              {dashboards.map((dashboard, index) => (
+                <div
+                  key={dashboard.id}
+                  className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                    index === currentSlide 
+                      ? 'opacity-100 translate-x-0 z-10' 
+                      : index < currentSlide 
+                      ? 'opacity-0 -translate-x-full z-0' 
+                      : 'opacity-0 translate-x-full z-0'
+                  }`}
+                >
+                  <div className="h-full flex flex-col">
+                    {/* Dashboard Header */}
+                    <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-gray-200">
+                      <div className="flex items-center space-x-4">
+                        <div className={`p-3 rounded-lg bg-gradient-to-br ${dashboard.color} shadow-lg`}>
+                          {dashboard.icon}
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-800">{dashboard.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{dashboard.description}</p>
+                        </div>
                       </div>
                       <button
                         onClick={() => window.open(dashboard.url, '_blank')}
@@ -403,19 +424,80 @@ const Dashboard = () => {
                         <ExternalLink className="h-5 w-5" />
                       </button>
                     </div>
-                  </div>
 
-                  {/* Power BI Dashboard Embed */}
-                  <div className="h-[700px] bg-gray-50 relative">
-                    <iframe
-                      src={dashboard.url}
-                      className="w-full h-full border-0"
-                      allowFullScreen={true}
-                      title={dashboard.title}
-                    />
+                    {/* Power BI Dashboard Embed */}
+                    <div className="flex-1 bg-gray-50 relative">
+                      <iframe
+                        src={dashboard.url}
+                        className="w-full h-full border-0"
+                        allowFullScreen={true}
+                        title={dashboard.title}
+                      />
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Navigation Arrows */}
+            <button
+              onClick={prevSlide}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-full shadow-xl transition-all duration-300 hover:scale-110 z-20 border-2 border-blue-200"
+              aria-label="Previous report"
+            >
+              <ChevronLeft className="h-6 w-6 text-gray-800" />
+            </button>
+            <button
+              onClick={nextSlide}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-full shadow-xl transition-all duration-300 hover:scale-110 z-20 border-2 border-blue-200"
+              aria-label="Next report"
+            >
+              <ChevronRight className="h-6 w-6 text-gray-800" />
+            </button>
+
+            {/* Slide Indicators */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-2 bg-white/90 px-4 py-2 rounded-full shadow-lg z-20">
+              {dashboards.map((dashboard, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`transition-all duration-300 rounded-full ${
+                    index === currentSlide 
+                      ? 'w-10 h-3 bg-blue-600' 
+                      : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
+                  }`}
+                  aria-label={`Go to ${dashboard.title}`}
+                  title={dashboard.title}
+                />
+              ))}
+            </div>
+
+            {/* Auto-rotate indicator */}
+            {!isPaused && (
+              <div className="absolute top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2 shadow-lg z-20 animate-pulse">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+                <span>Auto-rotating</span>
               </div>
+            )}
+          </div>
+
+          {/* Quick Navigation Grid */}
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {dashboards.map((dashboard, index) => (
+              <button
+                key={dashboard.id}
+                onClick={() => goToSlide(index)}
+                className={`p-4 rounded-lg border-2 transition-all duration-300 ${
+                  index === currentSlide
+                    ? 'border-blue-600 bg-blue-50 shadow-lg scale-105'
+                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                }`}
+              >
+                <div className={`mb-2 p-2 rounded-lg bg-gradient-to-br ${dashboard.color} inline-block`}>
+                  {dashboard.icon}
+                </div>
+                <h4 className="text-xs font-semibold text-gray-800 truncate">{dashboard.title}</h4>
+              </button>
             ))}
           </div>
         </div>
