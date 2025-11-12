@@ -309,22 +309,21 @@ const Dashboard = () => {
 
       {/* Show sign-in prompt if not authenticated */}
       {!isAuthenticated && (
-        <div className="mb-8 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-8 text-center">
+        <div className="mb-4 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6 text-center">
           <div className="max-w-2xl mx-auto">
-            <div className="mb-4">
-              <BarChart3 className="h-16 w-16 text-blue-600 mx-auto" />
+            <div className="mb-3">
+              <BarChart3 className="h-12 w-12 text-blue-600 mx-auto" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Power BI Dashboard</h2>
-            <p className="text-gray-600 mb-6">
-              Sign in to access your business intelligence reports and interactive dashboards. 
-              View real-time analytics, track KPIs, and make data-driven decisions.
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Welcome to Power BI Dashboard</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Sign in to access your business intelligence reports and interactive dashboards.
             </p>
             <button
               onClick={() => setShowAuthModal(true)}
-              className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              <LogIn className="h-6 w-6" />
-              <span className="font-semibold text-lg">Sign In to Get Started</span>
+              <LogIn className="h-5 w-5" />
+              <span className="font-semibold">Sign In to Get Started</span>
             </button>
           </div>
         </div>
