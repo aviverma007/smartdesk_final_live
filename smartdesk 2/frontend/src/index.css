@@ -52,13 +52,9 @@
   --re-overlay:    rgba(244,242,255,0.88);
 }
 
-/* ── Custom Cursor — SWD Logo, white stroke ─────────────────────────────── */
+/* ── Reset ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='26' r='12' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cline x1='20' y1='1' x2='20' y2='38' stroke='white' stroke-width='2.8'/%3E%3Cpolygon points='20,0 15,10 20,8 25,10' fill='white'/%3E%3Cline x1='20' y1='20' x2='11' y2='29' stroke='white' stroke-width='2.2'/%3E%3Cline x1='20' y1='20' x2='29' y2='29' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E") 20 0, auto !important;
-}
-a, button, [role="button"], .nav-item, select, label {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='26' r='12' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cline x1='20' y1='1' x2='20' y2='38' stroke='white' stroke-width='2.8'/%3E%3Cpolygon points='20,0 15,10 20,8 25,10' fill='white'/%3E%3Cline x1='20' y1='20' x2='11' y2='29' stroke='white' stroke-width='2.2'/%3E%3Cline x1='20' y1='20' x2='29' y2='29' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E") 20 0, pointer !important;
 }
 
 
