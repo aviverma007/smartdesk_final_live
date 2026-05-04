@@ -10,20 +10,23 @@ const HolidayCalendar = () => {
 
   // Holiday data from the PDF
   const holidays = [
-    { id: 1, name: "New Year Day", date: "2025-01-01", day: "Wednesday", type: "National" },
-    { id: 2, name: "Republic Day", date: "2025-01-26", day: "Sunday", type: "Weekend Holiday" },
-    { id: 3, name: "Mahashiv Ratri", date: "2025-02-26", day: "Wednesday", type: "Religious" },
-    { id: 4, name: "Holi", date: "2025-03-14", day: "Friday", type: "Religious" },
-    { id: 5, name: "Raksha Bandhan", date: "2025-08-09", day: "Saturday", type: "Weekend Holiday" },
-    { id: 6, name: "Independence Day", date: "2025-08-15", day: "Friday", type: "National" },
-    { id: 7, name: "Janmashtami", date: "2025-08-16", day: "Saturday", type: "Religious" },
-    { id: 8, name: "Maha Navmi", date: "2025-10-01", day: "Wednesday", type: "Religious" },
-    { id: 9, name: "Gandhi Jayanti/Dussehra", date: "2025-10-02", day: "Thursday", type: "National" },
-    { id: 10, name: "Diwali", date: "2025-10-21", day: "Tuesday", type: "Religious" },
-    { id: 11, name: "Govardhan Puja", date: "2025-10-22", day: "Wednesday", type: "Religious" },
-    { id: 12, name: "Bhai Dooj", date: "2025-10-23", day: "Thursday", type: "Religious" },
-    { id: 13, name: "Christmas Day", date: "2025-12-25", day: "Thursday", type: "National" }
-  ];
+  { id: 1, name: "New Year Day", date: "2026-01-01", day: "Thursday", type: "National" },
+  { id: 2, name: "Republic Day", date: "2026-01-26", day: "Monday", type: "National" },
+  { id: 3, name: "Holi", date: "2026-03-04", day: "Wednesday", type: "Religious" },
+  { id: 4, name: "Ram Navmi", date: "2026-03-26", day: "Thursday", type: "Religious" },
+  { id: 5, name: "Independence Day", date: "2026-08-15", day: "Saturday", type: "National" },
+  { id: 6, name: "Raksha Bandhan", date: "2026-08-28", day: "Friday", type: "Religious" },
+  { id: 7, name: "Janmashtami", date: "2026-09-04", day: "Friday", type: "Religious" },
+  { id: 8, name: "Gandhi Jayanti", date: "2026-10-02", day: "Friday", type: "National" },
+  { id: 9, name: "Dussehra", date: "2026-10-20", day: "Tuesday", type: "Religious" },
+  { id: 10, name: "Govardhan Puja", date: "2026-11-09", day: "Monday", type: "Religious" },
+  { id: 11, name: "Bhai Dooj", date: "2026-11-11", day: "Wednesday", type: "Religious" },
+  { id: 12, name: "Christmas Day", date: "2026-12-25", day: "Friday", type: "National" },
+
+  // Weekend Holidays
+  { id: 13, name: "Mahashiv Ratri", date: "2026-02-15", day: "Sunday", type: "Weekend Holiday" },
+  { id: 14, name: "Diwali", date: "2026-11-08", day: "Sunday", type: "Weekend Holiday" }
+];
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -125,7 +128,7 @@ const HolidayCalendar = () => {
       <div className="mb-4">
         <div className="flex items-center space-x-3 mb-2">
           <Calendar className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">Holiday Calendar 2025</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Holiday Calendar 2026</h1>
         </div>
         <p className="text-gray-600 text-sm">Company holidays and observances for the year</p>
       </div>
