@@ -55,10 +55,10 @@
 /* ── Custom Cursor — SWD Logo, white stroke ─────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 38 38'%3E%3Ccircle cx='19' cy='22' r='13' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cline x1='19' y1='5' x2='19' y2='36' stroke='white' stroke-width='2.8'/%3E%3Cpolygon points='19,2 14,12 19,10 24,12' fill='white'/%3E%3Cline x1='19' y1='18' x2='10' y2='27' stroke='white' stroke-width='2.2'/%3E%3Cline x1='19' y1='18' x2='28' y2='27' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E") 19 2, auto !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 38 38'%3E%3Ccircle cx='19' cy='22' r='13' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cline x1='19' y1='5' x2='19' y2='36' stroke='white' stroke-width='2.8'/%3E%3Cpolygon points='19,2 14,12 19,10 24,12' fill='white'/%3E%3Cline x1='19' y1='18' x2='10' y2='27' stroke='white' stroke-width='2.2'/%3E%3Cline x1='19' y1='18' x2='28' y2='27' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E") 19 0, auto !important;
 }
 a, button, [role="button"], .nav-item, select, label {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 38 38'%3E%3Ccircle cx='19' cy='22' r='13' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cline x1='19' y1='5' x2='19' y2='36' stroke='white' stroke-width='2.8'/%3E%3Cpolygon points='19,2 14,12 19,10 24,12' fill='white'/%3E%3Cline x1='19' y1='18' x2='10' y2='27' stroke='white' stroke-width='2.2'/%3E%3Cline x1='19' y1='18' x2='28' y2='27' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E") 19 2, pointer !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 38 38'%3E%3Ccircle cx='19' cy='22' r='13' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cline x1='19' y1='5' x2='19' y2='36' stroke='white' stroke-width='2.8'/%3E%3Cpolygon points='19,2 14,12 19,10 24,12' fill='white'/%3E%3Cline x1='19' y1='18' x2='10' y2='27' stroke='white' stroke-width='2.2'/%3E%3Cline x1='19' y1='18' x2='28' y2='27' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E") 19 0, pointer !important;
 }
 
 
