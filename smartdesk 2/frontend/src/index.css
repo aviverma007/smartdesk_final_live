@@ -55,14 +55,14 @@
 /* ── Custom Cursor ───────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
-  cursor: url('/cursor-default.svg') 16 4, auto !important;
+  cursor: url('%PUBLIC_URL%/cursor-default.svg') 16 4, auto !important;
 }
 a, button, [role="button"], .nav-item, select, label,
 [onclick], [style*="cursor:pointer"], [style*="cursor: pointer"] {
-  cursor: url('/cursor-pointer.svg') 16 4, pointer !important;
+  cursor: url('%PUBLIC_URL%/cursor-pointer.svg') 16 4, pointer !important;
 }
 input, textarea {
-  cursor: url('/cursor-default.svg') 16 4, text !important;
+  cursor: url('%PUBLIC_URL%/cursor-default.svg') 16 4, text !important;
 }
 
 html { scroll-behavior: smooth; }
