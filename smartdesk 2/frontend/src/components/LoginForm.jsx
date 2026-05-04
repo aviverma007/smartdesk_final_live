@@ -4,192 +4,169 @@ import { toast } from 'sonner';
 
 const LoginForm = () => {
   const { login, isAuthenticated } = useAuth();
-  const [loadingText, setLoadingText] = useState('INITIALIZING SYSTEM');
+  const [step, setStep] = useState(0); // 0=loading, 1=form, 2=autologin
   const [progress, setProgress] = useState(0);
   const canvasRef = useRef(null);
 
-  useEffect(() => {
-    // Progress bar
-    const prog = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) { clearInterval(prog); return 100; }
-        return p + 2;
-      });
-    }, 55);
+  const STEPS = ['Initializing modules', 'Loading resources', 'Establishing connection', 'Ready'];
 
-    const texts = [
-      [600, 'LOADING RESOURCES'],
-      [1200, 'AUTHENTICATING'],
-      [1800, 'ESTABLISHING CONNECTION'],
-      [2400, 'SYSTEM READY'],
-    ];
-    const timers = texts.map(([d, t]) => setTimeout(() => setLoadingText(t), d));
+  useEffect(() => {
+    // Animate progress to 100 over 2.8s
+    const start = Date.now();
+    const dur = 2800;
+    const raf = setInterval(() => {
+      const p = Math.min(100, Math.round(((Date.now()-start)/dur)*100));
+      setProgress(p);
+      setStep(Math.min(3, Math.floor(p/25)));
+      if (p >= 100) clearInterval(raf);
+    }, 30);
+
     const loginTimer = setTimeout(() => {
       if (!isAuthenticated) {
         login({ name: 'User', role: 'user', employeeId: '', loginTime: new Date().toISOString() });
-        toast.success('Welcome to SmartDesk 2.0', { description: 'Futuristic enterprise intelligence activated', duration: 3000 });
+        toast.success('Welcome to SmartDesk', { description: 'Enterprise portal ready', duration: 3000 });
       }
     }, 3000);
 
-    return () => { timers.forEach(clearTimeout); clearTimeout(loginTimer); clearInterval(prog); };
+    return () => { clearInterval(raf); clearTimeout(loginTimer); };
   }, [login, isAuthenticated]);
 
-  // Canvas star background
+  // Particle canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    let W = canvas.width = window.innerWidth;
-    let H = canvas.height = window.innerHeight;
-    const stars = Array.from({length: 150}, () => ({
-      x: Math.random()*W, y: Math.random()*H,
-      r: Math.random()*.8+.1, s: Math.random()*.4+.05, t: Math.random()*Math.PI*2,
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = Array.from({length:80}, () => ({
+      x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+      vx: (Math.random()-.5)*.4, vy: (Math.random()-.5)*.4,
+      r: Math.random()*1.5+.3,
+      c: Math.random()>.6 ? 'rgba(124,58,237,' : Math.random()>.5 ? 'rgba(244,114,182,' : 'rgba(96,165,250,',
     }));
+
     let raf;
     function draw() {
-      ctx.fillStyle = '#020816';
-      ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgba(0,212,255,0.04)';
-      ctx.lineWidth = .5;
-      for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
-      for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
-      stars.forEach(s => {
-        s.t += s.s * .015;
-        const a = .3 + .7*(Math.sin(s.t)+1)/2;
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(0,212,255,${a})`; ctx.fill();
+      ctx.fillStyle='rgba(13,11,26,0.18)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if(p.x<0||p.x>canvas.width) p.vx*=-1;
+        if(p.y<0||p.y>canvas.height) p.vy*=-1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=p.c+'0.7)'; ctx.fill();
       });
-      raf = requestAnimationFrame(draw);
+
+      // Connect nearby particles
+      for(let i=0;i<particles.length;i++) {
+        for(let j=i+1;j<particles.length;j++) {
+          const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+          const d=Math.hypot(dx,dy);
+          if(d<100) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x,particles[i].y);
+            ctx.lineTo(particles[j].x,particles[j].y);
+            ctx.strokeStyle=`rgba(124,58,237,${(1-d/100)*.12})`;
+            ctx.lineWidth=.5; ctx.stroke();
+          }
+        }
+      }
+      raf=requestAnimationFrame(draw);
     }
     draw();
     return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+    <div style={{ position:'relative', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', background:'#0d0b1a' }}>
+      {/* Ambient orbs */}
+      <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(124,58,237,0.25),transparent)', top:-120, left:-100, filter:'blur(60px)', pointerEvents:'none' }}/>
+      <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(244,114,182,0.2),transparent)', bottom:-80, right:-60, filter:'blur(60px)', pointerEvents:'none' }}/>
 
-      {/* Center content */}
-      <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
-        {/* Logo glow */}
-        <div style={{ position: 'relative', animation: 'loginFloat 4s ease-in-out infinite' }}>
+      <canvas ref={canvasRef} style={{ position:'absolute', inset:0, zIndex:0 }}/>
+
+      {/* Card */}
+      <div style={{
+        position:'relative', zIndex:10,
+        width:340, padding:'36px 32px',
+        background:'rgba(22,18,46,0.85)',
+        border:'1px solid rgba(139,92,246,0.3)',
+        borderRadius:20,
+        backdropFilter:'blur(24px)',
+        WebkitBackdropFilter:'blur(24px)',
+        boxShadow:'0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.1)',
+        animation:'loginIn 0.5s cubic-bezier(.22,.68,0,1.2)',
+      }}>
+        {/* Top gradient line */}
+        <div style={{ position:'absolute', top:0, left:'20%', right:'20%', height:2, background:'linear-gradient(90deg,transparent,#7c3aed,#f472b6,transparent)', borderRadius:1 }}/>
+
+        {/* Logo */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:28 }}>
           <div style={{
-            position: 'absolute', inset: -20,
-            background: 'radial-gradient(circle, rgba(0,212,255,0.2) 0%, transparent 70%)',
-            borderRadius: '50%', animation: 'loginPulse 3s ease-in-out infinite',
-          }} />
-          <div style={{
-            width: 80, height: 80, borderRadius: 16,
-            background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,102,255,0.2))',
-            border: '1px solid rgba(0,212,255,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 30px rgba(0,212,255,0.3)',
-            position: 'relative',
+            width:60, height:60, borderRadius:16,
+            background:'linear-gradient(135deg,#7c3aed,#f472b6)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            boxShadow:'0 8px 28px rgba(124,58,237,0.55)',
+            marginBottom:14,
+            animation:'logoFloat 4s ease-in-out infinite',
           }}>
-            <img src="/images/header-logo.png" alt="SmartDesk" style={{ width: 52, height: 52, objectFit: 'contain' }}
-              onError={e => { e.target.style.display='none'; }} />
-            <span style={{
-              position: 'absolute', fontFamily: 'Orbitron, monospace', fontWeight: 900,
-              fontSize: 22, color: '#00d4ff', textShadow: '0 0 15px rgba(0,212,255,0.8)',
-            }}>SD</span>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
           </div>
+          <div style={{ fontFamily:'Plus Jakarta Sans,sans-serif', fontWeight:800, fontSize:'1.5rem', color:'#f1eeff', letterSpacing:'-0.01em' }}>SmartDesk</div>
+          <div style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.78rem', color:'rgba(177,168,216,0.6)', marginTop:4 }}>Enterprise Intelligence Portal</div>
         </div>
 
-        {/* Title */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            fontFamily: 'Orbitron, monospace', fontWeight: 900, fontSize: '2.2rem',
-            letterSpacing: '.2em', color: '#00d4ff',
-            textShadow: '0 0 30px rgba(0,212,255,0.7), 0 0 60px rgba(0,212,255,0.3)',
-            animation: 'loginGlow 3s ease-in-out infinite',
-          }}>
-            SMARTDESK
-          </div>
-          <div style={{
-            fontFamily: 'Share Tech Mono, monospace', fontSize: '.65rem',
-            letterSpacing: '.3em', color: 'rgba(0,212,255,0.4)',
-            textTransform: 'uppercase', marginTop: 8,
-          }}>
-            ENTERPRISE INTELLIGENCE SYSTEM v2.0
-          </div>
-        </div>
-
-        {/* Loading card */}
-        <div style={{
-          width: 280,
-          background: 'rgba(6,20,45,0.9)',
-          border: '1px solid rgba(0,212,255,0.3)',
-          borderRadius: 10, padding: '20px 24px',
-          boxShadow: '0 0 40px rgba(0,212,255,0.1)',
-          position: 'relative', overflow: 'hidden',
-          animation: 'fadeInCard .5s ease',
-        }}>
-          {/* Scan line */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-            background: 'linear-gradient(90deg, transparent, #00d4ff, transparent)',
-            opacity: .7,
-          }} />
-          <div style={{
-            position: 'absolute', left: 0, right: 0, height: 2,
-            background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.5), transparent)',
-            animation: 'scanDown 2s linear infinite',
-          }} />
-
-          <div style={{
-            fontFamily: 'Share Tech Mono, monospace', fontSize: '.6rem',
-            letterSpacing: '.1em', color: 'rgba(0,212,255,0.5)',
-            textTransform: 'uppercase', textAlign: 'center', marginBottom: 14,
-          }}>
-            {loadingText}
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ background: 'rgba(0,212,255,0.08)', borderRadius: 3, height: 4, overflow: 'hidden', marginBottom: 12 }}>
-            <div style={{
-              height: '100%', borderRadius: 3,
-              background: 'linear-gradient(90deg, #0066ff, #00d4ff)',
-              width: `${progress}%`,
-              transition: 'width .1s linear',
-              boxShadow: '0 0 8px rgba(0,212,255,0.5)',
-            }} />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {[0, 150, 300].map(d => (
-                <div key={d} style={{
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: '#00d4ff', boxShadow: '0 0 6px #00d4ff',
-                  animation: `loginBounce 1.2s ease-in-out ${d}ms infinite`,
-                }} />
-              ))}
-            </div>
-            <span style={{
-              fontFamily: 'Share Tech Mono, monospace', fontSize: '.6rem',
-              color: '#00d4ff', letterSpacing: '.05em',
-            }}>
+        {/* Loading section */}
+        <div>
+          {/* Status text */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.78rem', color:'rgba(177,168,216,0.7)' }}>
+              {STEPS[step]}...
+            </span>
+            <span style={{ fontFamily:'Plus Jakarta Sans,sans-serif', fontWeight:700, fontSize:'0.78rem', color:'#9b6dff' }}>
               {progress}%
             </span>
           </div>
 
-          <div style={{
-            marginTop: 12,
-            fontFamily: 'Share Tech Mono, monospace', fontSize: '.5rem',
-            color: 'rgba(0,212,255,0.25)', textAlign: 'center', letterSpacing: '.1em',
-          }}>
-            SECURED BY AES-256 // ZERO-TRUST PROTOCOL
+          {/* Progress track */}
+          <div style={{ height:6, borderRadius:6, background:'rgba(255,255,255,0.07)', overflow:'hidden', marginBottom:18 }}>
+            <div style={{
+              height:'100%', borderRadius:6,
+              background:'linear-gradient(90deg,#7c3aed,#f472b6)',
+              width:`${progress}%`,
+              transition:'width 0.06s linear',
+              boxShadow:'0 0 12px rgba(124,58,237,0.6)',
+            }}/>
           </div>
+
+          {/* Step dots */}
+          <div style={{ display:'flex', justifyContent:'center', gap:8 }}>
+            {STEPS.map((_,i) => (
+              <div key={i} style={{
+                width: i===step ? 20 : 7, height:7, borderRadius:4,
+                background: i<=step
+                  ? 'linear-gradient(90deg,#7c3aed,#f472b6)'
+                  : 'rgba(255,255,255,0.1)',
+                transition:'width 0.4s, background 0.4s',
+                boxShadow: i===step ? '0 0 8px rgba(124,58,237,0.7)' : 'none',
+              }}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom note */}
+        <div style={{ marginTop:22, textAlign:'center', fontFamily:'DM Sans,sans-serif', fontSize:'0.65rem', color:'rgba(107,100,145,0.6)', letterSpacing:'0.03em' }}>
+          Auto-login enabled · Secured connection
         </div>
       </div>
 
       <style>{`
-        @keyframes loginFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-        @keyframes loginPulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.15)} }
-        @keyframes loginGlow { 0%,100%{text-shadow:0 0 30px rgba(0,212,255,.7),0 0 60px rgba(0,212,255,.3)} 50%{text-shadow:0 0 40px rgba(0,212,255,1),0 0 80px rgba(0,212,255,.5)} }
-        @keyframes scanDown { 0%{top:0} 100%{top:100%} }
-        @keyframes loginBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-        @keyframes fadeInCard { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes loginIn { from{opacity:0;transform:translateY(20px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes logoFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
       `}</style>
     </div>
   );

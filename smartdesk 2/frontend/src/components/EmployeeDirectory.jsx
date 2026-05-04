@@ -1,14 +1,64 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Search, Grid3X3, List, User, X } from "lucide-react";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader } from "./ui/card";
-import { Badge } from "./ui/badge";
+import { Search, Grid3X3, List, X, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useAuth } from "../context/AuthContext";
 import { employeeAPI, utilityAPI } from "../services/api";
 import EmployeeCard from "./EmployeeCard";
 import EmployeeList from "./EmployeeList";
+
+const S = {
+  container: { padding: '0 0 24px' },
+  searchCard: {
+    background: 'rgba(6,20,45,0.85)', border: '1px solid rgba(0,212,255,0.2)',
+    borderRadius: 8, padding: '14px 16px', marginBottom: 14,
+    backdropFilter: 'blur(12px)', position: 'relative', overflow: 'hidden',
+  },
+  searchCardTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+    background: 'linear-gradient(90deg,transparent,#00d4ff,transparent)', opacity: .5,
+  },
+  inputWrap: { position: 'relative' },
+  input: {
+    width: '100%', background: 'rgba(0,20,40,0.8)',
+    border: '1px solid rgba(0,212,255,0.2)', borderRadius: 5,
+    padding: '8px 34px 8px 34px', color: '#e0f4ff',
+    fontFamily: "'Exo 2', sans-serif", fontSize: '.8rem', outline: 'none',
+    transition: 'border-color .2s',
+  },
+  searchIcon: { position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,212,255,0.4)', pointerEvents: 'none' },
+  clearBtn: {
+    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+    background: 'none', border: 'none', color: 'rgba(0,212,255,0.5)', cursor: 'pointer', padding: 2,
+  },
+  viewBtn: (active) => ({
+    background: active ? 'rgba(0,212,255,0.15)' : 'rgba(6,20,45,0.8)',
+    border: `1px solid ${active ? 'rgba(0,212,255,0.5)' : 'rgba(0,212,255,0.15)'}`,
+    color: active ? '#00d4ff' : 'rgba(122,184,212,0.6)',
+    borderRadius: 5, padding: '6px 10px', cursor: 'pointer', transition: 'all .2s',
+    display: 'flex', alignItems: 'center', gap: 4,
+  }),
+  clearAllBtn: {
+    background: 'rgba(255,107,0,0.1)', border: '1px solid rgba(255,107,0,0.3)',
+    color: '#ff6b00', borderRadius: 5, padding: '6px 12px', cursor: 'pointer',
+    fontFamily: "'Orbitron', monospace", fontSize: '.6rem', letterSpacing: '.1em',
+    transition: 'all .2s',
+  },
+  countBadge: {
+    fontFamily: "'Share Tech Mono', monospace", fontSize: '.6rem',
+    color: '#00d4ff', background: 'rgba(0,212,255,0.1)',
+    border: '1px solid rgba(0,212,255,0.25)', borderRadius: 4,
+    padding: '3px 8px', letterSpacing: '.1em',
+  },
+  loadingWrap: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '60px 0', flexDirection: 'column', gap: 16,
+  },
+  spinner: {
+    width: 36, height: 36, border: '2px solid rgba(0,212,255,0.1)',
+    borderTop: '2px solid #00d4ff', borderRadius: '50%',
+    animation: 'spin .8s linear infinite',
+  },
+};
 
 const EmployeeDirectory = () => {
   const [nameSearch, setNameSearch] = useState("");
@@ -16,446 +66,180 @@ const EmployeeDirectory = () => {
   const [departmentSearch, setDepartmentSearch] = useState("");
   const [designationSearch, setDesignationSearch] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
-  const [debouncedSearchTerms, setDebouncedSearchTerms] = useState({
-    name: "",
-    employeeId: "",
-    department: "",
-    designation: "",
-    location: ""
-  });
+  const [debouncedSearchTerms, setDebouncedSearchTerms] = useState({ name:"",employeeId:"",department:"",designation:"",location:"" });
   const [viewMode, setViewMode] = useState("grid");
   const [employees, setEmployees] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  
   const { isAdmin } = useAuth();
 
-  // Load all data on mount
   useEffect(() => {
-    const loadAllData = async () => {
+    const load = async () => {
       try {
         setLoading(true);
-        const [employeeData, depts, locs] = await Promise.all([
-          employeeAPI.getAll(),
-          utilityAPI.getDepartments(),
-          utilityAPI.getLocations()
-        ]);
-        
-        setEmployees(employeeData);
-        setDepartments(depts);
-        setLocations(locs);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setEmployees([]);
-      } finally {
-        setLoading(false);
-      }
+        const data = await employeeAPI.getAll();
+        setEmployees(data);
+      } catch (e) { setEmployees([]); }
+      finally { setLoading(false); }
     };
-
-    loadAllData();
+    load();
   }, []);
 
-  // Debounce search terms for better performance
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerms({
-        name: nameSearch,
-        employeeId: employeeIdSearch,
-        department: departmentSearch,
-        designation: designationSearch,
-        location: locationSearch
-      });
-    }, 300);
-
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setDebouncedSearchTerms({ name: nameSearch, employeeId: employeeIdSearch, department: departmentSearch, designation: designationSearch, location: locationSearch }), 300);
+    return () => clearTimeout(t);
   }, [nameSearch, employeeIdSearch, departmentSearch, designationSearch, locationSearch]);
 
-  // Client-side filtering with "starts with" pattern - Admin sees all, User needs to search
   const filteredEmployees = useMemo(() => {
-    const hasAnySearch = debouncedSearchTerms.name || debouncedSearchTerms.employeeId || 
-                        debouncedSearchTerms.department || debouncedSearchTerms.designation || debouncedSearchTerms.location;
-    
-    // Admin sees all employees by default, User sees none until search
-    if (!hasAnySearch) {
-      return isAdmin() ? employees : [];
-    }
-
-    // Apply filtering when search terms are present using "starts with" pattern
-    return employees.filter(employee => {
-      const nameMatch = !debouncedSearchTerms.name || 
-        employee.name.toLowerCase().startsWith(debouncedSearchTerms.name.toLowerCase());
-      
-      const idMatch = !debouncedSearchTerms.employeeId || 
-        employee.id.toLowerCase().startsWith(debouncedSearchTerms.employeeId.toLowerCase());
-      
-      const deptMatch = !debouncedSearchTerms.department || 
-        employee.department.toLowerCase().startsWith(debouncedSearchTerms.department.toLowerCase());
-
-      const designationMatch = !debouncedSearchTerms.designation || 
-        employee.grade.toLowerCase().startsWith(debouncedSearchTerms.designation.toLowerCase());
-      
-      const locationMatch = !debouncedSearchTerms.location || 
-        employee.location.toLowerCase().startsWith(debouncedSearchTerms.location.toLowerCase());
-
-      return nameMatch && idMatch && deptMatch && designationMatch && locationMatch;
+    const has = debouncedSearchTerms.name || debouncedSearchTerms.employeeId || debouncedSearchTerms.department || debouncedSearchTerms.designation || debouncedSearchTerms.location;
+    if (!isAdmin && !has) return [];
+    return employees.filter(emp => {
+      const nm = (emp.name || '').toLowerCase();
+      const id = (emp.employeeId || emp.employee_id || '').toLowerCase();
+      const dp = (emp.department || '').toLowerCase();
+      const dg = (emp.designation || '').toLowerCase();
+      const lc = (emp.location || '').toLowerCase();
+      const s = debouncedSearchTerms;
+      return (!s.name || nm.startsWith(s.name.toLowerCase()))
+        && (!s.employeeId || id.startsWith(s.employeeId.toLowerCase()))
+        && (!s.department || dp.startsWith(s.department.toLowerCase()))
+        && (!s.designation || dg.startsWith(s.designation.toLowerCase()))
+        && (!s.location || lc.startsWith(s.location.toLowerCase()));
     });
-  }, [employees, debouncedSearchTerms]);
+  }, [employees, debouncedSearchTerms, isAdmin]);
 
   const hasSearched = nameSearch || employeeIdSearch || departmentSearch || designationSearch || locationSearch;
 
   const handleImageUpdate = async (employeeId, imageData) => {
     try {
-      let updatedEmployee;
-      
-      // Check if imageData is a File object (actual file upload)
-      if (imageData instanceof File) {
-        // Use file upload API for better handling of original images
-        updatedEmployee = await employeeAPI.uploadImage(employeeId, imageData);
-      } else if (typeof imageData === 'string' && imageData.startsWith('data:image/')) {
-        // Handle base64 data (fallback)
-        updatedEmployee = await employeeAPI.updateImage(employeeId, imageData);
-      } else {
-        throw new Error('Invalid image data format');
-      }
-      
-      // Update local state with the response from backend
-      setEmployees(prev => prev.map(emp => 
-        emp.id === employeeId ? updatedEmployee : emp
-      ));
-      
-      // Update selected employee if it's being viewed
-      if (selectedEmployee && selectedEmployee.id === employeeId) {
-        setSelectedEmployee(updatedEmployee);
-      }
-      
-    } catch (error) {
-      console.error("Error updating image:", error);
-      throw error; // Re-throw so EmployeeCard can show error
-    }
+      let updated;
+      if (imageData instanceof File) updated = await employeeAPI.uploadImage(employeeId, imageData);
+      else if (typeof imageData === 'string' && imageData.startsWith('data:image/')) updated = await employeeAPI.updateImage(employeeId, imageData);
+      else throw new Error('Invalid image data');
+      setEmployees(prev => prev.map(e => e.id === employeeId ? updated : e));
+      if (selectedEmployee?.id === employeeId) setSelectedEmployee(updated);
+    } catch (e) { console.error(e); throw e; }
   };
 
-  const handleEmployeeClick = (employee) => {
-    setSelectedEmployee(employee);
-    setShowDetailModal(true);
-  };
+  const clearAllSearches = () => { setNameSearch(""); setEmployeeIdSearch(""); setDepartmentSearch(""); setDesignationSearch(""); setLocationSearch(""); };
 
-  const closeDetailModal = () => {
-    setShowDetailModal(false);
-    setSelectedEmployee(null);
-  };
+  const SearchInput = ({ value, onChange, placeholder }) => (
+    <div style={S.inputWrap}>
+      <Search size={14} style={S.searchIcon} />
+      <input
+        style={S.input}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        onFocus={e => e.target.style.borderColor = 'rgba(0,212,255,0.6)'}
+        onBlur={e => e.target.style.borderColor = 'rgba(0,212,255,0.2)'}
+      />
+      {value && <button style={S.clearBtn} onClick={() => onChange("")}><X size={12} /></button>}
+    </div>
+  );
 
-  const clearAllSearches = () => {
-    setNameSearch("");
-    setEmployeeIdSearch("");
-    setDepartmentSearch("");
-    setDesignationSearch("");
-    setLocationSearch("");
-  };
-
-  // Show loading only on initial data load
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-blue-600">Loading employee directory...</p>
-        </div>
+  if (loading) return (
+    <div style={S.loadingWrap}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={S.spinner} />
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', color: 'rgba(0,212,255,0.5)', letterSpacing: '.15em' }}>
+        LOADING PERSONNEL DATABASE...
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Search Bars */}
-      <Card className="border-blue-200 shadow-sm bg-white">
-        <CardHeader className="pb-4 bg-blue-50">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Name Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 h-4 w-4" />
-              <Input
-                placeholder="Search by name..."
-                value={nameSearch}
-                onChange={(e) => setNameSearch(e.target.value)}
-                className="pl-10 h-11 border-blue-200 focus:border-blue-400"
-              />
-              {nameSearch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setNameSearch("")}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-blue-100"
-                >
-                  <X className="h-4 w-4 text-blue-500" />
-                </Button>
-              )}
-            </div>
-
-            {/* Employee ID Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 h-4 w-4" />
-              <Input
-                placeholder="Search by employee ID..."
-                value={employeeIdSearch}
-                onChange={(e) => setEmployeeIdSearch(e.target.value)}
-                className="pl-10 h-11 border-blue-200 focus:border-blue-400"
-              />
-              {employeeIdSearch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEmployeeIdSearch("")}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-blue-100"
-                >
-                  <X className="h-4 w-4 text-blue-500" />
-                </Button>
-              )}
-            </div>
-
-            {/* Department Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 h-4 w-4" />
-              <Input
-                placeholder="Search by department..."
-                value={departmentSearch}
-                onChange={(e) => setDepartmentSearch(e.target.value)}
-                className="pl-10 h-11 border-blue-200 focus:border-blue-400"
-              />
-              {departmentSearch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setDepartmentSearch("")}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-blue-100"
-                >
-                  <X className="h-4 w-4 text-blue-500" />
-                </Button>
-              )}
-            </div>
-
-            {/* Designation Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 h-4 w-4" />
-              <Input
-                placeholder="Search by designation..."
-                value={designationSearch}
-                onChange={(e) => setDesignationSearch(e.target.value)}
-                className="pl-10 h-11 border-blue-200 focus:border-blue-400"
-              />
-              {designationSearch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setDesignationSearch("")}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-blue-100"
-                >
-                  <X className="h-4 w-4 text-blue-500" />
-                </Button>
-              )}
-            </div>
-
-            {/* Location Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 h-4 w-4" />
-              <Input
-                placeholder="Search by location..."
-                value={locationSearch}
-                onChange={(e) => setLocationSearch(e.target.value)}
-                className="pl-10 h-11 border-blue-200 focus:border-blue-400"
-              />
-              {locationSearch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setLocationSearch("")}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-blue-100"
-                >
-                  <X className="h-4 w-4 text-blue-500" />
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* View Toggle and Clear Button */}
-          <div className="flex justify-between items-center mt-4">
-            <div className="flex space-x-2">
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                className={`h-10 px-3 ${viewMode === "grid" ? "bg-blue-600 hover:bg-blue-700" : "border-blue-200 text-blue-700 hover:bg-blue-50"}`}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className={`h-10 px-3 ${viewMode === "list" ? "bg-blue-600 hover:bg-blue-700" : "border-blue-200 text-blue-700 hover:bg-blue-50"}`}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {hasSearched && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllSearches}
-                className="text-blue-600 hover:bg-blue-50"
-              >
-                Clear all searches
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Results Summary */}
-      <div className="flex justify-between items-center">
-        <Badge variant="secondary" className="px-3 py-1 bg-blue-100 text-blue-700">
-          {hasSearched 
-            ? `${filteredEmployees.length} of ${employees.length} employees matching search criteria`
-            : `Showing all ${employees.length} employees`
-          }
-        </Badge>
+    <div style={S.container}>
+      {/* Section header */}
+      <div style={{ marginBottom: 14 }}>
+        <div className="section-title" style={{ marginBottom: 6 }}>// PERSONNEL DATABASE</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <h2 style={{ fontFamily: "'Orbitron', monospace", fontWeight: 800, fontSize: '1.2rem', color: '#e0f4ff', margin: 0 }}>
+            EMPLOYEE <span className="neon-text">DIRECTORY</span>
+          </h2>
+          {isAdmin && <div style={S.countBadge}>{employees.length} RECORDS</div>}
+        </div>
+        <div className="cyber-divider" style={{ marginTop: 10 }} />
       </div>
 
-      {/* Employee Display */}
-      {filteredEmployees.length > 0 ? (
-        viewMode === "grid" ? (
-          <EmployeeCard 
-            employees={filteredEmployees} 
-            onImageUpdate={handleImageUpdate}
-            onEmployeeClick={handleEmployeeClick}
-          />
-        ) : (
-          <EmployeeList 
-            employees={filteredEmployees} 
-            onImageUpdate={handleImageUpdate}
-            onEmployeeClick={handleEmployeeClick}
-          />
-        )
-      ) : (
-        <Card className="p-8 text-center border-blue-200 bg-blue-50">
-          <div className="text-blue-500">
-            <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
-              {hasSearched ? "No employees found" : "No employees available"}
-            </h3>
-            <p>
-              {hasSearched
-                ? "Try adjusting your search criteria."
-                : "Employee directory is loading or empty."}
-            </p>
+      {/* Search Bar */}
+      <div style={S.searchCard}>
+        <div style={S.searchCardTop} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 10 }}>
+          <SearchInput value={nameSearch} onChange={setNameSearch} placeholder="Search name..." />
+          <SearchInput value={employeeIdSearch} onChange={setEmployeeIdSearch} placeholder="Employee ID..." />
+          <SearchInput value={departmentSearch} onChange={setDepartmentSearch} placeholder="Department..." />
+          <SearchInput value={designationSearch} onChange={setDesignationSearch} placeholder="Designation..." />
+          <SearchInput value={locationSearch} onChange={setLocationSearch} placeholder="Location..." />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button style={S.viewBtn(viewMode==='grid')} onClick={() => setViewMode('grid')}>
+            <Grid3X3 size={13} /> GRID
+          </button>
+          <button style={S.viewBtn(viewMode==='list')} onClick={() => setViewMode('list')}>
+            <List size={13} /> LIST
+          </button>
+          {hasSearched && <button style={S.clearAllBtn} onClick={clearAllSearches}>✕ CLEAR ALL</button>}
+          {filteredEmployees.length > 0 && (
+            <div style={{ ...S.countBadge, marginLeft: 'auto' }}>{filteredEmployees.length} RESULTS</div>
+          )}
+        </div>
+      </div>
+
+      {/* Empty / Prompt */}
+      {!isAdmin && !hasSearched && (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: .4 }}>◈</div>
+          <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '.7rem', color: 'rgba(0,212,255,0.5)', letterSpacing: '.2em' }}>
+            ENTER SEARCH QUERY TO ACCESS RECORDS
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Employee Detail Modal - Updated to include reporting manager and remove joining date */}
-      <Dialog open={showDetailModal} onOpenChange={closeDetailModal}>
-        <DialogContent className="sm:max-w-2xl border-blue-200">
+      {isAdmin && !hasSearched && employees.length > 0 && viewMode === 'grid' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {employees.map(emp => (
+            <EmployeeCard key={emp.id} employee={emp} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }} />
+          ))}
+        </div>
+      )}
+
+      {isAdmin && !hasSearched && employees.length > 0 && viewMode === 'list' && (
+        <EmployeeList employees={employees} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onEmployeeClick={(e) => { setSelectedEmployee(e); setShowDetailModal(true); }} />
+      )}
+
+      {hasSearched && filteredEmployees.length > 0 && viewMode === 'grid' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {filteredEmployees.map(emp => (
+            <EmployeeCard key={emp.id} employee={emp} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }} />
+          ))}
+        </div>
+      )}
+
+      {hasSearched && filteredEmployees.length > 0 && viewMode === 'list' && (
+        <EmployeeList employees={filteredEmployees} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onEmployeeClick={(e) => { setSelectedEmployee(e); setShowDetailModal(true); }} />
+      )}
+
+      {hasSearched && filteredEmployees.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ fontSize: 32, marginBottom: 12, opacity: .3 }}>◉</div>
+          <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '.7rem', color: 'rgba(0,212,255,0.4)', letterSpacing: '.15em' }}>
+            NO RECORDS MATCH QUERY
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent style={{ background: 'rgba(6,20,45,0.98)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 10, maxWidth: 500 }}>
           <DialogHeader>
-            <DialogTitle className="text-xl text-blue-900">Employee Details</DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Orbitron', monospace", color: '#00d4ff', fontSize: '.8rem', letterSpacing: '.15em' }}>
+              PERSONNEL RECORD
+            </DialogTitle>
           </DialogHeader>
-          
           {selectedEmployee && (
-            <div className="space-y-6">
-              {/* Profile Section */}
-              <div className="flex items-center space-x-6">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-200 to-blue-300 flex items-center justify-center">
-                  {selectedEmployee.profileImage && selectedEmployee.profileImage !== "/api/placeholder/150/150" ? (
-                    <img 
-                      src={selectedEmployee.profileImage} 
-                      alt={selectedEmployee.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <User className="h-12 w-12 text-blue-500" style={{display: selectedEmployee.profileImage && selectedEmployee.profileImage !== "/api/placeholder/150/150" ? 'none' : 'block'}} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-blue-900">{selectedEmployee.name}</h2>
-                  <Badge variant="secondary" className="mt-1 bg-blue-100 text-blue-700">{selectedEmployee.id}</Badge>
-                  <p className="text-lg text-blue-600 mt-2">{selectedEmployee.grade}</p>
-                </div>
-              </div>
-
-              {/* Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                      <span className="text-xs text-blue-600">D</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-500">Department</p>
-                      <p className="font-medium text-blue-900">{selectedEmployee.department}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                      <span className="text-xs text-blue-600">L</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-500">Location</p>
-                      <p className="font-medium text-blue-900">{selectedEmployee.location}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                      <span className="text-xs text-blue-600">P</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-500">Mobile</p>
-                      <p className="font-medium text-blue-900">{selectedEmployee.mobile}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                      <span className="text-xs text-blue-600">E</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-500">Extension</p>
-                      <p className="font-medium text-blue-900">{selectedEmployee.extension !== "0" ? selectedEmployee.extension : "Not Available"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                      <span className="text-xs text-blue-600">@</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-500">Email</p>
-                      <p className="font-medium text-blue-900 text-sm">{selectedEmployee.email}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                      <span className="text-xs text-blue-600">👤</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-500">Reporting Manager</p>
-                      <p className="font-medium text-blue-900">
-                        {selectedEmployee.reportingManager || 'Not Assigned'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <EmployeeCard employee={selectedEmployee} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} isDetailView />
           )}
         </DialogContent>
       </Dialog>

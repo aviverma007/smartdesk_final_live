@@ -1,35 +1,21 @@
 import React from "react";
-
 const Footer = () => (
-  <footer style={{
-    background: 'linear-gradient(180deg, rgba(2,8,22,0) 0%, rgba(2,8,22,0.98) 100%)',
-    borderTop: '1px solid rgba(0,212,255,0.15)',
-    padding: '12px 24px',
-    marginTop: 'auto',
+  <div style={{
+    padding:'10px 28px',
+    borderTop:'1px solid rgba(139,92,246,0.12)',
+    display:'flex', justifyContent:'space-between', alignItems:'center',
+    background:'rgba(13,11,26,0.7)',
+    backdropFilter:'blur(12px)',
   }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div className="pulse-dot" />
-        <span style={{
-          fontFamily: 'Share Tech Mono, monospace',
-          fontSize: '0.6rem',
-          color: 'rgba(0,212,255,0.5)',
-          letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-        }}>
-          SMARTDESK v2.0 // ALL SYSTEMS OPERATIONAL
-        </span>
-      </div>
-      <span style={{
-        fontFamily: 'Share Tech Mono, monospace',
-        fontSize: '0.55rem',
-        color: 'rgba(122,184,212,0.3)',
-        letterSpacing: '0.1em',
-      }}>
-        © 2025 SMART WORLD DEVELOPERS
+    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+      <span style={{ display:'inline-block', width:6, height:6, borderRadius:'50%', background:'#4ade80', boxShadow:'0 0 6px rgba(74,222,128,0.7)', animation:'dotPulse 2s ease-in-out infinite' }} />
+      <span style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.68rem', color:'rgba(177,168,216,0.5)', letterSpacing:'0.04em' }}>
+        SmartDesk v2.0 · All systems operational
       </span>
     </div>
-  </footer>
+    <span style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.62rem', color:'rgba(107,100,145,0.6)' }}>
+      © 2025 Smart World Developers
+    </span>
+  </div>
 );
-
 export default Footer;

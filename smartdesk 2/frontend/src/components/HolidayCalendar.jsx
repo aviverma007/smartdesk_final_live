@@ -1,371 +1,233 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
-const HolidayCalendar = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [selectedDate, setSelectedDate] = useState(null);
-
-  // Holiday data from the PDF
-  const holidays = [
-  { id: 1, name: "New Year Day", date: "2026-01-01", day: "Thursday", type: "National" },
-  { id: 2, name: "Republic Day", date: "2026-01-26", day: "Monday", type: "National" },
-  { id: 3, name: "Holi", date: "2026-03-04", day: "Wednesday", type: "Religious" },
-  { id: 4, name: "Ram Navmi", date: "2026-03-26", day: "Thursday", type: "Religious" },
-  { id: 5, name: "Independence Day", date: "2026-08-15", day: "Saturday", type: "National" },
-  { id: 6, name: "Raksha Bandhan", date: "2026-08-28", day: "Friday", type: "Religious" },
-  { id: 7, name: "Janmashtami", date: "2026-09-04", day: "Friday", type: "Religious" },
-  { id: 8, name: "Gandhi Jayanti", date: "2026-10-02", day: "Friday", type: "National" },
-  { id: 9, name: "Dussehra", date: "2026-10-20", day: "Tuesday", type: "Religious" },
-  { id: 10, name: "Govardhan Puja", date: "2026-11-09", day: "Monday", type: "Religious" },
-  { id: 11, name: "Bhai Dooj", date: "2026-11-11", day: "Wednesday", type: "Religious" },
-  { id: 12, name: "Christmas Day", date: "2026-12-25", day: "Friday", type: "National" },
-
-  // Weekend Holidays
-  { id: 13, name: "Mahashiv Ratri", date: "2026-02-15", day: "Sunday", type: "Weekend Holiday" },
-  { id: 14, name: "Diwali", date: "2026-11-08", day: "Sunday", type: "Weekend Holiday" }
+const HOLIDAYS = [
+  { id:1, name:"New Year Day", date:"2026-01-01", day:"Thursday", type:"National" },
+  { id:2, name:"Republic Day", date:"2026-01-26", day:"Monday", type:"National" },
+  { id:3, name:"Holi", date:"2026-03-04", day:"Wednesday", type:"Religious" },
+  { id:4, name:"Ram Navmi", date:"2026-03-26", day:"Thursday", type:"Religious" },
+  { id:5, name:"Independence Day", date:"2026-08-15", day:"Saturday", type:"National" },
+  { id:6, name:"Raksha Bandhan", date:"2026-08-28", day:"Friday", type:"Religious" },
+  { id:7, name:"Janmashtami", date:"2026-09-04", day:"Friday", type:"Religious" },
+  { id:8, name:"Gandhi Jayanti", date:"2026-10-02", day:"Friday", type:"National" },
+  { id:9, name:"Dussehra", date:"2026-10-20", day:"Tuesday", type:"Religious" },
+  { id:10, name:"Govardhan Puja", date:"2026-11-09", day:"Monday", type:"Religious" },
+  { id:11, name:"Bhai Dooj", date:"2026-11-11", day:"Wednesday", type:"Religious" },
+  { id:12, name:"Christmas Day", date:"2026-12-25", day:"Friday", type:"National" },
+  { id:13, name:"Mahashiv Ratri", date:"2026-02-15", day:"Sunday", type:"Weekend Holiday" },
+  { id:14, name:"Diwali", date:"2026-11-08", day:"Sunday", type:"Weekend Holiday" },
 ];
 
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+const TYPE_COLORS = {
+  'National':       { bg:'rgba(0,212,255,0.12)', border:'rgba(0,212,255,0.35)', color:'#00d4ff' },
+  'Religious':      { bg:'rgba(123,47,255,0.12)', border:'rgba(123,47,255,0.35)', color:'#7b2fff' },
+  'Weekend Holiday':{ bg:'rgba(255,107,0,0.12)',  border:'rgba(255,107,0,0.35)',  color:'#ff6b00' },
+};
 
-  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const WEEKDAYS = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 
-  // Get holidays for the current month
-  const getHolidaysForMonth = (month, year) => {
-    return holidays.filter(holiday => {
-      const holidayDate = new Date(holiday.date);
-      return holidayDate.getMonth() === month && holidayDate.getFullYear() === year;
-    });
-  };
-
-  // Check if a date is a holiday
-  const isHoliday = (date, month, year) => {
-    return holidays.some(holiday => {
-      const holidayDate = new Date(holiday.date);
-      return holidayDate.getDate() === date && 
-             holidayDate.getMonth() === month && 
-             holidayDate.getFullYear() === year;
-    });
-  };
-
-  // Get holiday info for a specific date
-  const getHolidayInfo = (date, month, year) => {
-    return holidays.find(holiday => {
-      const holidayDate = new Date(holiday.date);
-      return holidayDate.getDate() === date && 
-             holidayDate.getMonth() === month && 
-             holidayDate.getFullYear() === year;
-    });
-  };
-
-  // Generate calendar days
-  const generateCalendar = () => {
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
-
-    return days;
-  };
-
-  // Navigate months
-  const navigateMonth = (direction) => {
-    if (direction === 'prev') {
-      if (currentMonth === 0) {
-        setCurrentMonth(11);
-        setCurrentYear(currentYear - 1);
-      } else {
-        setCurrentMonth(currentMonth - 1);
-      }
-    } else {
-      if (currentMonth === 11) {
-        setCurrentMonth(0);
-        setCurrentYear(currentYear + 1);
-      } else {
-        setCurrentMonth(currentMonth + 1);
-      }
-    }
-    setSelectedDate(null);
-  };
-
-  const currentMonthHolidays = getHolidaysForMonth(currentMonth, currentYear);
-  const calendarDays = generateCalendar();
+const HolidayCalendar = () => {
   const today = new Date();
+  const [month, setMonth] = useState(today.getMonth());
+  const [year, setYear] = useState(today.getFullYear());
+  const [selectedDay, setSelectedDay] = useState(null);
 
-  const getHolidayTypeColor = (type) => {
-    switch (type) {
-      case "National":
-        return "bg-sky-100 text-sky-800 border-sky-200";
-      case "Religious":
-        return "bg-indigo-100 text-indigo-800 border-indigo-200";
-      case "Weekend Holiday":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
+  const getHoliday = (d, m, y) => HOLIDAYS.find(h => {
+    const hd = new Date(h.date);
+    return hd.getDate()===d && hd.getMonth()===m && hd.getFullYear()===y;
+  });
+
+  const monthHolidays = HOLIDAYS.filter(h => {
+    const hd = new Date(h.date);
+    return hd.getMonth()===month && hd.getFullYear()===year;
+  });
+
+  const navigate = dir => {
+    if (dir==='prev') { if (month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); }
+    else { if (month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); }
+    setSelectedDay(null);
+  };
+
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const cells = [...Array(firstDayOfWeek).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
+
+  const selectedHoliday = selectedDay ? getHoliday(selectedDay, month, year) : null;
+  const allYearHolidays = HOLIDAYS.sort((a,b) => new Date(a.date)-new Date(b.date));
+
+  const cs = {
+    card: { background:'rgba(6,20,45,0.85)', border:'1px solid rgba(0,212,255,0.2)', borderRadius:8, backdropFilter:'blur(12px)', position:'relative', overflow:'hidden' },
+    topLine: { position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,#00d4ff,transparent)', opacity:.5 },
   };
 
   return (
-    <div className="p-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-full">
-      {/* Compact Header */}
-      <div className="mb-4">
-        <div className="flex items-center space-x-3 mb-2">
-          <Calendar className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">Holiday Calendar 2026</h1>
-        </div>
-        <p className="text-gray-600 text-sm">Company holidays and observances for the year</p>
+    <div style={{ padding:'0 0 24px' }}>
+      {/* Header */}
+      <div style={{ marginBottom:16 }}>
+        <div className="section-title" style={{ marginBottom:6 }}>// TEMPORAL SCHEDULE</div>
+        <h2 style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:'1.2rem', color:'#e0f4ff', margin:0 }}>
+          HOLIDAY <span className="neon-text">CALENDAR</span> 2026
+        </h2>
+        <div className="cyber-divider" style={{ marginTop:10 }} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-        {/* Calendar - Further Reduced Size */}
-        <div className="lg:col-span-3">
-          <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-900 text-white py-2">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => navigateMonth('prev')}
-                  className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </button>
-                <CardTitle className="text-base font-bold">
-                  {months[currentMonth]} {currentYear}
-                </CardTitle>
-                <button
-                  onClick={() => navigateMonth('next')}
-                  className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3">
-              {/* Weekday headers */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {weekdays.map((day) => (
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+
+        {/* Calendar */}
+        <div style={{ ...cs.card }}>
+          <div style={cs.topLine} />
+          {/* Month nav */}
+          <div style={{
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'12px 16px',
+            borderBottom:'1px solid rgba(0,212,255,0.1)',
+            background:'linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,102,255,0.05))',
+          }}>
+            <button onClick={()=>navigate('prev')} style={{ background:'none', border:'none', color:'rgba(0,212,255,0.7)', cursor:'pointer', padding:4, borderRadius:4, display:'flex', alignItems:'center', transition:'color .2s' }}>
+              <ChevronLeft size={16} />
+            </button>
+            <div style={{ fontFamily:"'Orbitron', monospace", fontWeight:700, fontSize:'.8rem', color:'#00d4ff', letterSpacing:'.1em' }}>
+              {MONTHS[month].toUpperCase()} {year}
+            </div>
+            <button onClick={()=>navigate('next')} style={{ background:'none', border:'none', color:'rgba(0,212,255,0.7)', cursor:'pointer', padding:4, borderRadius:4, display:'flex', alignItems:'center', transition:'color .2s' }}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <div style={{ padding:'12px 14px' }}>
+            {/* Weekday headers */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3, marginBottom:6 }}>
+              {WEEKDAYS.map(d => (
+                <div key={d} style={{ textAlign:'center', fontFamily:"'Orbitron', monospace", fontSize:'.48rem', letterSpacing:'.08em', color:'rgba(0,212,255,0.4)', padding:'4px 0' }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Days grid */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3 }}>
+              {cells.map((day, i) => {
+                if (!day) return <div key={i} />;
+                const isToday = month===today.getMonth() && year===today.getFullYear() && day===today.getDate();
+                const hol = getHoliday(day, month, year);
+                const isWeekend = i%7===0 || i%7===6;
+                const isSelected = selectedDay===day;
+                const tc = TYPE_COLORS[hol?.type] || {};
+                return (
                   <div
-                    key={day}
-                    className="w-10 h-8 flex items-center justify-center text-xs font-semibold text-gray-600"
+                    key={i}
+                    onClick={() => setSelectedDay(day===selectedDay ? null : day)}
+                    style={{
+                      aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center',
+                      borderRadius:5, cursor:'pointer', position:'relative',
+                      fontFamily:"'Share Tech Mono', monospace", fontSize:'.72rem',
+                      transition:'all .2s',
+                      background: isToday ? 'rgba(0,212,255,0.2)' : hol ? tc.bg : isSelected ? 'rgba(0,212,255,0.08)' : 'transparent',
+                      border: isToday ? '1px solid rgba(0,212,255,0.6)' : hol ? `1px solid ${tc.border}` : isSelected ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
+                      color: isToday ? '#00d4ff' : hol ? tc.color : isWeekend ? 'rgba(122,184,212,0.4)' : 'rgba(122,184,212,0.8)',
+                      boxShadow: isToday ? '0 0 8px rgba(0,212,255,0.25)' : 'none',
+                      fontWeight: isToday ? 700 : 400,
+                    }}
                   >
                     {day}
+                    {hol && <div style={{ position:'absolute', top:2, right:2, width:4, height:4, borderRadius:'50%', background:tc.color, boxShadow:`0 0 4px ${tc.color}` }} />}
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
 
-              {/* Calendar grid - Fixed alignment */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((day, index) => {
-                  const isCurrentDay = day && 
-                    currentMonth === today.getMonth() && 
-                    currentYear === today.getFullYear() && 
-                    day === today.getDate();
-                  
-                  const holiday = day ? getHolidayInfo(day, currentMonth, currentYear) : null;
-                  const isWeekend = index % 7 === 0 || index % 7 === 6; // Sunday or Saturday
-
-                  return (
-                    <div
-                      key={index}
-                      className={`
-                        w-10 h-10 flex items-center justify-center relative cursor-pointer
-                        transition-all duration-200 rounded text-sm font-medium
-                        ${!day ? 'invisible' : ''}
-                        ${isCurrentDay ? 'bg-blue-600 text-white shadow-md' : ''}
-                        ${holiday ? 'bg-gradient-to-br from-sky-100 to-indigo-100 text-gray-800 shadow-sm' : ''}
-                        ${!holiday && !isCurrentDay ? 'hover:bg-gray-100' : ''}
-                        ${isWeekend && !holiday && !isCurrentDay ? 'text-gray-500' : ''}
-                        ${selectedDate === day ? 'ring-2 ring-blue-400' : ''}
-                      `}
-                      onClick={() => day && setSelectedDate(day)}
-                    >
-                      {day}
-                      {holiday && (
-                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-700 rounded-full border border-white"></div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+            {/* Legend */}
+            <div style={{ display:'flex', gap:12, marginTop:12, flexWrap:'wrap' }}>
+              {Object.entries(TYPE_COLORS).map(([type,c]) => (
+                <div key={type} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:c.color, boxShadow:`0 0 5px ${c.color}` }} />
+                  <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.6rem', color:'rgba(122,184,212,0.6)' }}>{type}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Holiday Details - More Compact */}
-        <div className="lg:col-span-2 space-y-3">
-          {/* Selected Date Details */}
-          {selectedDate && (
-            <Card className="shadow-lg border-0">
-              <CardHeader className="bg-gradient-to-r from-blue-700 to-blue-600 text-white py-1">
-                <CardTitle className="text-xs flex items-center space-x-1">
-                  <CalendarDays className="h-3 w-3" />
-                  <span>{months[currentMonth]} {selectedDate}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                {(() => {
-                  const holiday = getHolidayInfo(selectedDate, currentMonth, currentYear);
-                  if (holiday) {
-                    return (
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-blue-700 rounded-full"></div>
-                          <span className="font-semibold text-gray-800 text-xs">{holiday.name}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-gray-600">
-                          <Clock className="h-3 w-3" />
-                          <span className="text-xs">{holiday.day}</span>
-                        </div>
-                        <Badge className={`${getHolidayTypeColor(holiday.type)} border text-xs`}>
-                          {holiday.type}
-                        </Badge>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <p className="text-gray-500 text-center py-1 text-xs">No holiday</p>
-                    );
-                  }
-                })()}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Monthly Holidays List - Very Compact */}
-          <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-600 text-white py-1">
-              <CardTitle className="text-xs">
-                {months[currentMonth]} ({currentMonthHolidays.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-              {currentMonthHolidays.length > 0 ? (
-                <div className="space-y-1">
-                  {currentMonthHolidays.slice(0, 3).map((holiday) => {
-                    const holidayDate = new Date(holiday.date);
-                    return (
-                      <div
-                        key={holiday.id}
-                        className="bg-gradient-to-r from-gray-50 to-blue-50 p-1 rounded border-l-2 border-blue-500 hover:shadow-sm transition-shadow cursor-pointer"
-                        onClick={() => setSelectedDate(holidayDate.getDate())}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold text-gray-800 text-xs">{holiday.name.length > 15 ? holiday.name.substring(0, 15) + '...' : holiday.name}</h4>
-                          <span className="text-xs text-gray-500">{holidayDate.getDate()}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {currentMonthHolidays.length > 3 && (
-                    <div className="text-center text-xs text-gray-500 py-1">
-                      +{currentMonthHolidays.length - 3} more
-                    </div>
-                  )}
+        {/* Right panel */}
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {/* Selected day info */}
+          {selectedDay && (
+            <div style={{ ...cs.card, padding:'14px 16px' }}>
+              <div style={cs.topLine} />
+              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:'.6rem', letterSpacing:'.15em', color:'rgba(0,212,255,0.5)', marginBottom:8 }}>
+                {MONTHS[month].toUpperCase()} {selectedDay}, {year}
+              </div>
+              {selectedHoliday ? (
+                <div>
+                  <div style={{ fontFamily:"'Orbitron', monospace", fontSize:'.85rem', fontWeight:700, color:'#e0f4ff', marginBottom:6 }}>{selectedHoliday.name}</div>
+                  <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.7rem', color:'rgba(122,184,212,0.7)', marginBottom:8 }}>{selectedHoliday.day}</div>
+                  <div style={{ display:'inline-block', padding:'3px 10px', borderRadius:3, ...TYPE_COLORS[selectedHoliday.type], fontFamily:"'Share Tech Mono', monospace", fontSize:'.6rem', letterSpacing:'.1em' }}>
+                    {selectedHoliday.type.toUpperCase()}
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-2 text-gray-500">
-                  <Calendar className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">No holidays</p>
-                </div>
+                <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.75rem', color:'rgba(122,184,212,0.5)' }}>No holiday on this date</div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          {/* Holiday Stats - Very Compact */}
-          <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-blue-700 to-blue-900 text-white py-1">
-              <CardTitle className="text-xs">Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-1">
-              <div className="flex items-center justify-between p-1 bg-orange-50 rounded">
-                <span className="text-sky-800 font-medium text-xs">National</span>
-                <Badge className="bg-sky-200 text-sky-800 text-xs">
-                  {holidays.filter(h => h.type === "National").length}
-                </Badge>
+          {/* This month's holidays */}
+          <div style={{ ...cs.card, flex:1 }}>
+            <div style={cs.topLine} />
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(0,212,255,0.08)' }}>
+              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:'.65rem', fontWeight:700, color:'#e0f4ff', letterSpacing:'.1em' }}>
+                {monthHolidays.length > 0 ? `${monthHolidays.length} HOLIDAY${monthHolidays.length>1?'S':''} THIS MONTH` : 'NO HOLIDAYS THIS MONTH'}
               </div>
-              <div className="flex items-center justify-between p-1 bg-purple-50 rounded">
-                <span className="text-indigo-800 font-medium text-xs">Religious</span>
-                <Badge className="bg-indigo-200 text-indigo-800 text-xs">
-                  {holidays.filter(h => h.type === "Religious").length}
-                </Badge>
-              </div>
-              <div className="border-t pt-1 mt-1">
-                <div className="flex items-center justify-between p-1 bg-gray-50 rounded">
-                  <span className="text-gray-800 font-bold text-xs">Total</span>
-                  <Badge className="bg-gray-200 text-gray-800 font-bold text-xs">
-                    {holidays.length}
-                  </Badge>
+            </div>
+            <div style={{ padding:'10px 16px', maxHeight:200, overflowY:'auto' }}>
+              {monthHolidays.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'20px 0', fontFamily:"'Share Tech Mono', monospace", fontSize:'.6rem', color:'rgba(0,212,255,0.3)', letterSpacing:'.1em' }}>
+                  NO ENTRIES
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Full Holiday List for 2025 */}
-          <Card className="shadow-lg border-0 bg-blue-50">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-900 text-white py-1">
-              <CardTitle className="text-xs">All Holidays 2025</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 max-h-60 overflow-y-auto">
-              <div className="space-y-1">
-                {holidays.map((holiday) => {
-                  const holidayDate = new Date(holiday.date);
-                  return (
-                    <div
-                      key={holiday.id}
-                      className="bg-white p-2 rounded border-l-3 border-blue-500 hover:shadow-sm transition-shadow cursor-pointer"
-                      onClick={() => {
-                        setCurrentMonth(holidayDate.getMonth());
-                        setCurrentYear(holidayDate.getFullYear());
-                        setSelectedDate(holidayDate.getDate());
-                      }}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-semibold text-gray-800 text-xs">{holiday.name}</h4>
-                        <Badge className={`${getHolidayTypeColor(holiday.type)} border text-xs px-1 py-0`}>
-                          {holiday.type}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <span className="text-xs">{holidayDate.toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}</span>
-                        <span className="text-xs">({holiday.day})</span>
-                      </div>
+              ) : monthHolidays.map(h => {
+                const d = new Date(h.date).getDate();
+                const c = TYPE_COLORS[h.type];
+                return (
+                  <div key={h.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(0,212,255,0.07)' }}>
+                    <div style={{ width:28, height:28, borderRadius:5, background:c.bg, border:`1px solid ${c.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:"'Orbitron', monospace", fontSize:'.6rem', fontWeight:700, color:c.color }}>
+                      {d}
                     </div>
-                  );
-                })}
+                    <div>
+                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', color:'#e0f4ff', fontWeight:600 }}>{h.name}</div>
+                      <div style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.55rem', color:c.color, letterSpacing:'.08em' }}>{h.type.toUpperCase()}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Full year list */}
+          <div style={{ ...cs.card }}>
+            <div style={cs.topLine} />
+            <div style={{ padding:'10px 14px', borderBottom:'1px solid rgba(0,212,255,0.08)' }}>
+              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:'.6rem', fontWeight:700, color:'rgba(0,212,255,0.7)', letterSpacing:'.1em' }}>
+                ALL {HOLIDAYS.length} HOLIDAYS 2026
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div style={{ padding:'8px 14px', maxHeight:160, overflowY:'auto' }}>
+              {allYearHolidays.map(h => {
+                const hd = new Date(h.date);
+                const c = TYPE_COLORS[h.type];
+                return (
+                  <div key={h.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 0', borderBottom:'1px solid rgba(0,212,255,0.05)' }}>
+                    <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.68rem', color:'rgba(122,184,212,0.8)' }}>{h.name}</span>
+                    <span style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.58rem', color:c.color, flexShrink:0, marginLeft:8 }}>
+                      {hd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Compact Note */}
-      <Card className="mt-4 border-l-4 border-sky-400 bg-sky-50">
-        <CardContent className="p-3">
-          <p className="text-xs text-sky-800">
-            <strong>Note:</strong> Roaster system to be followed for Sales, CRM and site teams as approved by respective HOD's. 
-            Weekend holidays are observed on the actual dates but may not result in additional leave days.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 };
