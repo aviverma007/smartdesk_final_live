@@ -28,50 +28,85 @@ const IcoSend     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="
 const IcoX        = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const IcoSparkle  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/></svg>;
 
-/* ── Custom Cursor — SWD logo with mix-blend-mode:exclusion ─────────────── */
-const SWD_CURSOR_B64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAEFUlEQVR42r2XW4hWVRiG32///2g6mjiao5iSJSlSGEh2AM0SolCqi4KIosOFUF5EUFFJdCC66MKuJBMKgiiCrroKK8oIIoQoKu1gmYVImmKl5TT/3k8Xvas+t+M4COOCn7X2Onzv+x3X+qXTaED4Nx242nOVzlQDuu7XA78AHaAC4kyAh8GmAj/wb7vHa50zQaDj/j7+b3uBaeNuheT7ScB+4HPgfpN4KLtnvH3/qEHv8Pe3JjSlkBxP7QeBP4CvgK7NfqMJPTkuVjBI1wQmAovaIMB8YG4h4Mw4pSWqMQBXEdFERC8ikDTJ55angFwgaUBSBYT31hFBIX465u6k76XA48AHwAGbe1fRErjdc8PAl8DLwA3AlHb2jMncaXwl8CbQ4/jWAJvSvvOBIU5su4FHgKljIlHAgcnACy1hwyZyDKiBW2yBhXbVp94z5L5OZ3cCa0cN0AQ+D9jug3XSvtcSOggMAHf53EtprWcrNSZT2gMjWiKV15lmC/B3S2BpnwAP+txiYJ3HFwOvuh6QFGgrciKJpP27o4C/V26+RHop8FRLmVnAE0nzJvVlbvV/JFJ1WzcK+MZWak7weCWwxeM+oC/tWwH8PIIlGmdQPxBFky7wnRfrFvhrCbjkfbi/FnijVaYjEVzmoKyTJYoV7sxmW9UCLQF00CatEsBCYJHHNwMfJYLzErlC4vkW8LBlv5Ur4ZLCxX0jKSRtjYj9Hpe1xa56kjRb0hxJiohG0m2Spnmtdmy9KGlYUidV35C0BJhQCMxvZ6X77dYoE1ghaZ/HMySdnUrtMUkLihCTOuT5IqPsnSnpnEJg6CS1aSALc5DNknQgaTMgqZTcI5KuGOGeqUZQ7k9JR8rC1ye5pK7zBaTkqjkRcTS5oEoEdktaWmTYMsslTZZUJ+0l6bCkowXoY5upMsPKB5YBayKi5wy4zPOlTXI/1f0+SZcCZ0lqTP7hFnDjfltE9CqgExE/Sno7ASv5bDNwQUTUkq6RtCMJm+F+SiIwV9L8iBgGnnHM1CkIC5ktubAEcCFwtHWRlNz9CbjVT/C7U75/6PVVaW4X8DSwcYQyXorcK8eV41Rg1qeNTauKlbYygX3huZtSTXmndW23wXf6EquAqnKE10A3IjZJelZSn01V2y2NpJ6/DxqrP/l+RnLLDu8fSm4ctsw9ktZGxKGSWVVKs56fXxsk3WsBHQtrPP5N0l4f6UtBOJgI/G7gMOnw3m2SroqI7x13zQlvQud6JyI2S7pc0lbv6VrQYUl/JQtMNLn+JGa3907wuV8lPSZpdUTssZL1mP79eLzGz7IjwPtp/qLk39fT/PWe+wzYAMwe6bk31qd4pO9z/egol815foB+AzyXzkwHLmkrdNp/Vny4M8pad7R/UqcC/gd8usXU+7MLswAAAABJRU5ErkJggg==";
+/* ── Custom Cursor — SWD Logo + trailing particles only ─────────────────── */
+const SWD_LOGO_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <circle cx="20" cy="26" r="12" stroke="white" stroke-width="2.5" fill="none"/>
+  <line x1="20" y1="1" x2="20" y2="38" stroke="white" stroke-width="2.8"/>
+  <polygon points="20,0 15,10 20,8 25,10" fill="white"/>
+  <line x1="20" y1="20" x2="11" y2="29" stroke="white" stroke-width="2.2"/>
+  <line x1="20" y1="20" x2="29" y2="29" stroke="white" stroke-width="2.2"/>
+</svg>`)}`;
+
+const TRAIL_COLORS = ["#9b6dff","#f472b6","#60a5fa","#4ade80","#ffffff"];
 
 const CustomCursor = () => {
-  const cursorRef = useRef(null);
-  const pos = useRef({ x: -100, y: -100 });
-  const raf = useRef(null);
+  const logoRef  = useRef(null);
+  const pos      = useRef({ x: -200, y: -200 });
+  const rafRef   = useRef(null);
+  const trailIdx = useRef(0);
 
   useEffect(() => {
-    const move = (e) => {
+    let lastTrail = 0;
+
+    const spawnTrail = (x, y) => {
+      const el = document.createElement("div");
+      const size = 3 + Math.random() * 5;
+      const color = TRAIL_COLORS[trailIdx.current % TRAIL_COLORS.length];
+      trailIdx.current++;
+      Object.assign(el.style, {
+        position: "fixed", borderRadius: "50%",
+        width: size + "px", height: size + "px",
+        background: color,
+        boxShadow: `0 0 ${size * 2}px ${color}`,
+        left: (x - size / 2) + "px",
+        top:  (y - size / 2) + "px",
+        pointerEvents: "none",
+        zIndex: "999995",
+        animation: "trailFade 0.5s ease forwards",
+      });
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 500);
+    };
+
+    const onMove = (e) => {
       pos.current = { x: e.clientX, y: e.clientY };
-      if (!raf.current) {
-        raf.current = requestAnimationFrame(() => {
-          if (cursorRef.current) {
-            cursorRef.current.style.transform = `translate(${pos.current.x - 16}px, ${pos.current.y - 16}px)`;
+
+      // Trail every 35ms
+      const now = Date.now();
+      if (now - lastTrail > 35) {
+        spawnTrail(e.clientX, e.clientY);
+        lastTrail = now;
+      }
+
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          if (logoRef.current) {
+            logoRef.current.style.transform =
+              `translate(${pos.current.x - 20}px, ${pos.current.y - 20}px)`;
           }
-          raf.current = null;
+          rafRef.current = null;
         });
       }
     };
-    window.addEventListener("mousemove", move);
-    return () => { window.removeEventListener("mousemove", move); if (raf.current) cancelAnimationFrame(raf.current); };
+
+    window.addEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   return (
-    <div
-      ref={cursorRef}
-      style={{
-        position: "fixed",
-        top: 0, left: 0,
-        width: 32, height: 32,
-        pointerEvents: "none",
-        zIndex: 99999,
-        mixBlendMode: "exclusion",
-        willChange: "transform",
-        transform: "translate(-100px, -100px)",
-      }}
-    >
-      <img
-        src={`data:image/png;base64,${SWD_CURSOR_B64}`}
-        alt=""
-        style={{ width: 32, height: 32, display: "block", userSelect: "none" }}
-        draggable={false}
-      />
+    <div ref={logoRef} style={{
+      position: "fixed", top: 0, left: 0,
+      width: 40, height: 40,
+      pointerEvents: "none", zIndex: 999999,
+      willChange: "transform",
+      transform: "translate(-200px, -200px)",
+      filter: "drop-shadow(0 0 6px rgba(255,255,255,0.6))",
+    }}>
+      <img src={SWD_LOGO_SVG} alt="" width={40} height={40}
+        draggable={false} style={{ display:"block", userSelect:"none" }}/>
     </div>
   );
 };

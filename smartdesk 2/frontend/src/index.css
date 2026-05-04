@@ -52,10 +52,16 @@
   --re-overlay:    rgba(244,242,255,0.88);
 }
 
-/* ── Reset + Custom Cursor ───────────────────────────────────────────────── */
+/* ── Reset — cursor handled by JS CustomCursor component ────────────────── */
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='black'/%3E%3C/svg%3E") 8 8, auto !important;
+  cursor: none !important;
+}
+
+/* Trail particle fade animation */
+@keyframes trailFade {
+  0%   { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(0.1); }
 }
 
 
