@@ -1,1203 +1,339 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Checkbox } from "./ui/checkbox";
 import { useAuth } from "../context/AuthContext";
 import { employeeAPI } from '../services/api';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Image, 
-  Users, 
-  PartyPopper, 
-  CheckSquare, 
-  Workflow, 
-  Newspaper,
-  Plus,
-  X,
-  ExternalLink,
-  Globe,
-  Building,
-  UserCheck,
-  Calendar,
-  ChevronDown,
-  User
+import {
+  ChevronLeft, ChevronRight, Users, PartyPopper,
+  CheckSquare, Workflow, Newspaper, Image, Plus,
+  X, ExternalLink, Globe, Building, UserCheck,
+  Calendar, User
 } from "lucide-react";
 
+const bannerImages = [
+  "/images/smart-world-orchard.webp","/images/smart-world-one-dxp.webp",
+  "/images/smart-world-gems.webp","/images/smart-world-the-edition.webp",
+  "/images/smart-world-sky-arc.webp"
+];
+const galleryImages = [
+  "/images/gallery-1.jpg","/images/gallery-2.jpg","/images/gallery-3.jpeg",
+  "/images/gallery-4.jpg","/images/gallery-5.jpg","/images/gallery-6.jpg",
+  "/images/gallery-7.jpg","/images/gallery-8.jpg","/images/gallery-9.jpg"
+];
+const projectLinks = [
+  { name:"SKY ARC", url:"https://smartworlddevelopers.com/project/sky-arc/" },
+  { name:"THE EDITION", url:"https://smartworlddevelopers.com/project/theedition/" },
+  { name:"ONE DXP", url:"https://smartworlddevelopers.com/project/onedxp/" },
+  { name:"ORCHARD STREET", url:"https://smartworlddevelopers.com/project/orchardstreet/" },
+  { name:"ORCHARD", url:"https://smartworlddevelopers.com/project/orchard/" },
+  { name:"GEMS", url:"https://smartworlddevelopers.com/project/gems/" },
+];
+const quickLinks = [
+  { title:"Adrenaline", desc:"HR Portal", url:"https://maxhr.myadrenalin.com/AdrenalinMax/", img:"/images/adrenaline-logo.png", color:"#00d4ff" },
+  { title:"BIMABRO", desc:"Employee Portal", url:"https://employee.bimabro.com/", img:"/images/bimabro-logo.jpg", color:"#7b2fff" },
+  { title:"ZOHO", desc:"Manage Engine", url:"https://sdpondemand.manageengine.com/app/itdesk/HomePage.do", img:"/images/zoho-logo.png", color:"#00ff88" },
+  { title:"QMS", desc:"Quote Comparison", url:"https://smartworlddevelopersonline.com/qms/home/logout", img:"/images/Qms-logo.jpg", color:"#0066ff" },
+  { title:"4QT", desc:"CRM", url:"https://crm.smartworlddevelopers.com/4qt/", img:"/images/4QT-logo.png", color:"#ff6b00" },
+  { title:"SFDC", desc:"Salesforce", url:"https://smartworld.my.salesforce.com/", img:"/images/Salesforce-logo.jpg", color:"#00d4ff" },
+  { title:"MAFOI", desc:"HR Suite", url:"https://mafoi.hfactor.app/hrsuite/#/login/smartworld", img:"/images/mafoi-logo.jpg", color:"#7b2fff" },
+  { title:"VENDORGLOBE", desc:"QMS Portal", url:"https://smartworlddevelopersonline.com/qms/", img:"/images/vendorglobe.png", color:"#00ff88" },
+  { title:"Gift App", desc:"Vistaoffers", url:"https://vistaoffers.com/#login", img:"/images/GEMBA.png", color:"#ff6b00" },
+  { title:"Vista-ERP", desc:"ERP System", url:"https://vistaerponline.com/#login", img:"/images/GEMBA.png", color:"#0066ff" },
+  { title:"Company", desc:"Website", url:"https://smartworlddevelopers.com/", img:"/images/company-logo.png", color:"#00d4ff" },
+  { title:"Projects", desc:"Developments", url:"#", img:"/images/projects-icon.png", color:"#7b2fff", isDropdown:true },
+];
+
+const CyberCard = ({ children, style={}, color='#00d4ff', hover=true }) => {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={()=>hover&&setHov(true)}
+      onMouseLeave={()=>hover&&setHov(false)}
+      style={{
+        background:'rgba(6,20,45,0.85)', backdropFilter:'blur(12px)',
+        border:`1px solid ${hov?color+'60':'rgba(0,212,255,0.18)'}`,
+        borderRadius:8, position:'relative', overflow:'hidden',
+        boxShadow: hov?`0 0 20px ${color}18`:'none',
+        transition:'all .3s', ...style,
+      }}
+    >
+      <div style={{ position:'absolute',top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${color},transparent)`,opacity:.4 }} />
+      {children}
+    </div>
+  );
+};
+
 const Home = () => {
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const { isAdmin } = useAuth();
+  const [bannerIdx, setBannerIdx] = useState(0);
+  const [galleryIdx, setGalleryIdx] = useState(0);
+  const [joineeIdx, setJoineeIdx] = useState(0);
+  const [employees, setEmployees] = useState([]);
   const [todoItems, setTodoItems] = useState([
-    { id: 1, text: "Review monthly reports", completed: false },
-    { id: 2, text: "Schedule team meeting", completed: true },
-    { id: 3, text: "Update employee profiles", completed: false }
+    { id:1, text:"Review monthly reports", completed:false },
+    { id:2, text:"Schedule team meeting", completed:true },
+    { id:3, text:"Update employee profiles", completed:false },
   ]);
   const [newTodoText, setNewTodoText] = useState("");
   const [showAddTodo, setShowAddTodo] = useState(false);
-  const [currentJoineeIndex, setCurrentJoineeIndex] = useState(0);
-  const [employees, setEmployees] = useState([]);
-  const [showProjectsDropdown, setShowProjectsDropdown] = useState(false);
-  const [showUserProjectsDropdown, setShowUserProjectsDropdown] = useState(false);
-  const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
+  const [showProjects, setShowProjects] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  const { isAdmin } = useAuth();
 
-  // SmartWorld project banner images
-  const bannerImages = [
-    "/images/smart-world-orchard.webp",
-    "/images/smart-world-one-dxp.webp", 
-    "/images/smart-world-gems.webp",
-    "/images/smart-world-the-edition.webp",
-    "/images/smart-world-sky-arc.webp"
-  ];
-
-  // Company gallery images for photo slideshow
-  const galleryImages = [
-    "/images/gallery-1.jpg",
-    "/images/gallery-2.jpg",
-    "/images/gallery-3.jpeg",
-    "/images/gallery-4.jpg",
-    "/images/gallery-5.jpg",
-    "/images/gallery-6.jpg",
-    "/images/gallery-7.jpg",
-    "/images/gallery-8.jpg",
-    "/images/gallery-9.jpg"
-
-  ];
-
-  // Project links data
-  const projectLinks = [
-    { name: "SKY ARC", url: "https://smartworlddevelopers.com/project/sky-arc/" },
-    { name: "THE EDITION", url: "https://smartworlddevelopers.com/project/theedition/" },
-    { name: "ONE DXP", url: "https://smartworlddevelopers.com/project/onedxp/" },
-    { name: "ORCHARD STREET", url: "https://smartworlddevelopers.com/project/orchardstreet/" },
-    { name: "ORCHARD", url: "https://smartworlddevelopers.com/project/orchard/" },
-    { name: "GEMS", url: "https://smartworlddevelopers.com/project/gems/" }
-  ];
-
-  // External link buttons - removed Contact and updated Company Portal
-  const externalButtons = [
-    {
-      title: "Adrenaline",
-      icon: <UserCheck className="h-4 w-4" />,
-      description: "Employee HR Portal",
-      url: "https://maxhr.myadrenalin.com/AdrenalinMax/",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "Company Portal",
-      icon: <Building className="h-4 w-4" />,
-      description: "Main corporate website",
-      url: "https://smartworlddevelopers.com/",
-      color: "bg-blue-600 hover:bg-blue-700 text-white"
-    },
-    {
-      title: "Projects",
-      icon: <Globe className="h-4 w-4" />,
-      description: "Our development projects",
-      url: "#",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300",
-      isDropdown: true
-    },
-    {
-      title: "BIMABRO",
-      icon: <User className="h-4 w-4" />,
-      description: "Employee portal",
-      url: "https://employee.bimabro.com/",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "ZOHO",
-      icon: <User className="h-4 w-4" />,
-      description: "MANAGE ENGINE",
-      url: "https://sdpondemand.manageengine.com/app/itdesk/HomePage.do",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "QMS",
-      icon: <User className="h-4 w-4" />,
-      description: "RFQ's & Quote Comparison ",
-      url: "https://smartworlddevelopersonline.com/qms/home/logout",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "4QT",
-      icon: <User className="h-4 w-4" />,
-      description: "4QT",
-      url: "https://crm.smartworlddevelopers.com/4qt/",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "SFDC",
-      icon: <User className="h-4 w-4" />,
-      description: "SALES FORCE DOT COM",
-      url: "https://smartworld.my.salesforce.com/",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    // {
-    //   title: "Whastsapp",
-    //   icon: <User className="h-4 w-4" />,
-    //   description: "Whatsapp Web",
-    //   url: "https://web.whatsapp.com/",
-    //   color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    // },
-    {
-      title: "Gift App",
-      icon: <User className="h-4 w-4" />,
-      description: "Vistaoffers",
-      url: "https://vistaoffers.com/#login",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "Vista-ERP",
-      icon: <User className="h-4 w-4" />,
-      description: "Vistaerp",
-      url: "https://vistaerponline.com/#login",
-      color: "bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-300"
-    },
-    {
-      title: "Events",
-      icon: <Calendar className="h-4 w-4" />,
-      description: "Company events & updates",
-      url: "#",
-      color: "bg-blue-600 hover:bg-blue-700 text-white"
-    }
-  ];
-
-  // External link buttons with images - FOR USER PROFILE ONLY
-  // Order: HR PORTAL, BIMABRO, MAFOI, VENDORGLOBE, COMPANY, PROJECTS
-  const userQuickAccessButtons = [
-    {
-      title: "HR Portal",
-      description: "Adrenaline",
-      url: "https://maxhr.myadrenalin.com/AdrenalinMax/",
-      image: "/images/adrenaline-logo.png"
-    },
-    {
-      title: "BIMABRO",
-      description: "Employee Portal",
-      url: "https://employee.bimabro.com/",
-      image: "/images/bimabro-logo.jpg"
-    },
-    {
-      title: "ZOHO",
-      description: "MANAGE ENGINE",
-      url: "https://sdpondemand.manageengine.com/app/itdesk/HomePage.do",
-      image: "/images/zoho-logo.png"
-    },
-    {
-      title: "QMS",
-      description: "RFQ's & Quote Comparison ",
-      url: "https://smartworlddevelopersonline.com/qms/home/logout",
-      image: "/images/Qms-logo.jpg"
-    },
-    {
-      title: "4QT",
-      description: "4QT",
-      url: "https://crm.smartworlddevelopers.com/4qt/",
-      image: "/images/4QT-logo.png"
-    },
-    {
-      title: "SFDC",
-      description: "SALES FORCE DOT COM",
-      url: "https://smartworld.my.salesforce.com/",
-      image: "/images/Salesforce-logo.jpg"
-    },
-    // {
-    //   title: "Whastsapp",
-    //   description: "Whatsapp Web",
-    //   url: "https://web.whatsapp.com/",
-    //   image: "/images/WhatsApp-Logo.png"
-    // },
-    {
-      title: "MAFOI",
-      description: "HR Suite",
-      url: "https://mafoi.hfactor.app/hrsuite/#/login/smartworld",
-      image: "/images/mafoi-logo.jpg"
-    },
-    {
-      title: "VENDORGLOBE",
-      description: "QMS Portal",
-      url: "https://smartworlddevelopersonline.com/qms/",
-      image: "/images/vendorglobe.png"
-    },
-    {
-      title: "Gift App",
-      description: "Vistaoffers",
-      url: "https://vistaoffers.com/#login",
-      image: "/images/GEMBA.png"
-    },
-    {
-      title: "Vista-ERP",
-      description: "Vistaerp",
-      url: "https://vistaerponline.com/#login",
-      image: "/images/GEMBA.png"
-    },
-    {
-      title: "Company",
-      description: "Website",
-      url: "https://smartworlddevelopers.com/",
-      image: "/images/company-logo.png"
-    },
-    {
-      title: "Projects",
-      description: "Our Developments",
-      url: "#",
-      image: "/images/projects-icon.png",
-      isDropdown: true
-    }
-  ];
-
-  // Fetch employees data for new joinees
   useEffect(() => {
-    const fetchEmployees = async () => {
+    const saved = localStorage.getItem('userTodos');
+    if (saved) setTodoItems(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    const load = async () => {
       try {
         const data = await employeeAPI.getAll();
-        console.log('Fetched employees data:', data.length);
-        
-        // Get current date and calculate last 30 days
-        const currentDate = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(currentDate.getDate() - 30);
-        
-        console.log('Date range for new joinees (last 30 days):', {
-          thirtyDaysAgo: thirtyDaysAgo.toDateString(),
-          currentDate: currentDate.toDateString()
+        const now = new Date(), ago = new Date();
+        ago.setDate(now.getDate()-30);
+        let recent = data.filter(e => {
+          const df = e.dateOfJoining||e.date_of_joining;
+          if (!df) return false;
+          const d = typeof df==='string' ? new Date(df) : new Date(new Date(1900,0,1).getTime()+(df-2)*86400000);
+          return !isNaN(d) && d>=ago && d<=now;
         });
-        
-        // Filter employees who joined in the last 30 days
-        const recentJoinees = data.filter(emp => {
-          if (!emp.dateOfJoining && !emp.date_of_joining) return false;
-          
-          // Use either dateOfJoining or date_of_joining field
-          const dateField = emp.dateOfJoining || emp.date_of_joining;
-          
-          // Parse the joining date - handle both string and Excel serial number formats
-          let joinDate;
-          
-          if (typeof dateField === 'string') {
-            // Handle string dates (YYYY-MM-DD format)
-            joinDate = new Date(dateField);
-          } else if (typeof dateField === 'number') {
-            // Handle Excel serial dates
-            const excelEpoch = new Date(1900, 0, 1);
-            const msPerDay = 24 * 60 * 60 * 1000;
-            joinDate = new Date(excelEpoch.getTime() + (dateField - 2) * msPerDay);
-          } else {
-            return false;
-          }
-          
-          // Check if joining date is valid
-          if (isNaN(joinDate.getTime())) {
-            console.log('Invalid date for employee:', emp.name, 'Date:', dateField);
-            return false;
-          }
-          
-          // Check if employee joined in the last 30 days
-          const isRecentJoinee = joinDate >= thirtyDaysAgo && joinDate <= currentDate;
-          
-          if (isRecentJoinee) {
-            console.log('Recent joinee found:', emp.name, 'Joined:', joinDate.toDateString());
-          }
-          
-          return isRecentJoinee;
-        }).sort((a, b) => {
-          const dateA = new Date(a.dateOfJoining || a.date_of_joining);
-          const dateB = new Date(b.dateOfJoining || b.date_of_joining);
-          return dateB - dateA; // Most recent first
-        });
-        
-        console.log('Recent joinees found (last 30 days):', recentJoinees.length);
-        
-        // If no recent joinees from last 30 days, show employees from last 60 days
-        let employeesToShow = recentJoinees;
-        if (employeesToShow.length === 0) {
-          console.log('No joinees in last 30 days, expanding to last 60 days');
-          const sixtyDaysAgo = new Date();
-          sixtyDaysAgo.setDate(currentDate.getDate() - 60);
-          
-          const extendedRecentJoinees = data.filter(emp => {
-            if (!emp.dateOfJoining && !emp.date_of_joining) return false;
-            
-            const dateField = emp.dateOfJoining || emp.date_of_joining;
-            let joinDate;
-            
-            if (typeof dateField === 'string') {
-              joinDate = new Date(dateField);
-            } else if (typeof dateField === 'number') {
-              const excelEpoch = new Date(1900, 0, 1);
-              const msPerDay = 24 * 60 * 60 * 1000;
-              joinDate = new Date(excelEpoch.getTime() + (dateField - 2) * msPerDay);
-            } else {
-              return false;
-            }
-            
-            if (isNaN(joinDate.getTime())) return false;
-            
-            return joinDate >= sixtyDaysAgo && joinDate <= currentDate;
-          }).sort((a, b) => {
-            const dateA = new Date(a.dateOfJoining || a.date_of_joining);
-            const dateB = new Date(b.dateOfJoining || b.date_of_joining);
-            return dateB - dateA;
-          });
-          
-          employeesToShow = extendedRecentJoinees.slice(0, 15);
-          console.log('Extended search found:', employeesToShow.length, 'employees');
-        }
-        
-        // If still no recent joinees, get the latest 15 employees by joining date
-        if (employeesToShow.length === 0) {
-          console.log('No recent joinees found, showing latest 15 employees by joining date');
-          const allEmployeesSorted = data
-            .filter(emp => {
-              const dateField = emp.dateOfJoining || emp.date_of_joining;
-              if (!dateField) return false;
-              
-              let joinDate;
-              if (typeof dateField === 'string') {
-                joinDate = new Date(dateField);
-              } else if (typeof dateField === 'number') {
-                const excelEpoch = new Date(1900, 0, 1);
-                const msPerDay = 24 * 60 * 60 * 1000;
-                joinDate = new Date(excelEpoch.getTime() + (dateField - 2) * msPerDay);
-              } else {
-                return false;
-              }
-              
-              return !isNaN(joinDate.getTime());
-            })
-            .sort((a, b) => {
-              const dateA = new Date(a.dateOfJoining || a.date_of_joining);
-              const dateB = new Date(b.dateOfJoining || b.date_of_joining);
-              return dateB - dateA;
-            });
-          
-          employeesToShow = allEmployeesSorted.slice(0, 15);
-        }
-        
-        // Normalize the employee objects to ensure consistent field names
-        const normalizedEmployees = employeesToShow.slice(0, 15).map(emp => {
-          const dateField = emp.dateOfJoining || emp.date_of_joining;
-          let formattedDate = '';
-          
-          if (dateField) {
-            let joinDate;
-            if (typeof dateField === 'string') {
-              joinDate = new Date(dateField);
-            } else if (typeof dateField === 'number') {
-              const excelEpoch = new Date(1900, 0, 1);
-              const msPerDay = 24 * 60 * 60 * 1000;
-              joinDate = new Date(excelEpoch.getTime() + (dateField - 2) * msPerDay);
-            }
-            
-            if (joinDate && !isNaN(joinDate.getTime())) {
-              formattedDate = joinDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-            }
-          }
-          
-          return {
-            ...emp,
-            dateOfJoining: formattedDate, // Ensure consistent format
-          };
-        });
-        
-        console.log('Final new joinees to show:', normalizedEmployees.length);
-        if (normalizedEmployees.length > 0) {
-          console.log('Date range of joinees:', {
-            earliest: normalizedEmployees[normalizedEmployees.length - 1]?.dateOfJoining,
-            latest: normalizedEmployees[0]?.dateOfJoining
-          });
-        }
-        setEmployees(normalizedEmployees);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-        setEmployees([]);
-      }
+        if (!recent.length) recent = data.filter(e=>e.dateOfJoining||e.date_of_joining).sort((a,b)=>new Date(b.dateOfJoining||b.date_of_joining)-new Date(a.dateOfJoining||a.date_of_joining)).slice(0,15);
+        setEmployees(recent.slice(0,15));
+      } catch(e){ setEmployees([]); }
     };
-    
-    fetchEmployees();
+    load();
   }, []);
 
-  // Auto-scroll banner every 5 seconds (increased by 2 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBannerIndex(prev => (prev + 1) % bannerImages.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [bannerImages.length]);
+  useEffect(()=>{ const t=setInterval(()=>setBannerIdx(i=>(i+1)%bannerImages.length),5000); return ()=>clearInterval(t); },[]);
+  useEffect(()=>{ const t=setInterval(()=>setGalleryIdx(i=>(i+1)%galleryImages.length),4000); return ()=>clearInterval(t); },[]);
+  useEffect(()=>{ if(employees.length>3){ const t=setInterval(()=>setJoineeIdx(i=>(i+1)%employees.length),3000); return ()=>clearInterval(t); } },[employees.length]);
 
-  // Auto-scroll gallery images every 4 seconds (increased by 2 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentGalleryIndex(prev => (prev + 1) % galleryImages.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [galleryImages.length]);
+  const saveTodos = items => { setTodoItems(items); localStorage.setItem('userTodos',JSON.stringify(items)); };
+  const addTodo = ()=>{ if(newTodoText.trim()){ saveTodos([...todoItems,{id:Date.now(),text:newTodoText.trim(),completed:false}]); setNewTodoText(""); setShowAddTodo(false); } };
+  const toggleTodo = id => saveTodos(todoItems.map(t=>t.id===id?{...t,completed:!t.completed}:t));
+  const removeTodo = id => saveTodos(todoItems.filter(t=>t.id!==id));
+  const fmtDate = d => { try { const dt=new Date(d); return isNaN(dt)?'N/A':dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch(){ return 'N/A'; }};
 
-  // Auto-scroll new joinees every 3 seconds (showing 3 at a time)
-  useEffect(() => {
-    if (employees.length > 3) {
-      const interval = setInterval(() => {
-        setCurrentJoineeIndex(prev => {
-          const nextIndex = prev + 1;
-          return nextIndex + 2 >= employees.length ? 0 : nextIndex;
-        });
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [employees.length]);
-
-  // Navigate banner manually
-  const navigateBanner = (direction) => {
-    if (direction === 'next') {
-      setCurrentBannerIndex(prev => (prev + 1) % bannerImages.length);
-    } else {
-      setCurrentBannerIndex(prev => (prev - 1 + bannerImages.length) % bannerImages.length);
-    }
+  const cs = {
+    sectionTitle: { fontFamily:"'Orbitron', monospace", fontSize:'.55rem', letterSpacing:'.2em', color:'rgba(0,212,255,0.5)', textTransform:'uppercase', marginBottom:8 },
+    btn: (c='#00d4ff') => ({ background:`transparent`, border:`1px solid ${c}50`, color:c, fontFamily:"'Orbitron', monospace", fontSize:'.58rem', letterSpacing:'.1em', padding:'5px 12px', borderRadius:4, cursor:'pointer', transition:'all .2s', display:'flex', alignItems:'center', gap:4 }),
   };
-
-  // Todo list functions
-  const addTodoItem = () => {
-    if (newTodoText.trim()) {
-      const newItem = {
-        id: Date.now(),
-        text: newTodoText.trim(),
-        completed: false
-      };
-      setTodoItems([...todoItems, newItem]);
-      setNewTodoText("");
-      setShowAddTodo(false);
-      localStorage.setItem('userTodos', JSON.stringify([...todoItems, newItem]));
-    }
-  };
-
-  const toggleTodoItem = (id) => {
-    const updatedItems = todoItems.map(item =>
-      item.id === id ? { ...item, completed: !item.completed } : item
-    );
-    setTodoItems(updatedItems);
-    localStorage.setItem('userTodos', JSON.stringify(updatedItems));
-  };
-
-  const removeTodoItem = (id) => {
-    const updatedItems = todoItems.filter(item => item.id !== id);
-    setTodoItems(updatedItems);
-    localStorage.setItem('userTodos', JSON.stringify(updatedItems));
-  };
-
-  // Load todos from localStorage on component mount
-  useEffect(() => {
-    const savedTodos = localStorage.getItem('userTodos');
-    if (savedTodos) {
-      setTodoItems(JSON.parse(savedTodos));
-    }
-  }, []);
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Invalid Date';
-      
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      });
-    } catch (error) {
-      console.error('Error formatting date:', error, dateString);
-      return 'N/A';
-    }
-  };
-
-  // Handle projects dropdown
-  const handleProjectsClick = () => {
-    setShowProjectsDropdown(!showProjectsDropdown);
-  };
-
-  // Handle employee selection for details modal
-  const handleEmployeeClick = (employee) => {
-    setSelectedEmployee(employee);
-    setShowEmployeeModal(true);
-  };
-
-  // Close employee modal
-  const closeEmployeeModal = () => {
-    setShowEmployeeModal(false);
-    setSelectedEmployee(null);
-  };
-
-  // Define different tiles for Admin vs User
-  const adminTiles = [
-    {
-      title: "PICTURES",
-      icon: <Image className="h-6 w-6" />,
-      description: "Company gallery and events",
-      color: "bg-gradient-to-br from-blue-600 to-blue-700",
-      textColor: "text-white",
-      interactive: true
-    },
-    {
-      title: "NEW JOINEES",
-      icon: <Users className="h-6 w-6" />,
-      description: "",
-      color: "bg-white border-2 border-blue-200",
-      textColor: "text-blue-900",
-      interactive: true
-    },
-    {
-      title: "CELEBRATIONS",
-      icon: <PartyPopper className="h-6 w-6" />,
-      description: "Birthdays, anniversaries & achievements",
-      color: "bg-gradient-to-br from-blue-600 to-blue-700",
-      textColor: "text-white"
-    },
-    {
-      title: "TO DO LIST",
-      icon: <CheckSquare className="h-6 w-6" />,
-      description: "Your personal task manager",
-      color: "bg-white border-2 border-blue-200",
-      textColor: "text-blue-900",
-      interactive: true
-    },
-    {
-      title: "WORKFLOW",
-      icon: <Workflow className="h-6 w-6" />,
-      description: "Process management & tracking",
-      color: "bg-gradient-to-br from-blue-600 to-blue-700",
-      textColor: "text-white"
-    },
-    {
-      title: "DAILY COMPANY NEWS",
-      icon: <Newspaper className="h-6 w-6" />,
-      description: "Latest updates and announcements",
-      color: "bg-white border-2 border-blue-200",
-      textColor: "text-blue-900"
-    }
-  ];
-
-  const userTiles = [
-    {
-      title: "PICTURES",
-      icon: <Image className="h-6 w-6" />,
-      description: "Company gallery and events",
-      color: "bg-blue-600",
-      textColor: "text-white",
-      interactive: true
-    },
-    {
-      title: "NEW JOINEES",
-      icon: <Users className="h-6 w-6" />,
-      description: "",
-      color: "bg-white border-2 border-blue-200",
-      textColor: "text-blue-900",
-      interactive: true
-    },
-    {
-      title: "TO DO LIST",
-      icon: <CheckSquare className="h-6 w-6" />,
-      description: "Your personal task manager",
-      color: "bg-white border-2 border-blue-200",
-      textColor: "text-blue-900",
-      interactive: true
-    }
-  ];
-
-  const tiles = isAdmin() ? adminTiles : userTiles;
 
   return (
-    <div className="h-full flex flex-col space-y-4">
-      {/* Compact Banner Section */}
-      <div className="relative w-full h-48 rounded-lg shadow-md overflow-hidden">
-        <div 
-          className="flex transition-transform duration-500 ease-in-out h-full"
-          style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
-        >
-          {bannerImages.map((image, index) => (
-            <div
-              key={index}
-              className="min-w-full h-full relative"
-              style={{
-                backgroundImage: `url(${image})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
-            >
-              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <h2 className="text-3xl font-bold mb-2">Welcome to SMARTWORLD</h2>
-                  <p className="text-lg">BUILDING FUTURE HOMES</p>
-                </div>
+    <div style={{ display:'flex', flexDirection:'column', gap:14, paddingBottom:16 }}>
+
+      {/* === BANNER === */}
+      <div style={{ position:'relative', borderRadius:8, overflow:'hidden', height:180 }}>
+        <div style={{ display:'flex', transition:'transform .7s ease', transform:`translateX(-${bannerIdx*100}%)`, height:'100%' }}>
+          {bannerImages.map((src,i)=>(
+            <div key={i} style={{ minWidth:'100%', height:'100%', position:'relative', flexShrink:0 }}>
+              <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
+              <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg, rgba(2,8,22,0.6) 0%, rgba(2,8,22,0.2) 100%)' }} />
+              <div style={{ position:'absolute', bottom:16, left:20 }}>
+                <div style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:'1.3rem', color:'#fff', textShadow:'0 0 20px rgba(0,212,255,0.5)', letterSpacing:'.1em' }}>WELCOME TO SMARTWORLD</div>
+                <div style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.7rem', color:'rgba(0,212,255,0.8)', letterSpacing:'.2em', marginTop:4 }}>BUILDING FUTURE HOMES</div>
               </div>
             </div>
           ))}
         </div>
-        
-        {/* Navigation Arrows */}
-        <button
-          onClick={() => navigateBanner('prev')}
-          className="absolute left-3 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1.5 transition-all"
-        >
-          <ChevronLeft className="h-5 w-5 text-gray-800" />
-        </button>
-        <button
-          onClick={() => navigateBanner('next')}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1.5 transition-all"
-        >
-          <ChevronRight className="h-5 w-5 text-gray-800" />
-        </button>
-        
-        {/* Dots Indicator */}
-        <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5">
-          {bannerImages.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentBannerIndex(index)}
-              className={`w-2.5 h-2.5 rounded-full transition-all ${
-                index === currentBannerIndex ? 'bg-white' : 'bg-white bg-opacity-50'
-              }`}
-            />
+        {/* Arrows */}
+        {[['prev','left',4],['next','right',4]].map(([d,side,pos])=>(
+          <button key={d} onClick={()=>setBannerIdx(i=>d==='next'?(i+1)%bannerImages.length:(i-1+bannerImages.length)%bannerImages.length)}
+            style={{ position:'absolute', [side]:pos, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.5)', border:'1px solid rgba(0,212,255,0.4)', borderRadius:'50%', width:28,height:28, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#00d4ff' }}>
+            {d==='prev'?<ChevronLeft size={14}/>:<ChevronRight size={14}/>}
+          </button>
+        ))}
+        {/* Dots */}
+        <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:5 }}>
+          {bannerImages.map((_,i)=>(
+            <div key={i} onClick={()=>setBannerIdx(i)} style={{ width:i===bannerIdx?20:6, height:6, borderRadius:3, background:i===bannerIdx?'#00d4ff':'rgba(0,212,255,0.3)', cursor:'pointer', transition:'all .3s' }} />
           ))}
         </div>
       </div>
 
-      {/* Tiles Section - Enhanced Admin Layout */}
-      <div className={`flex-1 grid gap-4 ${
-        isAdmin() 
-          ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3' 
-          : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-h-72'
-      }`}>
-        {tiles.map((tile, index) => (
-          <Card 
-            key={index}
-            className={`${tile.color} ${tile.textColor} shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col ${
-              tile.title === "PICTURES" ? "overflow-hidden border-0 p-0" : "transform hover:scale-105 border-0"
-            } ${
-              !isAdmin() ? 'h-56' : 'h-full min-h-48'
-            } ${
-              isAdmin() ? 'hover:shadow-2xl backdrop-blur-sm' : ''
-            }`}
-          >
-            {tile.title === "PICTURES" ? (
-              // Full-screen Pictures tile without borders
-              <div className="h-full w-full relative overflow-hidden">
-                {/* Full-screen slideshow container */}
-                <div 
-                  className="flex transition-transform duration-700 ease-in-out h-full"
-                  style={{ transform: `translateX(-${currentGalleryIndex * 100}%)` }}
-                >
-                  {galleryImages.map((image, idx) => (
-                    <div 
-                      key={idx}
-                      className="min-w-full h-full relative overflow-hidden"
-                    >
-                      <img
-                        src={image}
-                        alt={`Company gallery ${idx + 1}`}
-                        className="w-full h-full object-cover transition-all duration-500"
-                        onError={(e) => {
-                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjEwMCIgeT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
-                        }}
-                      />
-                      {/* Overlay gradient for better visibility */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                    </div>
-                  ))}
+      {/* === QUICK LINKS GRID === */}
+      <div>
+        <div style={cs.sectionTitle}>// QUICK ACCESS PORTALS</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(90px, 1fr))', gap:8 }}>
+          {quickLinks.map((lnk,i)=>(
+            <div key={i} style={{ position:'relative' }}>
+              <div
+                onClick={()=>lnk.isDropdown?setShowProjects(!showProjects):window.open(lnk.url,'_blank')}
+                style={{
+                  background:'rgba(6,20,45,0.85)', border:`1px solid rgba(0,212,255,0.15)`,
+                  borderRadius:7, padding:'10px 6px', textAlign:'center', cursor:'pointer',
+                  transition:'all .25s', backdropFilter:'blur(8px)',
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=lnk.color+'60';e.currentTarget.style.boxShadow=`0 0 12px ${lnk.color}18`}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(0,212,255,0.15)';e.currentTarget.style.boxShadow='none'}}
+              >
+                <div style={{ width:36,height:36,borderRadius:6,background:`${lnk.color}15`,border:`1px solid ${lnk.color}30`,margin:'0 auto 6px',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden' }}>
+                  <img src={lnk.img} alt={lnk.title} style={{ width:26,height:26,objectFit:'contain' }} onError={e=>{e.target.style.display='none';}} />
                 </div>
-                
-                {/* Title overlay - Only show for Admin */}
-                {isAdmin() && (
-                  <div className="absolute top-4 left-4 z-10">
-                    <div className="flex items-center space-x-2 text-white">
-                      <Image className="h-5 w-5" />
-                      <span className="text-sm font-bold tracking-wide">PICTURES</span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Slide indicators */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
-                  {galleryImages.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentGalleryIndex(idx)}
-                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                        idx === currentGalleryIndex 
-                          ? 'bg-white scale-110 shadow-lg' 
-                          : 'bg-white/60 hover:bg-white/80'
-                      }`}
-                    />
-                  ))}
-                </div>
-                
-                {/* Progress bar */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 z-10">
-                  <div 
-                    className="h-full bg-white/80 transition-all duration-2000 ease-linear"
-                    style={{ 
-                      width: `${((currentGalleryIndex + 1) / galleryImages.length) * 100}%` 
-                    }}
-                  />
-                </div>
+                <div style={{ fontFamily:"'Orbitron', monospace", fontSize:'.5rem', fontWeight:700, color:'rgba(224,244,255,0.9)', letterSpacing:'.05em', lineHeight:1.3 }}>{lnk.title}</div>
+                <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.58rem', color:'rgba(122,184,212,0.5)', marginTop:2 }}>{lnk.desc}</div>
               </div>
-            ) : (
-              <>
-                <CardHeader className="pb-2 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {tile.icon}
-                      <CardTitle className="text-base font-bold">{tile.title}</CardTitle>
+              {/* Projects dropdown */}
+              {lnk.isDropdown && showProjects && (
+                <div style={{ position:'absolute', top:'105%', left:0, right:0, zIndex:50, background:'rgba(6,20,45,0.98)', border:'1px solid rgba(0,212,255,0.3)', borderRadius:6, overflow:'hidden', minWidth:160, boxShadow:'0 8px 30px rgba(0,0,0,0.6)' }}>
+                  {projectLinks.map((p,j)=>(
+                    <div key={j} onClick={()=>{window.open(p.url,'_blank');setShowProjects(false);}} style={{ padding:'8px 12px', fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', color:'rgba(122,184,212,0.85)', cursor:'pointer', borderBottom:'1px solid rgba(0,212,255,0.06)', transition:'background .2s' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(0,212,255,0.06)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                      {p.name}
                     </div>
-                    {tile.title === "NEW JOINEES" && employees.length > 0 && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                        Last 30 days
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 flex-1 flex flex-col">
-                  {tile.interactive && tile.title === "NEW JOINEES" ? (
-                    <div className="flex-1 flex flex-col">
-                      <p className="text-xs opacity-90 mb-3">
-                        {employees.length > 0 
-                          ? `${employees.length} employees joined recently`
-                          : tile.description
-                        }
-                      </p>
-                      
-                      {/* New Joinees Enhanced Display */}
-                      {employees.length > 0 ? (
-                        <div className="flex-1 flex flex-col">
-                          <div className={`space-y-2 overflow-hidden relative ${
-                            !isAdmin() ? 'h-32' : 'h-40'
-                          }`}>
-                            <div 
-                              className="transition-transform duration-1000 ease-in-out"
-                              style={{ 
-                                transform: `translateY(-${(currentJoineeIndex) * (isAdmin() ? 42 : 38)}px)` 
-                              }}
-                            >
-                              {/* Create extended array for seamless scrolling */}
-                              {employees.concat(employees.slice(0, 5)).map((employee, idx) => (
-                                <div 
-                                  key={`${employee.id}-${idx}`}
-                                  onClick={() => handleEmployeeClick(employee)}
-                                  className={`bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-2 mb-2 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer hover:scale-102 ${
-                                    !isAdmin() ? 'h-8' : 'h-10'
-                                  }`}
-                                  style={{
-                                    outline: '1px solid rgba(59, 130, 246, 0.3)',
-                                    outlineOffset: '1px'
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between h-full">
-                                    {/* Employee Name with White Background */}
-                                    <div className="bg-white px-2 py-1 rounded-md border border-blue-300 shadow-sm flex-shrink-0">
-                                      <span className="font-bold text-blue-900 text-xs">
-                                        {employee.name}
-                                      </span>
-                                    </div>
-                                    
-                                    {/* Employee Details */}
-                                    <div className="flex flex-col justify-center ml-2 flex-1 min-w-0">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-blue-700 font-medium text-[10px] truncate">
-                                          ID: {employee.id}
-                                        </span>
-                                        <span className="text-blue-500 text-[9px] flex-shrink-0 ml-2">
-                                          {formatDate(employee.dateOfJoining)}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center space-x-2 text-[9px] mt-0.5">
-                                        <span className="bg-blue-200 text-blue-800 px-1 rounded text-[8px] font-medium">
-                                          {employee.grade || 'N/A'}
-                                        </span>
-                                        <span className="text-blue-600 truncate font-medium">
-                                          {employee.department.length > 15 ? employee.department.substring(0, 15) + '..' : employee.department}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          {/* Enhanced Progress indicator */}
-                          <div className="flex justify-center mt-2 space-x-1">
-                            {employees.slice(0, Math.min(8, employees.length)).map((_, idx) => (
-                              <div
-                                key={idx}
-                                className={`h-1.5 rounded-full transition-all duration-500 ${
-                                  idx === currentJoineeIndex 
-                                    ? 'bg-blue-600 w-6 shadow-md' 
-                                    : idx === (currentJoineeIndex + 1) % employees.length
-                                    ? 'bg-blue-400 w-3'
-                                    : 'bg-blue-200 w-2'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center text-blue-700 bg-blue-50 rounded-lg border-2 border-dashed border-blue-300">
-                          <div className="text-center p-4">
-                            <Users className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-                            <p className="text-sm font-medium">Loading new joinees...</p>
-                            <p className="text-xs text-blue-500">From last month</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-              ) : tile.interactive && tile.title === "TO DO LIST" ? (
-                <div className="flex-1 flex flex-col">
-                  <p className="text-xs opacity-90 mb-2">{tile.description}</p>
-                  
-                  {/* Todo Items Count and Scroll Indicator */}
-                  {todoItems.length > 4 && (
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-blue-600">{todoItems.length} tasks</span>
-                      <span className="text-[10px] text-blue-500">↕ scroll to see more</span>
-                    </div>
-                  )}
-                  
-                  {/* Todo Items - Enhanced Scrollable Version */}
-                  <div className={`flex-1 space-y-1.5 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-blue-100 hover:scrollbar-thumb-blue-500 ${
-                    !isAdmin() ? 'max-h-28' : 'max-h-32'
-                  }`}>
-                    {todoItems.map((item) => (
-                      <div key={item.id} className="flex items-center space-x-2 bg-blue-50 rounded p-1.5 hover:bg-blue-100 transition-colors">
-                        <Checkbox
-                          checked={item.completed}
-                          onCheckedChange={() => toggleTodoItem(item.id)}
-                          className="border-blue-400 h-3 w-3 flex-shrink-0"
-                        />
-                        <span className={`flex-1 text-xs text-blue-900 ${item.completed ? 'line-through opacity-70' : ''} break-words`}>
-                          {item.text}
-                        </span>
-                        <button
-                          onClick={() => removeTodoItem(item.id)}
-                          className="text-blue-600 hover:text-blue-800 transition-colors flex-shrink-0"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                    {todoItems.length === 0 && (
-                      <div className="flex items-center justify-center h-16 text-blue-500">
-                        <p className="text-xs opacity-75">No tasks yet. Add one below!</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Add Todo - Compact */}
-                  {showAddTodo ? (
-                    <div className="mt-auto space-y-1.5">
-                      <Input
-                        value={newTodoText}
-                        onChange={(e) => setNewTodoText(e.target.value)}
-                        placeholder="Enter new task..."
-                        className="bg-blue-50 text-blue-900 placeholder-blue-500 border-blue-200 h-8 text-xs"
-                        onKeyPress={(e) => e.key === 'Enter' && addTodoItem()}
-                      />
-                      <div className="flex space-x-1">
-                        <Button 
-                          size="sm" 
-                          onClick={addTodoItem}
-                          className="bg-blue-600 text-white hover:bg-blue-700 h-7 px-2 text-xs"
-                        >
-                          Add
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => {
-                            setShowAddTodo(false);
-                            setNewTodoText("");
-                          }}
-                          className="border-blue-400 text-blue-600 hover:bg-blue-50 h-7 px-2 text-xs"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => setShowAddTodo(true)}
-                      className="mt-auto bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 border h-7 text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Task
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex-1 flex items-start">
-                  <p className="text-xs opacity-90">{tile.description}</p>
+                  ))}
                 </div>
               )}
-                </CardContent>
-              </>
-            )}
-          </Card>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* External Links Section - Full Width Stretch for Admin Only */}
-      {isAdmin() && (
-        <div className="mt-4">
-          <h3 className="text-md font-medium text-blue-900 mb-3 text-center">Quick Links</h3>
-          <div className="w-full flex gap-3 justify-stretch">
-            {externalButtons.map((button, index) => (
-              <div key={index} className="flex-1 relative">
-                {button.isDropdown ? (
-                  <div className="relative">
-                    <button
-                      onClick={handleProjectsClick}
-                      className={`${button.color} ${button.color.includes('text-white') ? 'text-white' : 'text-blue-700'} rounded-md p-3 shadow-sm transition-all duration-200 hover:shadow-md group text-center w-full`}
-                    >
-                      <div className="flex flex-col items-center space-y-1">
-                        <div className="flex items-center space-x-1">
-                          {button.icon}
-                          <ChevronDown className={`h-4 w-4 transition-transform ${showProjectsDropdown ? 'rotate-180' : ''}`} />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-sm">{button.title}</h4>
-                          <p className="text-xs opacity-75">{button.description}</p>
-                        </div>
-                      </div>
-                    </button>
-                    
-                    {showProjectsDropdown && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-blue-200 rounded-md shadow-lg z-50">
-                        <div className="p-2 bg-blue-50 border-b border-blue-200">
-                          <h4 className="text-xs font-semibold text-blue-800 text-center">SmartWorld Projects</h4>
-                        </div>
-                        {projectLinks.map((project, projIndex) => (
-                          <a
-                            key={projIndex}
-                            href={project.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block px-4 py-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors border-b border-blue-100 last:border-b-0 flex items-center justify-between group"
-                            onClick={() => setShowProjectsDropdown(false)}
-                          >
-                            <span className="font-medium">{project.name}</span>
-                            <ExternalLink className="h-3 w-3 opacity-40 group-hover:opacity-70 transition-opacity" />
-                          </a>
-                        ))}
-                        <div className="p-2 bg-gray-50 text-center">
-                          <span className="text-xs text-gray-500">Click to visit project details</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <a
-                    href={button.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${button.color} ${button.color.includes('text-white') ? 'text-white' : 'text-blue-700'} rounded-md p-3 shadow-sm transition-all duration-200 hover:shadow-md group text-center w-full block`}
-                  >
-                    <div className="flex flex-col items-center space-y-1">
-                      {button.icon}
-                      <div>
-                        <h4 className="font-medium text-sm">{button.title}</h4>
-                        <p className="text-xs opacity-75">{button.description}</p>
-                      </div>
-                      <ExternalLink className="h-3 w-3 opacity-50 group-hover:opacity-75 transition-opacity" />
-                    </div>
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* === MAIN 3-COLUMN GRID === */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
 
-      {/* User Quick Links Section - Image-only design as requested (NO square boundaries) */}
-      {!isAdmin() && (
-        <div className="mt-4">
-          <h3 className="text-md font-medium text-blue-900 mb-3 text-center">Quick Access</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-0">
-            {userQuickAccessButtons.map((button, index) => (
-              <div key={index} className="relative flex flex-col items-center">
-                {button.isDropdown ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowUserProjectsDropdown(!showUserProjectsDropdown)}
-                      className="group transition-all duration-200 hover:scale-110 text-center"
-                    >
-                      <div className="flex flex-col items-center space-y-2">
-                        <img 
-                          src={button.image} 
-                          alt={button.title}
-                          className="h-12 w-12 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all duration-200"
-                        />
-                        <div className="flex items-center space-x-1">
-                          <span className="font-medium text-sm text-blue-700">{button.title}</span>
-                          <ChevronDown className={`h-3 w-3 text-blue-500 transition-transform ${showUserProjectsDropdown ? 'rotate-180' : ''}`} />
-                        </div>
-                        <p className="text-xs text-blue-600">{button.description}</p>
-                      </div>
-                    </button>
-                    
-                    {showUserProjectsDropdown && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border border-blue-200 rounded-md shadow-lg z-50 min-w-48">
-                        <div className="p-2 bg-blue-50 border-b border-blue-200">
-                          <h4 className="text-xs font-semibold text-blue-800 text-center">SmartWorld Projects</h4>
-                        </div>
-                        {projectLinks.map((project, projIndex) => (
-                          <a
-                            key={projIndex}
-                            href={project.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block px-4 py-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors border-b border-blue-100 last:border-b-0 flex items-center justify-between group"
-                            onClick={() => setShowUserProjectsDropdown(false)}
-                          >
-                            <span className="font-medium">{project.name}</span>
-                            <ExternalLink className="h-3 w-3 opacity-40 group-hover:opacity-70 transition-opacity" />
-                          </a>
-                        ))}
-                        <div className="p-2 bg-gray-50 text-center">
-                          <span className="text-xs text-gray-500">Click to visit project details</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <a
-                    href={button.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group transition-all duration-200 hover:scale-110 text-center"
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      <img 
-                        src={button.image} 
-                        alt={button.title}
-                        className="h-12 w-12 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all duration-200"
-                      />
-                      <div>
-                        <h4 className="font-medium text-sm text-blue-700">{button.title}</h4>
-                        <p className="text-xs text-blue-600">{button.description}</p>
-                      </div>
-                    </div>
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Close dropdowns when clicking outside */}
-      {(showProjectsDropdown || showUserProjectsDropdown) && (
-        <div 
-          className="fixed inset-0 z-30" 
-          onClick={() => {
-            setShowProjectsDropdown(false);
-            setShowUserProjectsDropdown(false);
-          }}
-        />
-      )}
-
-      {/* Employee Details Modal */}
-      {showEmployeeModal && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Background overlay - click to close */}
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" 
-            onClick={closeEmployeeModal}
-          />
-          
-          {/* Modal content */}
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 animate-in zoom-in">
-            {/* Close button */}
-            <button
-              onClick={closeEmployeeModal}
-              className="absolute top-4 right-4 z-10 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
-            >
-              <X className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-            </button>
-
-            {/* Employee profile image */}
-            <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-t-xl p-6 text-center">
-              <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-white shadow-lg flex items-center justify-center overflow-hidden">
-                {selectedEmployee.profileImage ? (
-                  <img 
-                    src={selectedEmployee.profileImage} 
-                    alt={selectedEmployee.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div className="w-full h-full bg-blue-100 flex items-center justify-center">
-                  <User className="h-12 w-12 text-blue-400" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-1">{selectedEmployee.name}</h3>
-              <p className="text-blue-100 text-sm">Employee ID: {selectedEmployee.id}</p>
+        {/* Gallery tile */}
+        <CyberCard style={{ overflow:'hidden', height:240 }}>
+          <div style={{ position:'absolute', inset:0 }}>
+            <img src={galleryImages[galleryIdx]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', transition:'opacity .5s' }} onError={e=>e.target.style.opacity='0'} />
+            <div style={{ position:'absolute', inset:0, background:'linear-gradient(180deg, rgba(2,8,22,0.5) 0%, rgba(2,8,22,0.2) 50%, rgba(2,8,22,0.7) 100%)' }} />
+            <div style={{ position:'absolute', top:10, left:12, display:'flex', alignItems:'center', gap:6 }}>
+              <Image size={13} style={{ color:'#00d4ff' }} />
+              <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.6rem', color:'rgba(255,255,255,0.9)', letterSpacing:'.1em' }}>GALLERY</span>
             </div>
-
-            {/* Employee details */}
-            <div className="p-6">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Department</span>
-                    <span className="text-gray-900 font-semibold">{selectedEmployee.department || 'N/A'}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Location</span>
-                    <span className="text-gray-900 font-semibold">{selectedEmployee.location || 'N/A'}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Grade</span>
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm font-medium">
-                      {selectedEmployee.grade || 'N/A'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Joining Date</span>
-                    <span className="text-gray-900 font-semibold">
-                      {selectedEmployee.dateOfJoining ? formatDate(selectedEmployee.dateOfJoining) : 'N/A'}
-                    </span>
-                  </div>
-                  
-                  {selectedEmployee.mobile && (
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Mobile</span>
-                      <span className="text-gray-900 font-semibold">{selectedEmployee.mobile}</span>
-                    </div>
-                  )}
-                  
-                  {selectedEmployee.email && (
-                    <div className="flex justify-between items-center py-2">
-                      <span className="text-gray-600 font-medium">Email</span>
-                      <span className="text-gray-900 font-semibold text-sm break-all">{selectedEmployee.email}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Welcome message */}
-              <div className="mt-6 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-4 text-center">
-                <PartyPopper className="h-6 w-6 text-blue-500 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-700">Welcome to the team!</p>
-                <p className="text-xs text-gray-500 mt-1">We're excited to have you aboard</p>
-              </div>
+            <div style={{ position:'absolute', bottom:10, left:'50%', transform:'translateX(-50%)', display:'flex', gap:4 }}>
+              {galleryImages.map((_,i)=><div key={i} onClick={()=>setGalleryIdx(i)} style={{ width:i===galleryIdx?16:5, height:5, borderRadius:3, background:i===galleryIdx?'#00d4ff':'rgba(255,255,255,0.3)', cursor:'pointer', transition:'all .3s' }} />)}
             </div>
+          </div>
+        </CyberCard>
+
+        {/* New Joinees */}
+        <CyberCard color="#7b2fff">
+          <div style={{ padding:'12px 14px', height:240, display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <Users size={13} style={{ color:'#7b2fff' }} />
+                <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.62rem', fontWeight:700, color:'#e0f4ff', letterSpacing:'.08em' }}>NEW JOINEES</span>
+              </div>
+              <span style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.55rem', color:'#7b2fff', letterSpacing:'.05em' }}>{employees.length} RECENT</span>
+            </div>
+            <div style={{ flex:1, overflow:'hidden', position:'relative' }}>
+              {employees.length > 0 ? (
+                <div style={{ transform:`translateY(-${joineeIdx*46}px)`, transition:'transform 1s ease' }}>
+                  {[...employees, ...employees.slice(0,5)].map((emp,i)=>(
+                    <div key={`${emp.id}-${i}`}
+                      onClick={()=>setSelectedEmployee(emp)}
+                      style={{ background:'rgba(123,47,255,0.1)', border:'1px solid rgba(123,47,255,0.25)', borderRadius:5, padding:'7px 10px', marginBottom:6, cursor:'pointer', transition:'border-color .2s' }}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(123,47,255,0.5)'}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(123,47,255,0.25)'}
+                    >
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', fontWeight:600, color:'#e0f4ff' }}>{emp.name}</span>
+                        <span style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.55rem', color:'rgba(122,184,212,0.5)' }}>{fmtDate(emp.dateOfJoining)}</span>
+                      </div>
+                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.62rem', color:'rgba(122,184,212,0.6)', marginTop:2 }}>
+                        {emp.department?.substring(0,22)}{emp.department?.length>22?'…':''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', flexDirection:'column', gap:8 }}>
+                  <Users size={24} style={{ color:'rgba(123,47,255,0.4)' }} />
+                  <span style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.6rem', color:'rgba(122,184,212,0.4)', letterSpacing:'.1em' }}>LOADING...</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </CyberCard>
+
+        {/* To-Do List */}
+        <CyberCard color="#00ff88">
+          <div style={{ padding:'12px 14px', height:240, display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <CheckSquare size={13} style={{ color:'#00ff88' }} />
+                <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.62rem', fontWeight:700, color:'#e0f4ff', letterSpacing:'.08em' }}>TO-DO LIST</span>
+              </div>
+              <button onClick={()=>setShowAddTodo(!showAddTodo)} style={{ background:'rgba(0,255,136,0.1)', border:'1px solid rgba(0,255,136,0.3)', borderRadius:4, width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#00ff88' }}>
+                <Plus size={12} />
+              </button>
+            </div>
+            {showAddTodo && (
+              <div style={{ display:'flex', gap:5, marginBottom:8 }}>
+                <input value={newTodoText} onChange={e=>setNewTodoText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTodo()} placeholder="New task..." style={{ flex:1, background:'rgba(0,20,40,0.8)', border:'1px solid rgba(0,255,136,0.3)', borderRadius:4, padding:'5px 8px', color:'#e0f4ff', fontFamily:"'Exo 2', sans-serif", fontSize:'.7rem', outline:'none' }} />
+                <button onClick={addTodo} style={{ ...cs.btn('#00ff88'), padding:'5px 8px', fontSize:'.6rem' }}>ADD</button>
+              </div>
+            )}
+            <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
+              {todoItems.map(item=>(
+                <div key={item.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', background:'rgba(0,255,136,0.04)', border:'1px solid rgba(0,255,136,0.1)', borderRadius:5 }}>
+                  <div onClick={()=>toggleTodo(item.id)} style={{ width:14, height:14, borderRadius:3, border:`1px solid ${item.completed?'#00ff88':'rgba(0,255,136,0.3)'}`, background:item.completed?'rgba(0,255,136,0.2)':'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    {item.completed && <span style={{ color:'#00ff88', fontSize:9 }}>✓</span>}
+                  </div>
+                  <span style={{ flex:1, fontFamily:"'Exo 2', sans-serif", fontSize:'.7rem', color: item.completed?'rgba(122,184,212,0.4)':'rgba(224,244,255,0.85)', textDecoration:item.completed?'line-through':'none', lineHeight:1.3 }}>{item.text}</span>
+                  <button onClick={()=>removeTodo(item.id)} style={{ background:'none', border:'none', color:'rgba(122,184,212,0.3)', cursor:'pointer', padding:0, display:'flex' }}><X size={11} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CyberCard>
+      </div>
+
+      {/* === BOTTOM ROW === */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+
+        {/* Celebrations */}
+        <CyberCard color="#ff6b00">
+          <div style={{ padding:'14px 16px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <PartyPopper size={14} style={{ color:'#ff6b00' }} />
+              <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.62rem', fontWeight:700, color:'#e0f4ff', letterSpacing:'.08em' }}>CELEBRATIONS</span>
+            </div>
+            <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', color:'rgba(122,184,212,0.6)', textAlign:'center', padding:'16px 0' }}>
+              Birthdays, anniversaries &<br/>achievements — coming soon
+            </div>
+          </div>
+        </CyberCard>
+
+        {/* Company News */}
+        <CyberCard color="#0066ff">
+          <div style={{ padding:'14px 16px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <Newspaper size={14} style={{ color:'#0066ff' }} />
+              <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.62rem', fontWeight:700, color:'#e0f4ff', letterSpacing:'.08em' }}>COMPANY NEWS</span>
+            </div>
+            <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', color:'rgba(122,184,212,0.6)', textAlign:'center', padding:'16px 0' }}>
+              Daily updates & announcements<br/>— coming soon
+            </div>
+          </div>
+        </CyberCard>
+
+        {/* Workflow */}
+        <CyberCard color="#7b2fff">
+          <div style={{ padding:'14px 16px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <Workflow size={14} style={{ color:'#7b2fff' }} />
+              <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.62rem', fontWeight:700, color:'#e0f4ff', letterSpacing:'.08em' }}>WORKFLOW</span>
+            </div>
+            <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', color:'rgba(122,184,212,0.6)', textAlign:'center', padding:'16px 0' }}>
+              Process management &<br/>task tracking — coming soon
+            </div>
+          </div>
+        </CyberCard>
+      </div>
+
+      {/* Employee detail modal */}
+      {selectedEmployee && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={()=>setSelectedEmployee(null)}>
+          <div style={{ background:'rgba(6,20,45,0.98)', border:'1px solid rgba(0,212,255,0.35)', borderRadius:10, padding:'20px 24px', width:320, position:'relative' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,#00d4ff,transparent)' }} />
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:'.7rem', fontWeight:700, color:'#00d4ff', letterSpacing:'.1em' }}>PERSONNEL RECORD</div>
+              <button onClick={()=>setSelectedEmployee(null)} style={{ background:'none', border:'none', color:'rgba(122,184,212,0.6)', cursor:'pointer' }}><X size={16} /></button>
+            </div>
+            {[['Name', selectedEmployee.name],['ID', selectedEmployee.id||selectedEmployee.employeeId],['Department', selectedEmployee.department],['Designation', selectedEmployee.designation],['Location', selectedEmployee.location],['Joined', fmtDate(selectedEmployee.dateOfJoining)]].map(([k,v])=>v?(
+              <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid rgba(0,212,255,0.07)' }}>
+                <span style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:'.6rem', color:'rgba(0,212,255,0.5)', letterSpacing:'.1em' }}>{k.toUpperCase()}</span>
+                <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.72rem', color:'#e0f4ff' }}>{v}</span>
+              </div>
+            ):null)}
           </div>
         </div>
       )}
