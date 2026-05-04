@@ -6,6 +6,26 @@ import { employeeAPI, utilityAPI } from "../services/api";
 import EmployeeCard from "./EmployeeCard";
 import EmployeeList from "./EmployeeList";
 
+/* ── Stable SearchInput (defined outside to prevent re-mount on re-render) ── */
+const SearchInput = ({ value, onChange, placeholder }) => (
+  <div style={{ position:'relative' }}>
+    <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'rgba(139,92,246,0.5)', pointerEvents:'none' }} />
+    <input
+      style={{ width:'100%', background:'rgba(139,92,246,0.06)', border:'1px solid rgba(139,92,246,0.2)', borderRadius:7, padding:'8px 32px 8px 32px', color:'var(--text-primary)', fontFamily:"'DM Sans', sans-serif", fontSize:'.82rem', outline:'none', transition:'border-color .2s' }}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      onFocus={e => e.target.style.borderColor='rgba(139,92,246,0.5)'}
+      onBlur={e => e.target.style.borderColor='rgba(139,92,246,0.2)'}
+    />
+    {value && (
+      <button style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'rgba(139,92,246,0.6)', cursor:'pointer', padding:2 }} onClick={() => onChange("")}>
+        <X size={12} />
+      </button>
+    )}
+  </div>
+);
+
 const S = {
   container: { padding: '0 0 24px' },
   searchCard: {
@@ -124,21 +144,6 @@ const EmployeeDirectory = () => {
 
   const clearAllSearches = () => { setNameSearch(""); setEmployeeIdSearch(""); setDepartmentSearch(""); setDesignationSearch(""); setLocationSearch(""); };
 
-  const SearchInput = ({ value, onChange, placeholder }) => (
-    <div style={S.inputWrap}>
-      <Search size={14} style={S.searchIcon} />
-      <input
-        style={S.input}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        onFocus={e => e.target.style.borderColor = 'rgba(0,212,255,0.6)'}
-        onBlur={e => e.target.style.borderColor = 'rgba(0,212,255,0.2)'}
-      />
-      {value && <button style={S.clearBtn} onClick={() => onChange("")}><X size={12} /></button>}
-    </div>
-  );
-
   if (loading) return (
     <div style={S.loadingWrap}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -150,67 +155,69 @@ const EmployeeDirectory = () => {
   );
 
   return (
-    <div style={S.container}>
-      {/* Section header */}
-      <div style={{ marginBottom: 14 }}>
-        <div className="section-title" style={{ marginBottom: 6 }}>// PERSONNEL DATABASE</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <h2 style={{ fontFamily: "'Orbitron', monospace", fontWeight: 800, fontSize: '1.2rem', color: '#e0f4ff', margin: 0 }}>
-            EMPLOYEE <span className="neon-text">DIRECTORY</span>
+    <div style={{ padding:'0 0 24px' }}>
+      {/* Header */}
+      <div style={{ marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:6 }}>
+          <h2 style={{ fontFamily:"'Plus Jakarta Sans', sans-serif", fontWeight:800, fontSize:'1.2rem', color:'var(--text-primary)', margin:0 }}>
+            Employee Directory
           </h2>
-          {isAdmin && <div style={S.countBadge}>{employees.length} RECORDS</div>}
+          {isAdmin && hasSearched && (
+            <span style={{ fontFamily:"'DM Sans', sans-serif", fontSize:'.75rem', color:'var(--text-muted)', background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:6, padding:'3px 10px' }}>
+              {employees.length} total records
+            </span>
+          )}
         </div>
-        <div className="cyber-divider" style={{ marginTop: 10 }} />
+        <div style={{ height:1, background:'var(--border)' }} />
       </div>
 
       {/* Search Bar */}
-      <div style={S.searchCard}>
-        <div style={S.searchCardTop} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 10 }}>
+      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px 16px', marginBottom:14, boxShadow:'var(--shadow-card)' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:8, marginBottom:10 }}>
           <SearchInput value={nameSearch} onChange={setNameSearch} placeholder="Search name..." />
           <SearchInput value={employeeIdSearch} onChange={setEmployeeIdSearch} placeholder="Employee ID..." />
           <SearchInput value={departmentSearch} onChange={setDepartmentSearch} placeholder="Department..." />
           <SearchInput value={designationSearch} onChange={setDesignationSearch} placeholder="Designation..." />
           <SearchInput value={locationSearch} onChange={setLocationSearch} placeholder="Location..." />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <button style={S.viewBtn(viewMode==='grid')} onClick={() => setViewMode('grid')}>
-            <Grid3X3 size={13} /> GRID
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <button onClick={() => setViewMode('grid')} style={{ display:'flex', alignItems:'center', gap:4, background:viewMode==='grid'?'rgba(139,92,246,0.15)':'transparent', border:`1px solid ${viewMode==='grid'?'rgba(139,92,246,0.5)':'var(--border)'}`, color:viewMode==='grid'?'var(--accent-purple)':'var(--text-muted)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:'.75rem', fontFamily:"'DM Sans', sans-serif", transition:'all .2s' }}>
+            <Grid3X3 size={13}/> Grid
           </button>
-          <button style={S.viewBtn(viewMode==='list')} onClick={() => setViewMode('list')}>
-            <List size={13} /> LIST
+          <button onClick={() => setViewMode('list')} style={{ display:'flex', alignItems:'center', gap:4, background:viewMode==='list'?'rgba(139,92,246,0.15)':'transparent', border:`1px solid ${viewMode==='list'?'rgba(139,92,246,0.5)':'var(--border)'}`, color:viewMode==='list'?'var(--accent-purple)':'var(--text-muted)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:'.75rem', fontFamily:"'DM Sans', sans-serif", transition:'all .2s' }}>
+            <List size={13}/> List
           </button>
-          {hasSearched && <button style={S.clearAllBtn} onClick={clearAllSearches}>✕ CLEAR ALL</button>}
-          {filteredEmployees.length > 0 && (
-            <div style={{ ...S.countBadge, marginLeft: 'auto' }}>{filteredEmployees.length} RESULTS</div>
+          {hasSearched && (
+            <button onClick={clearAllSearches} style={{ background:'transparent', border:'1px solid rgba(244,114,182,0.3)', color:'var(--accent-pink)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontFamily:"'DM Sans', sans-serif", fontSize:'.75rem', transition:'all .2s' }}>
+              ✕ Clear all
+            </button>
+          )}
+          {hasSearched && filteredEmployees.length > 0 && (
+            <span style={{ marginLeft:'auto', fontFamily:"'DM Sans', sans-serif", fontSize:'.75rem', color:'var(--text-muted)' }}>
+              {filteredEmployees.length} result{filteredEmployees.length!==1?'s':''}
+            </span>
           )}
         </div>
       </div>
 
-      {/* Empty / Prompt */}
-      {!isAdmin && !hasSearched && (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: .4 }}>◈</div>
-          <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '.7rem', color: 'rgba(0,212,255,0.5)', letterSpacing: '.2em' }}>
-            ENTER SEARCH QUERY TO ACCESS RECORDS
+      {/* Prompt when nothing searched */}
+      {!hasSearched && (
+        <div style={{ textAlign:'center', padding:'80px 0' }}>
+          <div style={{ fontSize:48, marginBottom:16, opacity:.25 }}>
+            <Search size={48} style={{ margin:'0 auto', color:'var(--accent-purple)' }}/>
+          </div>
+          <div style={{ fontFamily:"'Plus Jakarta Sans', sans-serif", fontWeight:600, fontSize:'1rem', color:'var(--text-secondary)', marginBottom:8 }}>
+            Search the employee directory
+          </div>
+          <div style={{ fontFamily:"'DM Sans', sans-serif", fontSize:'.82rem', color:'var(--text-muted)' }}>
+            Type a name, ID, department, designation, or location to find employees
           </div>
         </div>
       )}
 
-      {isAdmin && !hasSearched && employees.length > 0 && viewMode === 'grid' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-          {employees.map(emp => (
-            <EmployeeCard key={emp.id} employee={emp} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }} />
-          ))}
-        </div>
-      )}
-
-      {isAdmin && !hasSearched && employees.length > 0 && viewMode === 'list' && (
-        <EmployeeList employees={employees} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onEmployeeClick={(e) => { setSelectedEmployee(e); setShowDetailModal(true); }} />
-      )}
-
+      {/* Results */}
       {hasSearched && filteredEmployees.length > 0 && viewMode === 'grid' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:12 }}>
           {filteredEmployees.map(emp => (
             <EmployeeCard key={emp.id} employee={emp} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }} />
           ))}
@@ -222,20 +229,25 @@ const EmployeeDirectory = () => {
       )}
 
       {hasSearched && filteredEmployees.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ fontSize: 32, marginBottom: 12, opacity: .3 }}>◉</div>
-          <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '.7rem', color: 'rgba(0,212,255,0.4)', letterSpacing: '.15em' }}>
-            NO RECORDS MATCH QUERY
+        <div style={{ textAlign:'center', padding:'60px 0' }}>
+          <div style={{ fontSize:36, marginBottom:12, opacity:.3 }}>
+            <User size={36} style={{ margin:'0 auto', color:'var(--text-muted)' }}/>
+          </div>
+          <div style={{ fontFamily:"'Plus Jakarta Sans', sans-serif", fontWeight:600, fontSize:'.9rem', color:'var(--text-secondary)', marginBottom:6 }}>
+            No employees found
+          </div>
+          <div style={{ fontFamily:"'DM Sans', sans-serif", fontSize:'.8rem', color:'var(--text-muted)' }}>
+            Try adjusting your search terms
           </div>
         </div>
       )}
 
       {/* Detail Modal */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent style={{ background: 'rgba(6,20,45,0.98)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 10, maxWidth: 500 }}>
+        <DialogContent style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, maxWidth:500 }}>
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Orbitron', monospace", color: '#00d4ff', fontSize: '.8rem', letterSpacing: '.15em' }}>
-              PERSONNEL RECORD
+            <DialogTitle style={{ fontFamily:"'Plus Jakarta Sans', sans-serif", fontWeight:700, color:'var(--text-primary)', fontSize:'.95rem' }}>
+              Employee Record
             </DialogTitle>
           </DialogHeader>
           {selectedEmployee && (
