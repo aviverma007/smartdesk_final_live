@@ -52,13 +52,13 @@
   --re-overlay:    rgba(244,242,255,0.88);
 }
 
-/* ── Custom Cursor (inline SVG data URIs — no file imports needed) ────────── */
+/* ── Custom Cursor — SWD Logo (circle + trident spear) ───────────────────── */
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' stroke='%231a3a8f' stroke-width='2.2' fill='none'/%3E%3Cline x1='16' y1='5' x2='16' y2='27' stroke='%231a3a8f' stroke-width='2'/%3E%3Cpolygon points='16,3 12,11 16,9 20,11' fill='%231a3a8f'/%3E%3Cline x1='13' y1='14' x2='16' y2='9' stroke='%231a3a8f' stroke-width='1.4'/%3E%3Cline x1='19' y1='14' x2='16' y2='9' stroke='%231a3a8f' stroke-width='1.4'/%3E%3C/svg%3E") 16 4, auto !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3C!-- Circle --%3E%3Ccircle cx='18' cy='20' r='13' stroke='%230d2b6e' stroke-width='2.8' fill='none'/%3E%3C!-- Main vertical shaft --%3E%3Cline x1='18' y1='4' x2='18' y2='34' stroke='%230d2b6e' stroke-width='2.6'/%3E%3C!-- Arrowhead tip --%3E%3Cpolygon points='18,2 14,10 18,8 22,10' fill='%230d2b6e'/%3E%3C!-- Left wing spreading from mid-shaft --%3E%3Cline x1='18' y1='16' x2='10' y2='24' stroke='%230d2b6e' stroke-width='2.2'/%3E%3C!-- Right wing spreading from mid-shaft --%3E%3Cline x1='18' y1='16' x2='26' y2='24' stroke='%230d2b6e' stroke-width='2.2'/%3E%3C/svg%3E") 18 2, auto !important;
 }
 a, button, [role="button"], .nav-item, select, label {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' stroke='%237c3aed' stroke-width='2.2' fill='none'/%3E%3Cline x1='16' y1='5' x2='16' y2='27' stroke='%237c3aed' stroke-width='2'/%3E%3Cpolygon points='16,3 12,11 16,9 20,11' fill='%237c3aed'/%3E%3Cline x1='13' y1='14' x2='16' y2='9' stroke='%237c3aed' stroke-width='1.4'/%3E%3Cline x1='19' y1='14' x2='16' y2='9' stroke='%237c3aed' stroke-width='1.4'/%3E%3C/svg%3E") 16 4, pointer !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='20' r='13' stroke='%237c3aed' stroke-width='2.8' fill='none'/%3E%3Cline x1='18' y1='4' x2='18' y2='34' stroke='%237c3aed' stroke-width='2.6'/%3E%3Cpolygon points='18,2 14,10 18,8 22,10' fill='%237c3aed'/%3E%3Cline x1='18' y1='16' x2='10' y2='24' stroke='%237c3aed' stroke-width='2.2'/%3E%3Cline x1='18' y1='16' x2='26' y2='24' stroke='%237c3aed' stroke-width='2.2'/%3E%3C/svg%3E") 18 2, pointer !important;
 }
 
 html { scroll-behavior: smooth; }
