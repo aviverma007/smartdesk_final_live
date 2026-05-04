@@ -109,7 +109,7 @@ const Home = () => {
   const addTodo = ()=>{ if(newTodoText.trim()){ saveTodos([...todoItems,{id:Date.now(),text:newTodoText.trim(),completed:false}]); setNewTodoText(""); setShowAddTodo(false); } };
   const toggleTodo = id => saveTodos(todoItems.map(t=>t.id===id?{...t,completed:!t.completed}:t));
   const removeTodo = id => saveTodos(todoItems.filter(t=>t.id!==id));
-  const fmtDate = d => { try { const dt=new Date(d); return isNaN(dt)?'N/A':dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch(){ return 'N/A'; }};
+  const fmtDate = d => { try { const dt=new Date(d); return isNaN(dt)?'N/A':dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch(e){ return 'N/A'; }};
 
   const cs = {
     sectionTitle: { fontFamily:"'Orbitron', monospace", fontSize:'.55rem', letterSpacing:'.2em', color:'rgba(0,212,255,0.5)', textTransform:'uppercase', marginBottom:8 },
