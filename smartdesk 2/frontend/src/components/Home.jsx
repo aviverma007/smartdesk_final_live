@@ -250,62 +250,6 @@ const Home = () => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 16 }}>
 
-      <style>
-{`
-@keyframes ilabFloat {
-  0%,100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-10px) scale(1.05); }
-}
-
-@keyframes ilabGlow {
-  0%,100% { box-shadow: 0 10px 25px rgba(0,0,0,.3); }
-  50% { box-shadow: 0 25px 70px rgba(124,58,237,.35); }
-}
-
-@keyframes ilabLogo {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.18); }
-}
-
-.quick-portal-card {
-  animation: ilabFloat 3.6s ease-in-out infinite,
-             ilabGlow 3.6s ease-in-out infinite;
-  border-radius: 18px;
-  transition: all .45s cubic-bezier(.2,.8,.2,1);
-  position: relative;
-  overflow: hidden;
-}
-
-.quick-portal-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, transparent, rgba(255,255,255,.15), transparent);
-  transform: translateX(-120%);
-  transition: transform .8s ease;
-}
-
-.quick-portal-card:hover::before {
-  transform: translateX(120%);
-}
-
-.quick-portal-card:hover {
-  transform: translateY(-14px) scale(1.08) !important;
-  box-shadow: 
-    0 30px 90px rgba(124,58,237,.5),
-    inset 0 0 20px rgba(255,255,255,.05) !important;
-}
-
-.quick-portal-logo {
-  animation: ilabLogo 3s ease-in-out infinite;
-}
-
-.quick-portal-card:hover .quick-portal-logo {
-  transform: scale(1.25);
-}
-`}
-</style>
-
       {/* === BANNER === */}
       <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", height: 180 }}>
         <div
@@ -420,134 +364,41 @@ const Home = () => {
 
       {/* === QUICK LINKS GRID === */}
       <div>
-        <div style={cs.sectionTitle}>// QUICK ACCESS PORTALS</div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
-            gap: 10,
-            width: "100%"
-          }}
-        >
+        <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:".62rem", fontWeight:700, color:"var(--text-muted)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:10 }}>
+          Quick Access Portals
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(12, minmax(0, 1fr))", gap:6 }}>
           {quickLinks.map((lnk, i) => (
-            <div key={i} style={{ position: "relative", minWidth: 0 }}>
+            <div key={i} style={{ position:"relative", minWidth:0 }}>
               <div
-                className="quick-portal-card"
-                onClick={() =>
-    lnk.isDropdown
-      ? setShowProjects(!showProjects)
-      : window.open(lnk.url, "_blank")
-                }
-                 style={{
-    background: "transparent",
-    border: "none",
-    padding: "8px 4px",
-    textAlign: "center",
-    cursor: "pointer"
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = lnk.color;
-                  e.currentTarget.style.boxShadow = `0 0 24px ${lnk.color}70, inset 0 0 14px ${lnk.color}18`;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = `${lnk.color}35`;
-                  e.currentTarget.style.boxShadow = `0 0 10px ${lnk.color}18`;
-                }}
+                className="ql-card"
+                onClick={() => lnk.isDropdown ? setShowProjects(!showProjects) : window.open(lnk.url, "_blank")}
+                title={`${lnk.title} — ${lnk.desc}`}
               >
-                <div
-  style={{
-    width: 48,
-    height: 48,
-    margin: "0 auto 10px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  }}
->
+                {/* Image only, no background box */}
+                <div className="ql-img-wrap">
                   <img
-                    className="quick-portal-logo"
                     src={lnk.img}
                     alt={lnk.title}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      objectFit: "contain",
-                      transition: "all .25s ease"
-                    }}
                     onError={e => {
-                      e.currentTarget.style.display = "none";
+                      e.currentTarget.parentNode.innerHTML = `<div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,${lnk.color}40,${lnk.color}20);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:800;color:${lnk.color}">${lnk.title.slice(0,2)}</div>`;
                     }}
                   />
                 </div>
-
-                <div
-                  style={{
-                    fontFamily: "'Orbitron', monospace",
-                    fontSize: ".48rem",
-                    fontWeight: 800,
-                    color: "rgba(224,244,255,0.96)",
-                    letterSpacing: ".04em",
-                    lineHeight: 1.25,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis"
-                  }}
-                >
-                  {lnk.title}
-                </div>
-
-                <div
-                  style={{
-                    fontFamily: "'Exo 2', sans-serif",
-                    fontSize: ".56rem",
-                    color: "rgba(122,184,212,0.72)",
-                    marginTop: 2,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis"
-                  }}
-                >
-                  {lnk.desc}
-                </div>
+                <div className="ql-label">{lnk.title}</div>
+                <div className="ql-sublabel">{lnk.desc}</div>
               </div>
 
+              {/* Projects dropdown */}
               {lnk.isDropdown && showProjects && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "105%",
-                    right: 0,
-                    zIndex: 50,
-                    background: "rgba(6,20,45,0.98)",
-                    border: "1px solid rgba(0,212,255,0.3)",
-                    borderRadius: 6,
-                    overflow: "hidden",
-                    minWidth: 180,
-                    boxShadow: "0 8px 30px rgba(0,0,0,0.6)"
-                  }}
-                >
+                <div style={{ position:"absolute", top:"105%", right:0, zIndex:50, background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:8, overflow:"hidden", minWidth:180, boxShadow:"var(--shadow-card)" }}>
                   {projectLinks.map((p, j) => (
-                    <div
-                      key={j}
-                      onClick={() => {
-                        window.open(p.url, "_blank");
-                        setShowProjects(false);
-                      }}
-                      style={{
-                        padding: "8px 12px",
-                        fontFamily: "'Exo 2', sans-serif",
-                        fontSize: ".72rem",
-                        color: "rgba(122,184,212,0.85)",
-                        cursor: "pointer",
-                        borderBottom: "1px solid rgba(0,212,255,0.06)",
-                        transition: "background .2s"
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,255,0.06)"}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                    >
-                      {p.name}
-                    </div>
+                    <div key={j}
+                      onClick={() => { window.open(p.url, "_blank"); setShowProjects(false); }}
+                      style={{ padding:"8px 14px", fontFamily:"'DM Sans',sans-serif", fontSize:".75rem", color:"var(--text-secondary)", borderBottom:"1px solid var(--border)", transition:"background .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background="rgba(139,92,246,0.08)"}
+                      onMouseLeave={e => e.currentTarget.style.background="transparent"}
+                    >{p.name}</div>
                   ))}
                 </div>
               )}
