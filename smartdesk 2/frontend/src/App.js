@@ -227,8 +227,8 @@ const AIChatPanel = ({ onClose }) => {
       {/* Header */}
       <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", background:"var(--bg-elevated)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:34, height:34, borderRadius:10, background:"linear-gradient(135deg,#7c3aed,#f472b6)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <IcoSparkle/>
+          <div style={{ width:34, height:34, borderRadius:10, background:"rgba(13,43,110,0.3)", border:"1px solid rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <img src="/images/swd-logo.png" alt="AI" width={24} height={24} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
           </div>
           <div>
             <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:".88rem", color:"var(--text-primary)" }}>SmartDesk AI</div>
@@ -329,8 +329,8 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
     <div style={{ width:232, minWidth:232, background:"var(--bg-sidebar)", borderRight:"1px solid var(--border)", display:"flex", flexDirection:"column", padding:"22px 12px 16px", position:"sticky", top:0, height:"100vh", overflow:"hidden", zIndex:30, transition:"background .3s" }}>
       {/* Logo */}
       <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 6px", marginBottom:28 }}>
-        <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#7c3aed,#f472b6)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(124,58,237,0.45)", flexShrink:0 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <div style={{ width:40, height:40, borderRadius:12, background:"rgba(13,43,110,0.3)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)" }}>
+          <img src="/images/swd-logo.png" alt="SWD" width={32} height={32} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
         </div>
         <div>
           <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.02rem", color:"var(--text-primary)", lineHeight:1 }}>SmartDesk</div>

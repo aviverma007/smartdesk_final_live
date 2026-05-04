@@ -106,15 +106,15 @@ const LoginForm = () => {
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:28 }}>
           <div style={{
             width:60, height:60, borderRadius:16,
-            background:'linear-gradient(135deg,#7c3aed,#f472b6)',
+            background:'rgba(13,43,110,0.25)',
+            border:'1px solid rgba(255,255,255,0.15)',
             display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 8px 28px rgba(124,58,237,0.55)',
+            boxShadow:'0 8px 28px rgba(13,43,110,0.5)',
             marginBottom:14,
             animation:'logoFloat 4s ease-in-out infinite',
           }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-            </svg>
+            <img src="/images/swd-logo.png" alt="SmartDesk" width={44} height={44}
+              style={{ objectFit:'contain', filter:'brightness(0) invert(1)' }}/>
           </div>
           <div style={{ fontFamily:'Plus Jakarta Sans,sans-serif', fontWeight:800, fontSize:'1.5rem', color:'#f1eeff', letterSpacing:'-0.01em' }}>SmartDesk</div>
           <div style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.78rem', color:'rgba(177,168,216,0.6)', marginTop:4 }}>Enterprise Intelligence Portal</div>
