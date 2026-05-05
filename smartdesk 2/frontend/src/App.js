@@ -355,7 +355,7 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
   const [showSettings, setShowSettings] = useState(false);
   return (
-    <div style={{ width:232, minWidth:232, background:"var(--sidebar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid var(--border)", display:"flex", flexDirection:"column", padding:"22px 12px 16px", position:"sticky", top:0, height:"100vh", overflow:"hidden", zIndex:30, transition:"background .3s" }}>
+    <div style={{ width:232, minWidth:232, background:"var(--sidebar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid rgba(14,165,233,0.18)", display:"flex", flexDirection:"column", padding:"22px 12px 16px", position:"sticky", top:0, height:"100vh", overflow:"hidden", zIndex:30, transition:"background .3s" }}>
       {/* Logo */}
       <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 6px", marginBottom:28 }}>
         <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#0ea5e9,#14b8a6)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)" }}>
@@ -397,7 +397,7 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
           onMouseLeave={e=>e.currentTarget.style.background="transparent"}
         >
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.8rem", fontWeight:600, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
+            <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
             <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
               <span className="online-dot" style={{ width:6, height:6 }}/>
               <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"var(--accent-green)" }}>Online</span>
@@ -547,7 +547,7 @@ const AppContent = () => {
               <div style={{
                 width: sidebarCollapsed ? 64 : 232,
                 minWidth: sidebarCollapsed ? 64 : 232,
-                background:"var(--sidebar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid var(--border)",
+                background:"var(--sidebar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid rgba(14,165,233,0.18)",
                 display:"flex", flexDirection:"column",
                 padding: sidebarCollapsed ? "22px 10px 16px" : "22px 12px 16px",
                 position:"sticky", top:0, height:"100vh", overflow:"hidden",
@@ -561,7 +561,7 @@ const AppContent = () => {
                   </div>
                   {!sidebarCollapsed && (
                     <div style={{ overflow:"hidden" }}>
-                      <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.02rem", color:"var(--text-primary)", lineHeight:1, whiteSpace:"nowrap" }}>SmartDesk</div>
+                      <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1, whiteSpace:"nowrap", letterSpacing:"-0.01em" }}>SmartDesk</div>
                       <div style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.62rem", color:"var(--text-muted)", marginTop:3, letterSpacing:"0.04em" }}>Enterprise Portal</div>
                     </div>
                   )}
@@ -602,7 +602,7 @@ const AppContent = () => {
                       onMouseEnter={e=>e.currentTarget.style.background="rgba(155,109,255,0.07)"}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.8rem", fontWeight:600, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
+                        <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
                         <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                           <span className="online-dot" style={{ width:6, height:6 }}/>
                           <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"var(--accent-green)" }}>Online</span>
