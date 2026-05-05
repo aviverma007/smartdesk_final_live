@@ -255,7 +255,7 @@ const AIChatPanel = ({ onClose }) => {
       {/* Header */}
       <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", background:"var(--bg-elevated)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:34, height:34, borderRadius:10, background:"rgba(13,43,110,0.3)", border:"1px solid rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ width:34, height:34, borderRadius:10, background:"linear-gradient(135deg,#0ea5e9,#14b8a6)", border:"1px solid rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <img src="/images/swd-logo.png" alt="AI" width={24} height={24} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
           </div>
           <div>
@@ -338,7 +338,7 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
         </div>
         {/* Toggle switch */}
         <div onClick={()=>setTheme(t=>t==="dark"?"light":"dark")}
-          style={{ width:46, height:26, borderRadius:13, background:theme==="dark"?"#7c3aed":"#e9d5ff", cursor:"pointer", position:"relative", transition:"background .3s", flexShrink:0 }}
+          style={{ width:46, height:26, borderRadius:13, background:theme==="dark"?"#0ea5e9":"#bae6fd", cursor:"pointer", position:"relative", transition:"background .3s", flexShrink:0 }}
         >
           <div style={{ position:"absolute", top:3, left:theme==="dark"?22:3, width:20, height:20, borderRadius:"50%", background:"white", transition:"left .3s", boxShadow:"0 2px 6px rgba(0,0,0,0.25)" }}/>
         </div>
@@ -354,10 +354,10 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
   const [showSettings, setShowSettings] = useState(false);
   return (
-    <div style={{ width:232, minWidth:232, background:"var(--bg-sidebar)", backdropFilter:"blur(24px) saturate(180%)", WebkitBackdropFilter:"blur(24px) saturate(180%)", borderRight:"1px solid var(--glass-border, rgba(255,255,255,0.12))", display:"flex", flexDirection:"column", padding:"22px 12px 16px", position:"sticky", top:0, height:"100vh", overflow:"hidden", zIndex:30, transition:"background .3s" }}>
+    <div style={{ width:232, minWidth:232, background:"var(--sidebar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid var(--border)", display:"flex", flexDirection:"column", padding:"22px 12px 16px", position:"sticky", top:0, height:"100vh", overflow:"hidden", zIndex:30, transition:"background .3s" }}>
       {/* Logo */}
       <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 6px", marginBottom:28 }}>
-        <div style={{ width:40, height:40, borderRadius:12, background:"rgba(13,43,110,0.3)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)" }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#0ea5e9,#14b8a6)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)" }}>
           <img src="/images/swd-logo.png" alt="SWD" width={32} height={32} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
         </div>
         <div>
@@ -423,7 +423,7 @@ const TopBar = ({ active, theme, setTheme, onSearch }) => {
 
   return (
     <>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 28px", borderBottom:"1px solid var(--border)", background:"var(--bg-sidebar)", backdropFilter:"blur(24px) saturate(180%)", WebkitBackdropFilter:"blur(24px) saturate(180%)", position:"sticky", top:0, zIndex:20, transition:"background .3s" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 28px", borderBottom:"1px solid var(--border)", background:"var(--topbar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", position:"sticky", top:0, zIndex:20, transition:"background .3s" }}>
         <div>
           <h1 style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1 }}>{page?.label}</h1>
           <p style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.72rem", color:"var(--text-muted)", marginTop:3 }}>Smart World Developers · Internal Portal</p>
@@ -446,7 +446,7 @@ const TopBar = ({ active, theme, setTheme, onSearch }) => {
           <div ref={notifRef} style={{ position:"relative" }}>
             <div className="icon-btn" onClick={() => setShowNotif(s => !s)} style={{ position:"relative" }}>
               <IcoBell/>
-              <span style={{ position:"absolute", top:7, right:7, width:7, height:7, borderRadius:"50%", background:"var(--accent-pink)", border:"1.5px solid var(--bg-base)" }}/>
+              <span style={{ position:"absolute", top:7, right:7, width:7, height:7, borderRadius:"50%", background:"#0ea5e9", border:"1.5px solid var(--bg-base)" }}/>
             </div>
             {showNotif && <NotifPanel onClose={() => setShowNotif(false)}/>}
           </div>
@@ -542,7 +542,7 @@ const AppContent = () => {
               <div style={{
                 width: sidebarCollapsed ? 64 : 232,
                 minWidth: sidebarCollapsed ? 64 : 232,
-                background:"var(--bg-sidebar)", backdropFilter:"blur(24px) saturate(180%)", WebkitBackdropFilter:"blur(24px) saturate(180%)", borderRight:"1px solid var(--glass-border, rgba(255,255,255,0.12))",
+                background:"var(--sidebar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid var(--border)",
                 display:"flex", flexDirection:"column",
                 padding: sidebarCollapsed ? "22px 10px 16px" : "22px 12px 16px",
                 position:"sticky", top:0, height:"100vh", overflow:"hidden",
@@ -550,7 +550,7 @@ const AppContent = () => {
               }}>
                 {/* Logo + collapse toggle */}
                 <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 4px", marginBottom:28, justifyContent: sidebarCollapsed ? "center" : "flex-start" }}>
-                  <div style={{ width:40, height:40, borderRadius:12, background:"rgba(13,43,110,0.3)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)", cursor:"pointer" }}
+                  <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#0ea5e9,#14b8a6)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)", cursor:"pointer" }}
                     onClick={() => setSidebarCollapsed(c => !c)} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
                     <img src="/images/swd-logo.png" alt="SWD" width={28} height={28} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
                   </div>
@@ -650,7 +650,7 @@ const SettingsDropdown = ({ theme, setTheme, collapsed }) => {
                 </div>
               </div>
               <div onClick={() => setTheme(t => t==="dark"?"light":"dark")}
-                style={{ width:46, height:26, borderRadius:13, background:theme==="dark"?"#7c3aed":"#e9d5ff", cursor:"pointer", position:"relative", transition:"background .3s", flexShrink:0 }}>
+                style={{ width:46, height:26, borderRadius:13, background:theme==="dark"?"#0ea5e9":"#bae6fd", cursor:"pointer", position:"relative", transition:"background .3s", flexShrink:0 }}>
                 <div style={{ position:"absolute", top:3, left:theme==="dark"?22:3, width:20, height:20, borderRadius:"50%", background:"white", transition:"left .3s", boxShadow:"0 2px 6px rgba(0,0,0,0.25)" }}/>
               </div>
             </div>

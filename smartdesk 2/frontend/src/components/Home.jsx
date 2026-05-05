@@ -63,9 +63,15 @@ const CyberCard = ({ children, style = {}, color = "#00d4ff", hover = true }) =>
       onMouseEnter={() => hover && setHov(true)}
       onMouseLeave={() => hover && setHov(false)}
       style={{
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        boxShadow: hov ? "var(--shadow-hover)" : "var(--shadow-card)",
+        borderColor: hov ? "var(--border-hover)" : "var(--border)",
+        transform: hov ? "translateY(-2px)" : "none",
         position: "relative",
         overflow: "hidden",
-        transition: "all .3s",
+        transition: "all .25s",
         ...style,
       }}
     >
@@ -76,7 +82,7 @@ const CyberCard = ({ children, style = {}, color = "#00d4ff", hover = true }) =>
           left: 0,
           right: 0,
           height: 1,
-          background: `linear-gradient(90deg,transparent,${color}80,transparent)`,
+          background: `linear-gradient(90deg,transparent,var(--accent),transparent)`,
           opacity: .4
         }}
       />
