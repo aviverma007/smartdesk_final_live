@@ -9,9 +9,9 @@
 ══════════════════════════════════════════════════════════ */
 :root, [data-theme="light"] {
   --bg-base:        rgba(240,244,248,0.0);
-  --bg-sidebar:     rgba(255,255,255,0.92);
-  --bg-card:        rgba(255,255,255,0.88);
-  --bg-elevated:    rgba(248,250,252,0.92);
+  --bg-sidebar:     rgba(255,255,255,0.55);
+  --bg-card:        rgba(255,255,255,0.30);
+  --bg-elevated:    rgba(248,250,252,0.45);
   --border:         #e2e8f0;
   --border-hover:   #0ea5e9;
   --accent:         #0ea5e9;
@@ -84,11 +84,11 @@ body::after {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: rgba(240,244,250,0.72);
+  background: rgba(240,244,250,0.52);
   pointer-events: none;
 }
 [data-theme="dark"] body::after {
-  background: rgba(10,14,28,0.78);
+  background: rgba(10,14,28,0.60);
 }
 
 /* Root and all content above overlay */
@@ -155,16 +155,29 @@ body > * { position: relative; z-index: 1; }
    CARDS — clean white, subtle shadow, glass on hover
 ══════════════════════════════════════════════════════════ */
 .home-card {
-  background: rgba(255,255,255,0.88) !important;
-  border: 1px solid var(--border) !important;
+  background: rgba(255,255,255,0.30) !important;
+  border: 1px solid rgba(255,255,255,0.25) !important;
   border-radius: 12px !important;
-  box-shadow: var(--shadow-card) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18) !important;
   transition: box-shadow 0.25s, transform 0.25s, border-color 0.25s !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
 }
 [data-theme="dark"] .home-card {
-  background: rgba(15,22,40,0.78) !important;
+  background: rgba(14,22,42,0.45) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+}
+.home-card:hover {
+  background: rgba(255,255,255,0.42) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 16px 40px rgba(14,165,233,0.18) !important;
+  transform: translateY(-2px) !important;
+}
+[data-theme="dark"] .home-card:hover {
+  background: rgba(14,22,42,0.60) !important;
 }
 .home-card:hover {
   box-shadow: var(--shadow-hover) !important;
@@ -259,10 +272,16 @@ body > * { position: relative; z-index: 1; }
 .ql-card {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   padding: 10px 6px; border-radius: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  background: rgba(255,255,255,0.28);
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
   transition: all 0.22s;
+}
+[data-theme="dark"] .ql-card {
+  background: rgba(14,22,42,0.42);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 .ql-card:hover {
   border-color: var(--accent);
