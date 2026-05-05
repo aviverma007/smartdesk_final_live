@@ -13,7 +13,15 @@ const G = {
   btn: (bg='rgba(14,165,233,0.15)', border='rgba(14,165,233,0.45)', c='#0ea5e9') => ({ background:bg, border:`1px solid ${border}`, borderRadius:8, padding:'8px 16px', color:c, fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.78rem', cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'all .2s' }),
 };
 
-const fmtTime = v => v ? new Date(v).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}) : '—';
+const fmtTime = v => {
+  if (!v) return '—';
+  // SQL Server datetimes have no timezone — parse as local (IST), not UTC
+  // Stripping 'Z' or 'T' suffix forces local interpretation
+  const raw = String(v).replace('T', ' ').replace('Z', '').split('.')[0];
+  const d = new Date(raw);
+  if (isNaN(d)) return '—';
+  return d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true });
+};
 const fmtHours = mins => {
   if (!mins || mins <= 0) return '—';
   const h = Math.floor(mins/60), m = mins%60;

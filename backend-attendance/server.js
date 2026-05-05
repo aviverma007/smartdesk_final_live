@@ -92,8 +92,8 @@ app.get('/api/attendance/live', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const r = await p.request().input('date', sql.Date, today).query(`
       SELECT
-        COUNT(DISTINCT UserId)  AS presentCount,
-        MAX(LogDate)            AS lastCheckIn,
+        COUNT(DISTINCT UserId)                        AS presentCount,
+        CONVERT(VARCHAR(23), MAX(LogDate), 126)       AS lastCheckIn,
         COUNT(*)                AS totalPunches
       FROM dbo.vw_DeviceLogs_All
       WHERE CAST(LogDate AS DATE) = @date
