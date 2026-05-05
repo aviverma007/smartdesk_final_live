@@ -9,9 +9,9 @@
 ══════════════════════════════════════════════════════════ */
 :root, [data-theme="light"] {
   --bg-base:        #f0f4f8;
-  --bg-sidebar:     #ffffff;
-  --bg-card:        #ffffff;
-  --bg-elevated:    #f8fafc;
+  --bg-sidebar:     rgba(255,255,255,0.92);
+  --bg-card:        rgba(255,255,255,0.88);
+  --bg-elevated:    rgba(248,250,252,0.92);
   --border:         #e2e8f0;
   --border-hover:   #0ea5e9;
   --accent:         #0ea5e9;
@@ -76,7 +76,11 @@ body {
   background-color: var(--bg-base);
   position: relative;
   min-height: 100vh;
+  isolation: isolate;
 }
+
+/* All app content sits above the city bg layer */
+#root { position: relative; z-index: 1; }
 
 /* ══════════════════════════════════════════════════════════
    CITY SKYLINE BACKGROUND
@@ -139,13 +143,16 @@ body > * { position: relative; z-index: 1; }
    CARDS — clean white, subtle shadow, glass on hover
 ══════════════════════════════════════════════════════════ */
 .home-card {
-  background: var(--bg-card) !important;
+  background: rgba(255,255,255,0.88) !important;
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
   box-shadow: var(--shadow-card) !important;
   transition: box-shadow 0.25s, transform 0.25s, border-color 0.25s !important;
-  backdrop-filter: var(--glass-blur) !important;
-  -webkit-backdrop-filter: var(--glass-blur) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+[data-theme="dark"] .home-card {
+  background: rgba(15,22,40,0.78) !important;
 }
 .home-card:hover {
   box-shadow: var(--shadow-hover) !important;
