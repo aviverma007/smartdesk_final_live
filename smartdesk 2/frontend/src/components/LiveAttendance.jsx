@@ -315,7 +315,7 @@ const LiveAttendance = () => {
 
           {/* ── STAT CARDS ── */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12, marginBottom:18 }}>
-            <StatCard label="Total Present" value={summary.totalPresent} color="#4ade80" sub={`${date}`} icon="✅"/>
+            <StatCard label="Total Present" value={summary.totalPresent} color="#4ade80" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="✅"/>
             <StatCard label="First Check-in" value={fmtTime(summary.firstCheckIn)} color="#0ea5e9" sub="Earliest punch" icon="🌅"/>
             <StatCard label="Last Check-in" value={fmtTime(summary.lastCheckIn)} color="#9b6dff" sub="Latest punch" icon="⏰"/>
             <StatCard label="Total Punches" value={summary.totalPunches} color="#fbbf24" sub="All device logs" icon="📍"/>
