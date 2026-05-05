@@ -8,7 +8,7 @@
    LIGHT THEME (default) — matches Sales Dashboard reference
 ══════════════════════════════════════════════════════════ */
 :root, [data-theme="light"] {
-  --bg-base:        #f0f4f8;
+  --bg-base:        rgba(240,244,248,0.0);
   --bg-sidebar:     rgba(255,255,255,0.92);
   --bg-card:        rgba(255,255,255,0.88);
   --bg-elevated:    rgba(248,250,252,0.92);
@@ -37,7 +37,7 @@
    DARK THEME
 ══════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg-base:        #0d1220;
+  --bg-base:        rgba(13,18,32,0.0);
   --bg-sidebar:     rgba(13,18,32,0.90);
   --bg-card:        rgba(20,28,48,0.85);
   --bg-elevated:    rgba(26,36,60,0.90);
@@ -71,22 +71,34 @@ body {
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  transition: color 0.3s, background-color 0.3s;
+  transition: color 0.3s;
   color: var(--text-primary);
-  background-color: var(--bg-base);
+  background-color: transparent;
   position: relative;
   min-height: 100vh;
-  isolation: isolate;
 }
 
-/* All app content sits above the city bg layer */
+/* Tinted overlay on top of the BG image, behind all content */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: rgba(240,244,250,0.72);
+  pointer-events: none;
+}
+[data-theme="dark"] body::after {
+  background: rgba(10,14,28,0.78);
+}
+
+/* Root and all content above overlay */
 #root { position: relative; z-index: 1; }
 
 /* ══════════════════════════════════════════════════════════
    CITY SKYLINE BACKGROUND
    — dot-matrix city image, bottom-anchored, very subtle
 ══════════════════════════════════════════════════════════ */
-/* City background injected via JS in App.js (CSS cannot resolve /public paths) */
+
 
 /* All content above background */
 body > * { position: relative; z-index: 1; }
