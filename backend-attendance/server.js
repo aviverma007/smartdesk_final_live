@@ -12,8 +12,16 @@ const config = {
   password: 'smart@123',
   server: '192.168.66.33',
   database: 'etimetracklite1AI',
-  options: { trustServerCertificate: true, enableArithAbort: true },
+  options: {
+    trustServerCertificate: true,
+    enableArithAbort: true,
+    encrypt: false,
+    instanceName: 'MSSQLSERVER', // try 'SQLEXPRESS' if this fails
+  },
   port: 1433,
+  connectionTimeout: 30000,
+  requestTimeout: 30000,
+  pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
 };
 
 let pool;
