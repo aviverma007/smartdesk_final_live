@@ -84,7 +84,7 @@ body::after {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: rgba(240,244,250,0.52);
+  background: rgba(235,242,252,0.48);
   pointer-events: none;
 }
 [data-theme="dark"] body::after {
@@ -155,29 +155,29 @@ body > * { position: relative; z-index: 1; }
    CARDS — clean white, subtle shadow, glass on hover
 ══════════════════════════════════════════════════════════ */
 .home-card {
-  background: rgba(255,255,255,0.30) !important;
-  border: 1px solid rgba(255,255,255,0.25) !important;
+  background: rgba(255,255,255,0.75) !important;
+  border: 1px solid rgba(200,215,240,0.6) !important;
   border-radius: 12px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10) !important;
   transition: box-shadow 0.25s, transform 0.25s, border-color 0.25s !important;
-  backdrop-filter: blur(18px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
 }
 [data-theme="dark"] .home-card {
-  background: rgba(14,22,42,0.45) !important;
+  background: rgba(14,22,42,0.55) !important;
   border: 1px solid rgba(255,255,255,0.10) !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
   backdrop-filter: blur(18px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
 }
 .home-card:hover {
-  background: rgba(255,255,255,0.42) !important;
+  background: rgba(255,255,255,0.88) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 16px 40px rgba(14,165,233,0.18) !important;
+  box-shadow: 0 12px 36px rgba(14,165,233,0.18) !important;
   transform: translateY(-2px) !important;
 }
 [data-theme="dark"] .home-card:hover {
-  background: rgba(14,22,42,0.60) !important;
+  background: rgba(14,22,42,0.70) !important;
 }
 .home-card:hover {
   box-shadow: var(--shadow-hover) !important;
@@ -187,6 +187,11 @@ body > * { position: relative; z-index: 1; }
 /* Force text colors inside cards */
 .home-card, .home-card * {
   color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+[data-theme="light"] .home-card,
+[data-theme="light"] .home-card * {
+  color: #0f172a !important;
 }
 .home-card [style*="muted"],
 .home-card .ql-sublabel {
@@ -279,8 +284,12 @@ body > * { position: relative; z-index: 1; }
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   transition: all 0.22s;
 }
+[data-theme="light"] .ql-card {
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(200,215,240,0.6);
+}
 [data-theme="dark"] .ql-card {
-  background: rgba(14,22,42,0.42);
+  background: rgba(14,22,42,0.52);
   border: 1px solid rgba(255,255,255,0.08);
 }
 .ql-card:hover {

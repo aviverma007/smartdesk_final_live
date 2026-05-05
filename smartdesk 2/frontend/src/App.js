@@ -146,10 +146,8 @@ const NAV = [
   { id:"directory",        label:"Employee Directory", Icon:IcoUsers },
   { id:"attendance",       label:"Live Attendance",   Icon:IcoAttend },
   { id:"policies",         label:"Policies",           Icon:IcoShield },
-  { id:"meeting-rooms",    label:"Meeting Rooms",      Icon:IcoRoom },
   { id:"holiday-calendar", label:"Holiday Calendar",  Icon:IcoCal },
   { id:"dashboard",        label:"Dashboard",          Icon:IcoChart },
-  { id:"profile",          label:"My Profile",         Icon:IcoProfile },
 ];
 
 /* ── Quick-Access ticker items ──────────────────────────────────────────── */
@@ -529,10 +527,8 @@ const AppContent = () => {
     "directory":        <EmployeeDirectory/>,
     "attendance":       <LiveAttendance/>,
     "policies":         <Policies/>,
-    "meeting-rooms":    <MeetingRooms/>,
     "holiday-calendar": <HolidayCalendar/>,
     "dashboard":        <Dashboard/>,
-    "profile":          <MyProfile/>,
   };
 
   return (
