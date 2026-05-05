@@ -11,6 +11,9 @@ import Policies from "./components/Policies";
 import MeetingRooms from "./components/MeetingRooms";
 import HolidayCalendar from "./components/HolidayCalendar";
 import Dashboard from "./components/Dashboard";
+import LiveAttendance from "./components/LiveAttendance";
+import MyProfile from "./components/MyProfile";
+import GlobalSearch from "./components/GlobalSearch";
 
 /* ── Icons ──────────────────────────────────────────────────────────────── */
 const IcoHome     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
@@ -111,14 +114,19 @@ const CustomCursor = () => {
   );
 };
 
+const IcoAttend  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>;
+const IcoProfile = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+
 /* ── Nav config ─────────────────────────────────────────────────────────── */
 const NAV = [
   { id:"home",             label:"Home",              Icon:IcoHome },
   { id:"directory",        label:"Employee Directory", Icon:IcoUsers },
+  { id:"attendance",       label:"Live Attendance",   Icon:IcoAttend },
   { id:"policies",         label:"Policies",           Icon:IcoShield },
-  { id:"meeting-rooms",    label:"Meeting Rooms",       Icon:IcoRoom },
-  { id:"holiday-calendar", label:"Holiday Calendar",   Icon:IcoCal },
+  { id:"meeting-rooms",    label:"Meeting Rooms",      Icon:IcoRoom },
+  { id:"holiday-calendar", label:"Holiday Calendar",  Icon:IcoCal },
   { id:"dashboard",        label:"Dashboard",          Icon:IcoChart },
+  { id:"profile",          label:"My Profile",         Icon:IcoProfile },
 ];
 
 /* ── Quick-Access ticker items ──────────────────────────────────────────── */
@@ -381,13 +389,12 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
 };
 
 /* ── Top Bar ─────────────────────────────────────────────────────────────── */
-const TopBar = ({ active, theme, setTheme }) => {
+const TopBar = ({ active, theme, setTheme, onSearch }) => {
   const page = NAV.find(n => n.id === active);
   const [showNotif, setShowNotif] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const notifRef = useRef(null);
 
-  // Close notif on outside click
   useEffect(() => {
     const handler = e => { if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false); };
     document.addEventListener("mousedown", handler);
@@ -402,32 +409,30 @@ const TopBar = ({ active, theme, setTheme }) => {
           <p style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.72rem", color:"var(--text-muted)", marginTop:3 }}>Smart World Developers · Internal Portal</p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          {/* AI search bar */}
-          <div className="search-wrap" onClick={() => setShowChat(true)} style={{ cursor:"pointer" }}>
+          {/* Search bar → opens GlobalSearch */}
+          <div className="search-wrap" onClick={onSearch} style={{ cursor:"pointer" }}>
             <IcoSearch/>
-            <input placeholder="Ask SmartDesk AI..." readOnly style={{ cursor:"pointer", width:200 }}/>
-            <span style={{ fontSize:".65rem", background:"linear-gradient(135deg,#7c3aed,#f472b6)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", fontWeight:700, marginLeft:4, fontFamily:"Plus Jakarta Sans,sans-serif" }}>AI</span>
+            <input placeholder="Search anything..." readOnly style={{ cursor:"pointer", width:180 }}/>
+            <kbd style={{ fontFamily:"monospace", fontSize:".65rem", padding:"2px 6px", background:"var(--bg-elevated)", border:"1px solid var(--border)", borderRadius:5, color:"var(--text-muted)", whiteSpace:"nowrap" }}>Ctrl K</kbd>
           </div>
 
           {/* Theme toggle */}
-          <button className="theme-toggle" onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} title="Toggle theme">
+          <button className="theme-toggle" onClick={() => setTheme(t => t==="dark"?"light":"dark")} title="Toggle theme">
             {theme==="dark" ? <IcoMoon/> : <IcoSun/>}
             {theme==="dark" ? "Dark" : "Light"}
           </button>
 
           {/* Bell */}
           <div ref={notifRef} style={{ position:"relative" }}>
-            <div className="icon-btn" onClick={()=>setShowNotif(s=>!s)} style={{ position:"relative" }}>
+            <div className="icon-btn" onClick={() => setShowNotif(s => !s)} style={{ position:"relative" }}>
               <IcoBell/>
               <span style={{ position:"absolute", top:7, right:7, width:7, height:7, borderRadius:"50%", background:"var(--accent-pink)", border:"1.5px solid var(--bg-base)" }}/>
             </div>
-            {showNotif && <NotifPanel onClose={()=>setShowNotif(false)}/>}
+            {showNotif && <NotifPanel onClose={() => setShowNotif(false)}/>}
           </div>
         </div>
       </div>
-
-      {/* AI Chat panel */}
-      {showChat && <AIChatPanel onClose={()=>setShowChat(false)}/>}
+      {showChat && <AIChatPanel onClose={() => setShowChat(false)}/>}
     </>
   );
 };
@@ -457,6 +462,8 @@ const AppContent = () => {
   const { isAuthenticated, showLoading, initializeAuth } = useAuth();
   const [active, setActive] = useState("home");
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "dark");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => { initializeAuth(); }, []);
 
@@ -465,28 +472,125 @@ const AppContent = () => {
     localStorage.setItem("sd-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    localStorage.setItem("sd-sidebar-collapsed", sidebarCollapsed);
+  }, [sidebarCollapsed]);
+
+  // Ctrl+K to open search
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
+      if (e.key === 'Escape') setShowSearch(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   if (showLoading || !isAuthenticated) return <LoginForm/>;
+
+  const handleSearchResult = (result) => {
+    setShowSearch(false);
+    if (!result) return;
+    if (result.type === 'nav') setActive(result.navId);
+    else if (result.type === 'employee') setActive('directory');
+  };
 
   const CONTENT = {
     "home":             <Home/>,
     "directory":        <EmployeeDirectory/>,
+    "attendance":       <LiveAttendance/>,
     "policies":         <Policies/>,
     "meeting-rooms":    <MeetingRooms/>,
     "holiday-calendar": <HolidayCalendar/>,
     "dashboard":        <Dashboard/>,
+    "profile":          <MyProfile/>,
   };
 
   return (
     <div style={{ display:"flex", minHeight:"100vh", background:"var(--bg-base)", position:"relative", transition:"background .3s" }}>
       <CustomCursor/>
       <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
+
+      {/* Global search overlay */}
+      {showSearch && <GlobalSearch onClose={handleSearchResult}/>}
+
       <BrowserRouter>
         <Routes>
           <Route path="/" element={
             <>
-              <Sidebar active={active} setActive={setActive} theme={theme} setTheme={setTheme}/>
+              {/* Collapsible Sidebar */}
+              <div style={{
+                width: sidebarCollapsed ? 64 : 232,
+                minWidth: sidebarCollapsed ? 64 : 232,
+                background:"var(--bg-sidebar)", borderRight:"1px solid var(--border)",
+                display:"flex", flexDirection:"column",
+                padding: sidebarCollapsed ? "22px 10px 16px" : "22px 12px 16px",
+                position:"sticky", top:0, height:"100vh", overflow:"hidden",
+                zIndex:30, transition:"all .25s ease",
+              }}>
+                {/* Logo + collapse toggle */}
+                <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 4px", marginBottom:28, justifyContent: sidebarCollapsed ? "center" : "flex-start" }}>
+                  <div style={{ width:40, height:40, borderRadius:12, background:"rgba(13,43,110,0.3)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)", cursor:"pointer" }}
+                    onClick={() => setSidebarCollapsed(c => !c)} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                    <img src="/images/swd-logo.png" alt="SWD" width={28} height={28} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
+                  </div>
+                  {!sidebarCollapsed && (
+                    <div style={{ overflow:"hidden" }}>
+                      <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.02rem", color:"var(--text-primary)", lineHeight:1, whiteSpace:"nowrap" }}>SmartDesk</div>
+                      <div style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.62rem", color:"var(--text-muted)", marginTop:3, letterSpacing:"0.04em" }}>Enterprise Portal</div>
+                    </div>
+                  )}
+                </div>
+
+                {!sidebarCollapsed && (
+                  <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.62rem", fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.14em", textTransform:"uppercase", padding:"0 8px", marginBottom:6 }}>Explore</div>
+                )}
+
+                {/* Nav */}
+                <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1, overflowY:"auto" }}>
+                  {NAV.map(({ id, label, Icon }) => (
+                    <div key={id}
+                      className={`nav-item${active===id?" active":""}`}
+                      onClick={() => setActive(id)}
+                      title={sidebarCollapsed ? label : ""}
+                      style={{ justifyContent: sidebarCollapsed ? "center" : "flex-start", padding: sidebarCollapsed ? "10px" : "10px 14px", position:"relative" }}>
+                      <span style={{ opacity:active===id?1:0.6, color:active===id?"#c084fc":"inherit", flexShrink:0 }}><Icon/></span>
+                      {!sidebarCollapsed && <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{label}</span>}
+                      {/* Live badge on attendance */}
+                      {id === "attendance" && !sidebarCollapsed && (
+                        <span style={{ marginLeft:"auto", fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:".6rem", fontWeight:800, padding:"2px 7px", borderRadius:20, background:"rgba(74,222,128,0.15)", border:"1px solid rgba(74,222,128,0.35)", color:"#4ade80", letterSpacing:".05em" }}>LIVE</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Settings */}
+                <div style={{ borderTop:"1px solid var(--border)", paddingTop:10, marginBottom:4, position:"relative" }}>
+                  <SettingsDropdown theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed}/>
+                </div>
+
+                {/* User */}
+                {!sidebarCollapsed && (
+                  <div style={{ paddingTop:6, borderTop:"1px solid var(--border)" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:9, padding:"8px", borderRadius:10, cursor:"pointer", transition:"background .2s" }}
+                      onClick={() => setActive("profile")}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(155,109,255,0.07)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.8rem", fontWeight:600, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                          <span className="online-dot" style={{ width:6, height:6 }}/>
+                          <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"var(--accent-green)" }}>Online</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Main */}
               <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative", zIndex:1 }}>
-                <TopBar active={active} theme={theme} setTheme={setTheme}/>
+                <TopBar active={active} theme={theme} setTheme={setTheme} onSearch={() => setShowSearch(true)}/>
                 <QuickTicker/>
                 <div style={{ flex:1, overflowY:"auto", padding:"24px 28px 16px" }}>
                   <div className="tab-fade-in" key={active}>
@@ -504,6 +608,41 @@ const AppContent = () => {
   );
 };
 
-export default function App() {
-  return <AuthProvider><AppContent/></AuthProvider>;
-}
+/* ── Settings Dropdown (works in collapsed sidebar too) ─────────────────── */
+const SettingsDropdown = ({ theme, setTheme, collapsed }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position:"relative" }}>
+      {open && (
+        <div className="settings-panel" style={{ bottom:50, left:0, right:0 }}>
+          <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:".85rem", color:"var(--text-primary)" }}>Settings</span>
+            <button onClick={() => setOpen(false)} style={{ background:"none", border:"none", color:"var(--text-muted)" }}><IcoX/></button>
+          </div>
+          <div style={{ padding:"14px 16px" }}>
+            <div style={{ fontSize:".72rem", color:"var(--text-muted)", fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", marginBottom:10 }}>Appearance</div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px", background:"var(--bg-elevated)", borderRadius:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                {theme==="dark" ? <IcoMoon/> : <IcoSun/>}
+                <div>
+                  <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:".82rem", fontWeight:600, color:"var(--text-primary)" }}>Theme</div>
+                  <div style={{ fontFamily:"DM Sans,sans-serif", fontSize:".7rem", color:"var(--text-muted)" }}>{theme==="dark"?"Dark":"Light"} mode</div>
+                </div>
+              </div>
+              <div onClick={() => setTheme(t => t==="dark"?"light":"dark")}
+                style={{ width:46, height:26, borderRadius:13, background:theme==="dark"?"#7c3aed":"#e9d5ff", cursor:"pointer", position:"relative", transition:"background .3s", flexShrink:0 }}>
+                <div style={{ position:"absolute", top:3, left:theme==="dark"?22:3, width:20, height:20, borderRadius:"50%", background:"white", transition:"left .3s", boxShadow:"0 2px 6px rgba(0,0,0,0.25)" }}/>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="nav-item" style={{ opacity:0.7, justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? "10px" : "10px 14px" }} onClick={() => setOpen(s => !s)} title="Settings">
+        <span style={{ opacity:0.6 }}><IcoSettings/></span>
+        {!collapsed && "Settings"}
+      </div>
+    </div>
+  );
+};
+
+export default function App() { return <AuthProvider><AppContent/></AuthProvider>; }
