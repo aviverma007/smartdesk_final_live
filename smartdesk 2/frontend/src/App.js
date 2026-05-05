@@ -490,6 +490,22 @@ const AppContent = () => {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("sd-theme", theme);
+    // Inject city skyline background (can't reference /public from CSS)
+    const el = document.getElementById("city-bg-layer") || document.createElement("div");
+    el.id = "city-bg-layer";
+    Object.assign(el.style, {
+      position: "fixed", inset: 0, zIndex: 0,
+      backgroundImage: "url('/images/city-bg.png')",
+      backgroundSize: "100% auto",
+      backgroundPosition: "bottom center",
+      backgroundRepeat: "no-repeat",
+      backgroundAttachment: "fixed",
+      opacity: theme === "dark" ? "0.07" : "0.15",
+      pointerEvents: "none",
+      filter: theme === "dark" ? "invert(1) brightness(1.4)" : "none",
+      transition: "opacity 0.3s",
+    });
+    if (!document.getElementById("city-bg-layer")) document.body.appendChild(el);
   }, [theme]);
 
   useEffect(() => {

@@ -82,20 +82,7 @@ body {
    CITY SKYLINE BACKGROUND
    — dot-matrix city image, bottom-anchored, very subtle
 ══════════════════════════════════════════════════════════ */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background-image: url('/images/city-bg.png');
-  background-size: 100% auto;
-  background-position: bottom center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  opacity: 0.18;
-  pointer-events: none;
-}
-[data-theme="dark"] body::before { opacity: 0.10; filter: invert(1) brightness(1.5); }
+/* City background injected via JS in App.js (CSS cannot resolve /public paths) */
 
 /* All content above background */
 body > * { position: relative; z-index: 1; }
