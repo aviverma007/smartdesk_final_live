@@ -9,7 +9,7 @@ app.use(express.json());
 // ── SQL Server Config ────────────────────────────────────────────────────────
 const config = {
   user: 'sa',
-  password: '',            // ← SET YOUR PASSWORD HERE
+  password: 'smart@123',
   server: '192.168.66.33',
   database: 'etimetracklite1AI',
   options: { trustServerCertificate: true, enableArithAbort: true },
