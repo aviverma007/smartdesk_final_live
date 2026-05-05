@@ -3,7 +3,11 @@ const sql = require('mssql');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET','POST','OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+}));
 app.use(express.json());
 
 // ── SQL Server Config ─────────────────────────────────────────────────────────
@@ -127,8 +131,9 @@ app.get('/api/attendance/departments', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ SmartDesk Attendance API`);
-  console.log(`   http://localhost:${PORT}/api/health`);
+  console.log(`   Local:   http://localhost:${PORT}/api/health`);
+  console.log(`   Network: http://192.168.66.107:${PORT}/api/health`);
   console.log(`   SQL: ${config.server} → ${config.database} as ${config.user}\n`);
 });

@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { employeeAPI } from '../services/api';
 
-const API = 'http://localhost:5001/api/attendance';
+// Use the same host as the frontend — works on localhost AND other machines on the network
+const API_HOST = window.location.hostname === 'localhost'
+  ? 'http://localhost:5001'
+  : `http://192.168.66.107:5001`;
+const API = `${API_HOST}/api/attendance`;
 
 const G = {
   card: { background:'rgba(10,16,32,0.75)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:12, position:'relative', overflow:'hidden' },
