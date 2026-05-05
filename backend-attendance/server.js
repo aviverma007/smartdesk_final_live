@@ -16,7 +16,6 @@ const config = {
     trustServerCertificate: true,
     enableArithAbort: true,
     encrypt: false,
-    instanceName: 'MSSQLSERVER', // try 'SQLEXPRESS' if this fails
   },
   port: 1433,
   connectionTimeout: 30000,
