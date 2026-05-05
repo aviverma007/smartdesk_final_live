@@ -75,7 +75,8 @@ const HoursBar = ({ data }) => {
 
 const LiveAttendance = () => {
   const today = new Date().toISOString().split('T')[0];
-  const [date, setDate] = useState(today);
+  const [fromDate, setFromDate] = useState(today);
+  const [toDate, setToDate] = useState(today);
   const [empCodeSearch, setEmpCodeSearch] = useState('');
   const [attData, setAttData] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -86,6 +87,7 @@ const LiveAttendance = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveData, setLiveData] = useState(null);
   const searchRef = useRef(null);
+  const isRange = fromDate !== toDate;
 
   // Load employee directory for name matching
   useEffect(() => {
@@ -111,26 +113,60 @@ const LiveAttendance = () => {
     return emp?.department || '';
   }, [dirEmployees]);
 
-  const fetchAll = useCallback(async (d) => {
+  // Generate array of dates between from and to
+  const getDatesInRange = (from, to) => {
+    const dates = [];
+    let cur = new Date(from);
+    const end = new Date(to);
+    while (cur <= end) {
+      dates.push(cur.toISOString().split('T')[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates.slice(0, 31); // max 31 days
+  };
+
+  const fetchAll = useCallback(async (from, to) => {
     setLoading(true); setError('');
     try {
-      const [sumRes, empRes, liveRes] = await Promise.all([
-        fetch(`${API}/summary?date=${d}`).then(r=>r.json()),
-        fetch(`${API}?date=${d}`).then(r=>r.json()),
+      const dates = getDatesInRange(from, to);
+      const isMulti = dates.length > 1;
+
+      // Fetch all dates in parallel
+      const [allEmpResults, liveRes] = await Promise.all([
+        Promise.all(dates.map(d => fetch(`${API}?date=${d}`).then(r=>r.json()))),
         fetch(`${API}/live`).then(r=>r.json()),
       ]);
-      if (!sumRes.success) throw new Error(sumRes.error);
-      setSummary(sumRes.summary);
 
-      // Map data: first punch = in, last punch = out, calc hours
-      const rows = (empRes.data||[]).map(e => ({
-        empCode: String(e.empCode||e.UserId||'').trim(),
-        inTime: e.inTime,
-        outTime: e.outTime,
-        workMinutes: e.workMinutes || 0,
-        totalPunches: e.totalPunches || 0,
-      }));
-      setAttData(rows);
+      // Merge rows across dates
+      const allRows = [];
+      let totalPresent = 0, firstIn = null, lastIn = null, totalPunches = 0;
+
+      allEmpResults.forEach((empRes, idx) => {
+        const d = dates[idx];
+        if (!empRes.success) return;
+        totalPresent += empRes.count || 0;
+        totalPunches += (empRes.data||[]).reduce((s,e) => s + (e.totalPunches||0), 0);
+        (empRes.data||[]).forEach(e => {
+          if (e.inTime && (!firstIn || e.inTime < firstIn)) firstIn = e.inTime;
+          if (e.inTime && (!lastIn  || e.inTime > lastIn))  lastIn  = e.inTime;
+          allRows.push({
+            empCode: String(e.empCode||e.UserId||'').trim(),
+            date: d,
+            inTime: e.inTime,
+            outTime: e.outTime,
+            workMinutes: e.workMinutes || 0,
+            totalPunches: e.totalPunches || 0,
+          });
+        });
+      });
+
+      setSummary({
+        totalPresent: isMulti ? totalPresent : (allEmpResults[0]?.data?.length || 0),
+        firstCheckIn: firstIn,
+        lastCheckIn: lastIn,
+        totalPunches,
+      });
+      setAttData(allRows);
       setLiveData(liveRes.live);
       setConnected(true);
       setLastUpdated(new Date());
@@ -141,12 +177,12 @@ const LiveAttendance = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAll(date); }, [date, fetchAll]);
+  useEffect(() => { fetchAll(fromDate, toDate); }, [fromDate, toDate, fetchAll]);
   useEffect(() => {
-    if (date !== today) return;
-    const t = setInterval(() => fetchAll(date), 60000);
+    if (fromDate !== today || toDate !== today) return;
+    const t = setInterval(() => fetchAll(fromDate, toDate), 60000);
     return () => clearInterval(t);
-  }, [date, fetchAll, today]);
+  }, [fromDate, toDate, fetchAll, today]);
 
   // Enrich with directory data
   const enriched = attData.map(r => ({
@@ -166,7 +202,7 @@ const LiveAttendance = () => {
       'Employee Code': e.empCode,
       'Employee Name': e.empName,
       'Department': e.department,
-      'Date': date,
+      'Date': e.date || fromDate,
       'Punch In': fmtTime(e.inTime),
       'Punch Out': fmtTime(e.outTime),
       'Total Hours': fmtHours(e.workMinutes),
@@ -177,7 +213,10 @@ const LiveAttendance = () => {
     const blob = new Blob([csv], { type:'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `attendance_${date}${empCodeSearch?'_'+empCodeSearch:''}.csv`;
+    const fname = isRange
+      ? `attendance_${fromDate}_to_${toDate}${empCodeSearch?'_'+empCodeSearch:''}.csv`
+      : `attendance_${fromDate}${empCodeSearch?'_'+empCodeSearch:''}.csv`;
+    a.download = fname;
     a.click();
   };
 
@@ -195,20 +234,34 @@ const LiveAttendance = () => {
           </h2>
           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.75rem', color:'var(--text-muted)', marginTop:3 }}>
             eTimeTracklite · 192.168.66.33 · etimetracklite1AI
+            {isRange ? ` · ${fromDate} → ${toDate}` : ` · ${fromDate}`}
             {lastUpdated && ` · Updated ${lastUpdated.toLocaleTimeString()}`}
           </div>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-          {/* Date selector */}
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <label style={{ ...G.label, whiteSpace:'nowrap' }}>Select Date</label>
-            <input type="date" value={date} max={today} onChange={e=>setDate(e.target.value)}
-              style={{ ...G.input, padding:'7px 10px' }}
-              onFocus={e=>e.target.style.borderColor='rgba(14,165,233,0.6)'}
-              onBlur={e=>e.target.style.borderColor='rgba(14,165,233,0.22)'}/>
+          {/* From date */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'6px 10px' }}>
+            <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem' }}>FROM</label>
+            <input type="date" value={fromDate} max={toDate}
+              onChange={e => { setFromDate(e.target.value); if(e.target.value > toDate) setToDate(e.target.value); }}
+              style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
+          {/* Arrow */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(14,165,233,0.6)" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          {/* To date */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'6px 10px' }}>
+            <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem' }}>TO</label>
+            <input type="date" value={toDate} min={fromDate} max={today}
+              onChange={e => setToDate(e.target.value)}
+              style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
+          </div>
+          {isRange && (
+            <div style={{ padding:'5px 10px', borderRadius:6, background:'rgba(14,165,233,0.1)', border:'1px solid rgba(14,165,233,0.25)', fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#0ea5e9', fontWeight:600, whiteSpace:'nowrap' }}>
+              {getDatesInRange(fromDate, toDate).length} days
+            </div>
+          )}
           {/* Refresh */}
-          <button style={G.btn()} onClick={()=>fetchAll(date)}>
+          <button style={G.btn()} onClick={()=>fetchAll(fromDate, toDate)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             Refresh
           </button>
@@ -371,7 +424,7 @@ const LiveAttendance = () => {
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color:'#0ea5e9', fontWeight:700 }}>{emp.empCode}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'rgba(220,235,255,0.95)', whiteSpace:'nowrap' }}>{emp.empName}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'rgba(160,185,220,0.8)' }}>{emp.department||'—'}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'rgba(140,170,210,0.7)' }}>{date}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'rgba(140,170,210,0.7)' }}>{emp.date||fromDate}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.inTime ? '#4ade80' : 'rgba(140,170,210,0.4)' }}>{fmtTime(emp.inTime)}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.outTime && emp.outTime !== emp.inTime ? '#60a5fa' : 'rgba(140,170,210,0.4)' }}>{emp.outTime && emp.outTime !== emp.inTime ? fmtTime(emp.outTime) : '—'}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.workMinutes>0 ? '#fbbf24' : 'rgba(140,170,210,0.4)', fontWeight: emp.workMinutes>0 ? 700 : 400 }}>{fmtHours(emp.workMinutes)}</td>
