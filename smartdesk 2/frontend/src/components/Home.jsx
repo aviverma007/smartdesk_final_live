@@ -63,13 +63,16 @@ const CyberCard = ({ children, style = {}, color = "#00d4ff", hover = true }) =>
       onMouseEnter={() => hover && setHov(true)}
       onMouseLeave={() => hover && setHov(false)}
       style={{
-        background: "rgba(6,20,45,0.85)",
-        backdropFilter: "blur(12px)",
-        border: `1px solid ${hov ? color + "60" : "rgba(0,212,255,0.18)"}`,
-        borderRadius: 8,
+        background: "var(--glass-bg, rgba(12,22,38,0.52))",
+        backdropFilter: "blur(18px) saturate(180%)",
+        WebkitBackdropFilter: "blur(18px) saturate(180%)",
+        border: `1px solid ${hov ? color + "50" : "var(--glass-border, rgba(255,255,255,0.09))"}`,
+        borderRadius: 12,
         position: "relative",
         overflow: "hidden",
-        boxShadow: hov ? `0 0 20px ${color}30` : "none",
+        boxShadow: hov
+          ? `0 12px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 20px ${color}20`
+          : "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.07)",
         transition: "all .3s",
         ...style,
       }}
