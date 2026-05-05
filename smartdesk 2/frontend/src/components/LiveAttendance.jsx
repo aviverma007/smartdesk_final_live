@@ -16,11 +16,19 @@ const fmt = (v) => v ? new Date(v).toLocaleTimeString('en-IN', { hour:'2-digit',
 const pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
 
 const StatCard = ({ label, value, color, sub }) => (
-  <div style={{ background:'var(--bg-card)', border:`1px solid ${color}30`, borderRadius:12, padding:'16px 20px', position:'relative', overflow:'hidden' }}>
-    <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${color},transparent)`, opacity:.6 }}/>
-    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'var(--text-muted)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.08em' }}>{label}</div>
-    <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'2rem', color, lineHeight:1 }}>{value ?? '—'}</div>
-    {sub && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'var(--text-muted)', marginTop:4 }}>{sub}</div>}
+  <div style={{
+    background:'rgba(10,16,32,0.72)',
+    backdropFilter:'blur(16px)',
+    WebkitBackdropFilter:'blur(16px)',
+    border:`1px solid ${color}50`,
+    borderRadius:12, padding:'16px 20px',
+    position:'relative', overflow:'hidden',
+    boxShadow:`0 4px 20px rgba(0,0,0,0.3), 0 0 12px ${color}18`
+  }}>
+    <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${color},transparent)`, opacity:.9 }}/>
+    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'rgba(180,200,230,0.8)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.1em', fontWeight:600 }}>{label}</div>
+    <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'2rem', color, lineHeight:1, textShadow:`0 0 16px ${color}80` }}>{value ?? '—'}</div>
+    {sub && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'rgba(150,180,220,0.7)', marginTop:4 }}>{sub}</div>}
   </div>
 );
 
@@ -113,7 +121,7 @@ const LiveAttendance = () => {
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={{ background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', outline:'none' }}/>
+            style={{ background:'rgba(8,14,28,0.60)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1px solid rgba(14,165,233,0.15)', borderRadius:8, padding:'7px 12px', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', outline:'none' }}/>
           <button onClick={() => fetchAll(date)} style={{ background:'rgba(139,92,246,0.15)', border:'1px solid rgba(139,92,246,0.4)', borderRadius:8, padding:'7px 16px', color:'var(--accent-purple)', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.8rem', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             Refresh
@@ -181,7 +189,7 @@ const LiveAttendance = () => {
           </div>
 
           {/* Attendance Rate big bar */}
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
+          <div style={{ background:'rgba(10,16,32,0.72)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', border:'1px solid rgba(14,165,233,0.20)', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:10 }}>
               <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.85rem', color:'var(--text-primary)' }}>Overall Attendance Rate</span>
               <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1rem', color: pct(summary.present, summary.totalEmployees) >= 80 ? '#4ade80' : '#fbbf24' }}>
@@ -211,28 +219,28 @@ const LiveAttendance = () => {
 
           {/* Department breakdown */}
           {departments.length > 0 && (
-            <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
+            <div style={{ background:'rgba(10,16,32,0.72)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', border:'1px solid rgba(14,165,233,0.20)', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
               <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.88rem', color:'var(--text-primary)', marginBottom:14 }}>Department Breakdown</div>
               {departments.map(d => <DeptBar key={d.department} dept={d.department} present={d.present} total={d.total} absent={d.absent}/>)}
             </div>
           )}
 
           {/* Employee table */}
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
+          <div style={{ background:'rgba(10,16,32,0.72)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', border:'1px solid rgba(14,165,233,0.20)', borderRadius:12, overflow:'hidden' }}>
             {/* Filters */}
             <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', flex:1, minWidth:160 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(8,14,28,0.60)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1px solid rgba(14,165,233,0.15)', borderRadius:8, padding:'7px 12px', flex:1, minWidth:160 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employee..."
                   style={{ background:'transparent', border:'none', outline:'none', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', width:'100%' }}/>
               </div>
               <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-                style={{ background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', outline:'none' }}>
+                style={{ background:'rgba(8,14,28,0.60)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1px solid rgba(14,165,233,0.15)', borderRadius:8, padding:'7px 12px', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', outline:'none' }}>
                 <option value="">All Departments</option>
                 {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
               <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                style={{ background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', outline:'none' }}>
+                style={{ background:'rgba(8,14,28,0.60)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1px solid rgba(14,165,233,0.15)', borderRadius:8, padding:'7px 12px', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', outline:'none' }}>
                 <option value="">All Status</option>
                 {['Present','Absent','Leave','Weekly Off','Half Day','On Duty'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
