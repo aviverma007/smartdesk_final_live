@@ -32,21 +32,37 @@ const IcoX        = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="
 const IcoSparkle  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/></svg>;
 
 /* ── Custom Cursor — SWD Logo + trailing particles only ─────────────────── */
-const SWD_LOGO_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-  <circle cx="20" cy="26" r="12" stroke="white" stroke-width="2.5" fill="none"/>
-  <line x1="20" y1="1" x2="20" y2="38" stroke="white" stroke-width="2.8"/>
-  <polygon points="20,0 15,10 20,8 25,10" fill="white"/>
-  <line x1="20" y1="20" x2="11" y2="29" stroke="white" stroke-width="2.2"/>
-  <line x1="20" y1="20" x2="29" y2="29" stroke="white" stroke-width="2.2"/>
+const getSWDSvg = (color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <circle cx="20" cy="26" r="12" stroke="${color}" stroke-width="2.5" fill="none"/>
+  <line x1="20" y1="1" x2="20" y2="38" stroke="${color}" stroke-width="2.8"/>
+  <polygon points="20,0 15,10 20,8 25,10" fill="${color}"/>
+  <line x1="20" y1="20" x2="11" y2="29" stroke="${color}" stroke-width="2.2"/>
+  <line x1="20" y1="20" x2="29" y2="29" stroke="${color}" stroke-width="2.2"/>
 </svg>`)}`;
-
-const TRAIL_COLORS = ["#9b6dff","#f472b6","#60a5fa","#4ade80","#ffffff"];
 
 const CustomCursor = () => {
   const logoRef  = useRef(null);
+  const imgRef   = useRef(null);
   const pos      = useRef({ x: -200, y: -200 });
   const rafRef   = useRef(null);
   const trailIdx = useRef(0);
+
+  // Update cursor color when theme changes
+  useEffect(() => {
+    const updateColor = () => {
+      const theme = document.documentElement.getAttribute("data-theme");
+      const color = theme === "light" ? "#000000" : "white";
+      const glow  = theme === "light" ? "drop-shadow(0 0 6px rgba(255,255,255,0.9))" : "drop-shadow(0 0 6px rgba(255,255,255,0.6))";
+      if (imgRef.current) {
+        imgRef.current.src = getSWDSvg(color);
+        imgRef.current.style.filter = glow;
+      }
+    };
+    updateColor();
+    const observer = new MutationObserver(updateColor);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let lastTrail = 0;
@@ -54,7 +70,11 @@ const CustomCursor = () => {
     const spawnTrail = (x, y) => {
       const el = document.createElement("div");
       const size = 3 + Math.random() * 5;
-      const color = TRAIL_COLORS[trailIdx.current % TRAIL_COLORS.length];
+      const theme = document.documentElement.getAttribute("data-theme");
+      const colors = theme === "light"
+        ? ["#7c3aed","#db2777","#2563eb","#000000","#4a4a4a"]
+        : ["#9b6dff","#f472b6","#60a5fa","#4ade80","#ffffff"];
+      const color = colors[trailIdx.current % colors.length];
       trailIdx.current++;
       Object.assign(el.style, {
         position: "fixed", borderRadius: "50%",
@@ -108,8 +128,8 @@ const CustomCursor = () => {
       transform: "translate(-200px, -200px)",
       filter: "drop-shadow(0 0 6px rgba(255,255,255,0.6))",
     }}>
-      <img src={SWD_LOGO_SVG} alt="" width={40} height={40}
-        draggable={false} style={{ display:"block", userSelect:"none" }}/>
+      <img ref={imgRef} src={getSWDSvg("white")} alt="" width={40} height={40} id="swd-cursor-img"
+        draggable={false} style={{ display:"block", userSelect:"none", filter:"drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}/>
     </div>
   );
 };

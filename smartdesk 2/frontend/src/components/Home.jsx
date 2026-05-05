@@ -59,6 +59,7 @@ const CyberCard = ({ children, style = {}, color = "#00d4ff", hover = true }) =>
 
   return (
     <div
+      className="home-card"
       onMouseEnter={() => hover && setHov(true)}
       onMouseLeave={() => hover && setHov(false)}
       style={{
