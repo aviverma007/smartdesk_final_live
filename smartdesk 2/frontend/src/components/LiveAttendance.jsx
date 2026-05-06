@@ -201,7 +201,14 @@ const LiveAttendance = () => {
     hoursWorked: r.workMinutes > 0 ? r.workMinutes/60 : 0,
   }));
 
-  const filtered = enriched.filter(e =>
+  // Sort by latest punch in time — most recent first
+  const sorted = [...enriched].sort((a, b) => {
+    const ta = a.inTime ? new Date(String(a.inTime).replace('T',' ').replace('Z','')) : new Date(0);
+    const tb = b.inTime ? new Date(String(b.inTime).replace('T',' ').replace('Z','')) : new Date(0);
+    return tb - ta;
+  });
+
+  const filtered = sorted.filter(e =>
     !empCodeSearch || e.empCode.toLowerCase().includes(empCodeSearch.toLowerCase()) || e.empName.toLowerCase().includes(empCodeSearch.toLowerCase())
   );
 
