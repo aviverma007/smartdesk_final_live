@@ -619,75 +619,7 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={
             <>
-              {/* Collapsible Sidebar */}
-              <div style={{
-                width: sidebarCollapsed ? 64 : 232,
-                minWidth: sidebarCollapsed ? 64 : 232,
-                background:"var(--sidebar-bg)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid rgba(16,93,169,0.15)",
-                display:"flex", flexDirection:"column",
-                padding: sidebarCollapsed ? "22px 10px 16px" : "22px 12px 16px",
-                position:"sticky", top:0, height:"100vh", overflow:"hidden",
-                zIndex:30, transition:"all .25s ease",
-              }}>
-                {/* Logo + collapse toggle */}
-                <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 4px", marginBottom:28, justifyContent: sidebarCollapsed ? "center" : "flex-start" }}>
-                  <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#105da9,#1a7fd4)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)", cursor:"pointer" }}
-                    onClick={() => setSidebarCollapsed(c => !c)} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-                    <img src="/images/swd-logo.png" alt="SWD" width={28} height={28} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
-                  </div>
-                  {!sidebarCollapsed && (
-                    <div style={{ overflow:"hidden" }}>
-                      <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1, whiteSpace:"nowrap", letterSpacing:"-0.01em" }}>SmartDesk</div>
-                      <div style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.62rem", color:"var(--text-muted)", marginTop:3, letterSpacing:"0.04em" }}>Enterprise Portal</div>
-                    </div>
-                  )}
-                </div>
-
-                {!sidebarCollapsed && (
-                  <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.62rem", fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.14em", textTransform:"uppercase", padding:"0 8px", marginBottom:6 }}>Explore</div>
-                )}
-
-                {/* Nav */}
-                <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1, overflowY:"auto" }}>
-                  {NAV.map(({ id, label, Icon }) => (
-                    <div key={id}
-                      className={`nav-item${active===id?" active":""}`}
-                      onClick={() => setActive(id)}
-                      title={sidebarCollapsed ? label : ""}
-                      style={{ justifyContent: sidebarCollapsed ? "center" : "flex-start", padding: sidebarCollapsed ? "10px" : "10px 14px", position:"relative" }}>
-                      <span style={{ opacity:active===id?1:0.6, color:active===id?"#c084fc":"inherit", flexShrink:0 }}><Icon/></span>
-                      {!sidebarCollapsed && <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{label}</span>}
-                      {/* Live badge on attendance */}
-                      {id === "attendance" && !sidebarCollapsed && (
-                        <span style={{ marginLeft:"auto", fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:".6rem", fontWeight:800, padding:"2px 7px", borderRadius:20, background:"rgba(74,222,128,0.15)", border:"1px solid rgba(74,222,128,0.35)", color:"#4ade80", letterSpacing:".05em" }}>LIVE</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Settings */}
-                <div style={{ borderTop:"1px solid var(--border)", paddingTop:10, marginBottom:4, position:"relative" }}>
-                  <SettingsDropdown theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed}/>
-                </div>
-
-                {/* User */}
-                {!sidebarCollapsed && (
-                  <div style={{ paddingTop:6, borderTop:"1px solid var(--border)" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:9, padding:"8px", borderRadius:10, cursor:"pointer", transition:"background .2s" }}
-                      onClick={() => setActive("profile")}
-                      onMouseEnter={e=>e.currentTarget.style.background="rgba(155,109,255,0.07)"}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
-                        <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
-                          <span className="online-dot" style={{ width:6, height:6 }}/>
-                          <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"var(--accent-green)" }}>Online</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <Sidebar active={active} setActive={setActive} theme={theme} setTheme={setTheme}/>
 
               {/* Main */}
               <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative", zIndex:1 }}>
