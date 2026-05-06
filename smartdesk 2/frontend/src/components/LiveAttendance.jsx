@@ -82,7 +82,19 @@ const HoursBar = ({ data }) => {
   );
 };
 
-const LiveAttendance = () => {
+// Generate array of dates between from and to (outside component to avoid stale closure)
+const getDatesInRange = (from, to) => {
+  const dates = [];
+  let cur = new Date(from);
+  const end = new Date(to);
+  while (cur <= end) {
+    dates.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates.slice(0, 31);
+};
+
+const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
   const today = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
@@ -96,6 +108,14 @@ const LiveAttendance = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveData, setLiveData] = useState(null);
   const searchRef = useRef(null);
+
+  // Pre-fill search when coming from Employee Directory
+  useEffect(() => {
+    if (initEmpCode) {
+      setEmpCodeSearch(initEmpCode);
+      if (onCodeUsed) onCodeUsed();
+    }
+  }, [initEmpCode]);
   const isRange = fromDate !== toDate;
 
   // Load employee directory for name matching
@@ -121,18 +141,6 @@ const LiveAttendance = () => {
     );
     return emp?.department || '';
   }, [dirEmployees]);
-
-  // Generate array of dates between from and to
-  const getDatesInRange = (from, to) => {
-    const dates = [];
-    let cur = new Date(from);
-    const end = new Date(to);
-    while (cur <= end) {
-      dates.push(cur.toISOString().split('T')[0]);
-      cur.setDate(cur.getDate() + 1);
-    }
-    return dates.slice(0, 31); // max 31 days
-  };
 
   const fetchAll = useCallback(async (from, to) => {
     setLoading(true); setError('');

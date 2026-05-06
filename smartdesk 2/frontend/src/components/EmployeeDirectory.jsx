@@ -80,7 +80,7 @@ const S = {
   },
 };
 
-const EmployeeDirectory = () => {
+const EmployeeDirectory = ({ onViewAttendance }) => {
   const [nameSearch, setNameSearch] = useState("");
   const [employeeIdSearch, setEmployeeIdSearch] = useState("");
   const [departmentSearch, setDepartmentSearch] = useState("");
@@ -219,7 +219,7 @@ const EmployeeDirectory = () => {
       {hasSearched && filteredEmployees.length > 0 && viewMode === 'grid' && (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:12 }}>
           {filteredEmployees.map(emp => (
-            <EmployeeCard key={emp.id} employee={emp} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }} />
+            <EmployeeCard key={emp.id} employee={emp} isAdmin={isAdmin} onImageUpdate={handleImageUpdate} onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }} onViewAttendance={onViewAttendance} />
           ))}
         </div>
       )}

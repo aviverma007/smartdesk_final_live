@@ -482,9 +482,10 @@ const QuickTicker = () => {
 const AppContent = () => {
   const { isAuthenticated, showLoading, initializeAuth } = useAuth();
   const [active, setActive] = useState("home");
-  const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "dark");
+  const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
   const [showSearch, setShowSearch] = useState(false);
+  const [attendanceEmpCode, setAttendanceEmpCode] = useState("");
 
   useEffect(() => { initializeAuth(); }, []);
 
@@ -524,8 +525,8 @@ const AppContent = () => {
 
   const CONTENT = {
     "home":             <Home/>,
-    "directory":        <EmployeeDirectory/>,
-    "attendance":       <LiveAttendance/>,
+    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }}/>,
+    "attendance":       <LiveAttendance initEmpCode={attendanceEmpCode} onCodeUsed={() => setAttendanceEmpCode("")}/>,
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,
     "dashboard":        <Dashboard/>,

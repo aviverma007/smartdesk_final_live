@@ -84,7 +84,7 @@ body::after {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: rgba(235,242,252,0.48);
+  background: rgba(238,242,248,0.42);
   pointer-events: none;
 }
 [data-theme="dark"] body::after {

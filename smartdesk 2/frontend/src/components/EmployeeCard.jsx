@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 
-const EmployeeCard = ({ employee, onImageUpdate, onClick, isDetailView }) => {
+const EmployeeCard = ({ employee, onImageUpdate, onClick, isDetailView, onViewAttendance }) => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [hovered, setHovered] = useState(false);
@@ -127,8 +127,18 @@ const EmployeeCard = ({ employee, onImageUpdate, onClick, isDetailView }) => {
       </div>
 
       {hovered && (
-        <div style={{ display:'flex', alignItems:'center', gap:4, fontFamily:"'Share Tech Mono', monospace", fontSize:'.55rem', color:'rgba(0,212,255,0.6)', letterSpacing:'.08em' }}>
-          <Eye size={10} /> VIEW RECORD
+        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:4, fontFamily:"'Share Tech Mono', monospace", fontSize:'.55rem', color:'rgba(0,212,255,0.6)', letterSpacing:'.08em' }}>
+            <Eye size={10} /> VIEW RECORD
+          </div>
+          {onViewAttendance && (
+            <button
+              onClick={e => { e.stopPropagation(); onViewAttendance(String(employee.id || employee.employeeId || employee.empCode || '')); }}
+              style={{ display:'flex', alignItems:'center', gap:4, background:'rgba(74,222,128,0.12)', border:'1px solid rgba(74,222,128,0.35)', borderRadius:5, padding:'3px 8px', color:'#4ade80', fontFamily:"'Share Tech Mono', monospace", fontSize:'.52rem', letterSpacing:'.06em', cursor:'pointer' }}
+            >
+              📋 ATTENDANCE
+            </button>
+          )}
         </div>
       )}
     </div>
