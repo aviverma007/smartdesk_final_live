@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { employeeAPI } from '../services/api';
 
-// Use the same host as the frontend — works on localhost AND other machines on the network
-const API_HOST = window.location.hostname === 'localhost'
-  ? 'http://localhost:5001'
-  : `http://192.168.66.107:5001`;
+// Dynamically use whatever host the app is running on — works on any machine
+const API_HOST = `http://${window.location.hostname}:5001`;
 const API = `${API_HOST}/api/attendance`;
 
 const G = {
