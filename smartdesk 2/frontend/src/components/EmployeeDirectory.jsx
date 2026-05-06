@@ -115,17 +115,17 @@ const EmployeeDirectory = () => {
     const has = debouncedSearchTerms.name || debouncedSearchTerms.employeeId || debouncedSearchTerms.department || debouncedSearchTerms.designation || debouncedSearchTerms.location;
     if (!isAdmin && !has) return [];
     return employees.filter(emp => {
-      const nm = (emp.name || '').toLowerCase();
-      const id = (emp.employeeId || emp.employee_id || '').toLowerCase();
-      const dp = (emp.department || '').toLowerCase();
-      const dg = (emp.designation || '').toLowerCase();
-      const lc = (emp.location || '').toLowerCase();
+      const nm = (emp.name || emp.fullName || '').toLowerCase();
+      const id = String(emp.employeeId || emp.employee_id || emp.empCode || emp.id || '').toLowerCase();
+      const dp = (emp.department || emp.dept || '').toLowerCase();
+      const dg = (emp.designation || emp.position || emp.jobTitle || '').toLowerCase();
+      const lc = (emp.location || emp.city || emp.office || '').toLowerCase();
       const s = debouncedSearchTerms;
-      return (!s.name || nm.startsWith(s.name.toLowerCase()))
-        && (!s.employeeId || id.startsWith(s.employeeId.toLowerCase()))
-        && (!s.department || dp.startsWith(s.department.toLowerCase()))
-        && (!s.designation || dg.startsWith(s.designation.toLowerCase()))
-        && (!s.location || lc.startsWith(s.location.toLowerCase()));
+      return (!s.name       || nm.includes(s.name.toLowerCase()))
+          && (!s.employeeId || id.includes(s.employeeId.toLowerCase()))
+          && (!s.department  || dp.includes(s.department.toLowerCase()))
+          && (!s.designation || dg.includes(s.designation.toLowerCase()))
+          && (!s.location    || lc.includes(s.location.toLowerCase()));
     });
   }, [employees, debouncedSearchTerms, isAdmin]);
 
