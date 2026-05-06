@@ -7,12 +7,12 @@ const API = `${API_HOST}/api/attendance`;
 
 const G = {
   card: { background:'rgba(8,12,28,0.82)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)', border:'1px solid rgba(14,165,233,0.28)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)' },
-  topLine: (c='#0ea5e9') => ({ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${c},transparent)` }),
+  topLine: (c='#105da9') => ({ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${c},transparent)` }),
   label: { fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'rgba(150,180,220,0.75)', textTransform:'uppercase', letterSpacing:'.1em', fontWeight:600 },
   val: (c) => ({ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.9rem', color:c, lineHeight:1, textShadow:`0 0 20px ${c}60` }),
   sub: { fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:'rgba(140,170,210,0.65)', marginTop:3 },
   input: { background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'8px 12px', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.83rem', outline:'none' },
-  btn: (bg='rgba(14,165,233,0.15)', border='rgba(14,165,233,0.45)', c='#0ea5e9') => ({ background:bg, border:`1px solid ${border}`, borderRadius:8, padding:'8px 16px', color:c, fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.78rem', cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'all .2s' }),
+  btn: (bg='rgba(16,93,169,0.15)', border='rgba(14,165,233,0.45)', c='#105da9') => ({ background:bg, border:`1px solid ${border}`, borderRadius:8, padding:'8px 16px', color:c, fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.78rem', cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'all .2s' }),
 };
 
 const fmtTime = v => {
@@ -271,7 +271,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
               style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
           {/* Arrow */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(14,165,233,0.6)" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(16,93,169,0.6)" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           {/* To date */}
           <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'6px 10px' }}>
             <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem' }}>TO</label>
@@ -280,7 +280,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
               style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
           {isRange && (
-            <div style={{ padding:'5px 10px', borderRadius:6, background:'rgba(14,165,233,0.1)', border:'1px solid rgba(14,165,233,0.25)', fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#0ea5e9', fontWeight:600, whiteSpace:'nowrap' }}>
+            <div style={{ padding:'5px 10px', borderRadius:6, background:'rgba(14,165,233,0.1)', border:'1px solid rgba(14,165,233,0.25)', fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#105da9', fontWeight:600, whiteSpace:'nowrap' }}>
               {getDatesInRange(fromDate, toDate).length} days
             </div>
           )}
@@ -309,7 +309,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
       {/* ── LOADING ── */}
       {loading && !summary && (
         <div style={{ display:'flex', justifyContent:'center', padding:'80px 0', flexDirection:'column', alignItems:'center', gap:14 }}>
-          <div style={{ width:36, height:36, border:'3px solid rgba(14,165,233,0.15)', borderTop:'3px solid #0ea5e9', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
+          <div style={{ width:36, height:36, border:'3px solid rgba(16,93,169,0.15)', borderTop:'3px solid #0ea5e9', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.8rem', color:'var(--text-muted)' }}>Fetching attendance data...</div>
         </div>
       )}
@@ -352,7 +352,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
 
             {/* Hours bar chart */}
             <div style={{ ...G.card, padding:'16px' }}>
-              <div style={G.topLine('#0ea5e9')}/>
+              <div style={G.topLine('#105da9')}/>
               <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.75rem', color:'rgba(200,220,255,0.9)', marginBottom:10 }}>Hours Worked — Top {topHours.length} Employees</div>
               {topHours.length > 0 ? <HoursBar data={topHours.map(e=>({code:e.empCode,hours:e.hoursWorked}))} /> : (
                 <div style={{ textAlign:'center', padding:'20px 0', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'rgba(140,170,210,0.5)' }}>Hours data requires complete in/out punches</div>
@@ -395,7 +395,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
               <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                 {/* Employee Code search */}
                 <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'7px 12px', minWidth:200 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(14,165,233,0.6)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(16,93,169,0.6)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
                     ref={searchRef}
                     value={empCodeSearch}
@@ -403,7 +403,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                     placeholder="Employee Code / Name..."
                     style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.9)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', width:'100%' }}
                   />
-                  {empCodeSearch && <span onClick={()=>setEmpCodeSearch('')} style={{ color:'rgba(14,165,233,0.6)', cursor:'pointer', fontSize:14, lineHeight:1 }}>✕</span>}
+                  {empCodeSearch && <span onClick={()=>setEmpCodeSearch('')} style={{ color:'rgba(16,93,169,0.6)', cursor:'pointer', fontSize:14, lineHeight:1 }}>✕</span>}
                 </div>
                 <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.75rem', color:'rgba(140,170,210,0.6)' }}>{filtered.length} records</span>
                 {/* Excel download */}
@@ -428,10 +428,10 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                   {filtered.slice(0,300).map((emp, i) => (
                     <tr key={i}
                       style={{ borderBottom:'1px solid rgba(14,165,233,0.07)', transition:'background .15s' }}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(14,165,233,0.06)'}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(16,93,169,0.06)'}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                     >
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color:'#0ea5e9', fontWeight:700 }}>{emp.empCode}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color:'#105da9', fontWeight:700 }}>{emp.empCode}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'rgba(220,235,255,0.95)', whiteSpace:'nowrap' }}>{emp.empName}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'rgba(160,185,220,0.8)' }}>{emp.department||'—'}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'rgba(140,170,210,0.7)' }}>{emp.date||fromDate}</td>
@@ -439,7 +439,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.outTime && emp.outTime !== emp.inTime ? '#60a5fa' : 'rgba(140,170,210,0.4)' }}>{emp.outTime && emp.outTime !== emp.inTime ? fmtTime(emp.outTime) : '—'}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.workMinutes>0 ? '#fbbf24' : 'rgba(140,170,210,0.4)', fontWeight: emp.workMinutes>0 ? 700 : 400 }}>{fmtHours(emp.workMinutes)}</td>
                       <td style={{ padding:'9px 14px', textAlign:'center' }}>
-                        <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', padding:'2px 8px', borderRadius:10, background:'rgba(14,165,233,0.12)', border:'1px solid rgba(14,165,233,0.25)', color:'#0ea5e9' }}>{emp.totalPunches}</span>
+                        <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', padding:'2px 8px', borderRadius:10, background:'rgba(16,93,169,0.12)', border:'1px solid rgba(14,165,233,0.25)', color:'#105da9' }}>{emp.totalPunches}</span>
                       </td>
                     </tr>
                   ))}

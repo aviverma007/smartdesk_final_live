@@ -83,7 +83,7 @@ const LoginForm = () => {
     <div style={{ position:'relative', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', background:'#0d0b1a' }}>
       {/* Ambient orbs */}
       <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(124,58,237,0.25),transparent)', top:-120, left:-100, filter:'blur(60px)', pointerEvents:'none' }}/>
-      <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(244,114,182,0.2),transparent)', bottom:-80, right:-60, filter:'blur(60px)', pointerEvents:'none' }}/>
+      <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(26,127,212,0.2),transparent)', bottom:-80, right:-60, filter:'blur(60px)', pointerEvents:'none' }}/>
 
       <canvas ref={canvasRef} style={{ position:'absolute', inset:0, zIndex:0 }}/>
 
@@ -100,7 +100,7 @@ const LoginForm = () => {
         animation:'loginIn 0.5s cubic-bezier(.22,.68,0,1.2)',
       }}>
         {/* Top gradient line */}
-        <div style={{ position:'absolute', top:0, left:'20%', right:'20%', height:2, background:'linear-gradient(90deg,transparent,#7c3aed,#f472b6,transparent)', borderRadius:1 }}/>
+        <div style={{ position:'absolute', top:0, left:'20%', right:'20%', height:2, background:'linear-gradient(90deg,transparent,#105da9,#f472b6,transparent)', borderRadius:1 }}/>
 
         {/* Logo */}
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:28 }}>
@@ -116,8 +116,8 @@ const LoginForm = () => {
             <img src="/images/swd-logo.png" alt="SmartDesk" width={44} height={44}
               style={{ objectFit:'contain', filter:'brightness(0) invert(1)' }}/>
           </div>
-          <div style={{ fontFamily:'Plus Jakarta Sans,sans-serif', fontWeight:800, fontSize:'1.5rem', color:'#f1eeff', letterSpacing:'-0.01em' }}>SmartDesk</div>
-          <div style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.78rem', color:'rgba(177,168,216,0.6)', marginTop:4 }}>Enterprise Intelligence Portal</div>
+          <div style={{ fontFamily:'Plus Jakarta Sans,sans-serif', fontWeight:800, fontSize:'1.5rem', color:'#eef5fc', letterSpacing:'-0.01em' }}>SmartDesk</div>
+          <div style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.78rem', color:'rgba(148,192,230,0.7)', marginTop:4 }}>Enterprise Intelligence Portal</div>
         </div>
 
         {/* Loading section */}
@@ -136,7 +136,7 @@ const LoginForm = () => {
           <div style={{ height:6, borderRadius:6, background:'rgba(255,255,255,0.07)', overflow:'hidden', marginBottom:18 }}>
             <div style={{
               height:'100%', borderRadius:6,
-              background:'linear-gradient(90deg,#7c3aed,#f472b6)',
+              background:'linear-gradient(90deg,#105da9,#f472b6)',
               width:`${progress}%`,
               transition:'width 0.06s linear',
               boxShadow:'0 0 12px rgba(124,58,237,0.6)',
@@ -149,7 +149,7 @@ const LoginForm = () => {
               <div key={i} style={{
                 width: i===step ? 20 : 7, height:7, borderRadius:4,
                 background: i<=step
-                  ? 'linear-gradient(90deg,#7c3aed,#f472b6)'
+                  ? 'linear-gradient(90deg,#105da9,#f472b6)'
                   : 'rgba(255,255,255,0.1)',
                 transition:'width 0.4s, background 0.4s',
                 boxShadow: i===step ? '0 0 8px rgba(124,58,237,0.7)' : 'none',
