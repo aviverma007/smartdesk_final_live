@@ -43,7 +43,7 @@ const LoginForm = () => {
       x: Math.random()*canvas.width, y: Math.random()*canvas.height,
       vx: (Math.random()-.5)*.4, vy: (Math.random()-.5)*.4,
       r: Math.random()*1.5+.3,
-      c: Math.random()>.6 ? 'rgba(124,58,237,' : Math.random()>.5 ? 'rgba(244,114,182,' : 'rgba(96,165,250,',
+      c: Math.random()>.6 ? 'rgba(56,189,248,' : Math.random()>.5 ? 'rgba(147,197,253,' : 'rgba(96,165,250,',
     }));
 
     let raf;
@@ -68,7 +68,7 @@ const LoginForm = () => {
             ctx.beginPath();
             ctx.moveTo(particles[i].x,particles[i].y);
             ctx.lineTo(particles[j].x,particles[j].y);
-            ctx.strokeStyle=`rgba(124,58,237,${(1-d/100)*.12})`;
+            ctx.strokeStyle=`rgba(56,189,248,${(1-d/100)*.12})`;
             ctx.lineWidth=.5; ctx.stroke();
           }
         }
@@ -82,7 +82,7 @@ const LoginForm = () => {
   return (
     <div style={{ position:'relative', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', background:'#0d0b1a' }}>
       {/* Ambient orbs */}
-      <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(124,58,237,0.25),transparent)', top:-120, left:-100, filter:'blur(60px)', pointerEvents:'none' }}/>
+      <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(56,189,248,0.25),transparent)', top:-120, left:-100, filter:'blur(60px)', pointerEvents:'none' }}/>
       <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(26,127,212,0.2),transparent)', bottom:-80, right:-60, filter:'blur(60px)', pointerEvents:'none' }}/>
 
       <canvas ref={canvasRef} style={{ position:'absolute', inset:0, zIndex:0 }}/>
@@ -139,7 +139,7 @@ const LoginForm = () => {
               background:'linear-gradient(90deg,#105da9,#f472b6)',
               width:`${progress}%`,
               transition:'width 0.06s linear',
-              boxShadow:'0 0 12px rgba(124,58,237,0.6)',
+              boxShadow:'0 0 12px rgba(56,189,248,0.6)',
             }}/>
           </div>
 
@@ -152,7 +152,7 @@ const LoginForm = () => {
                   ? 'linear-gradient(90deg,#105da9,#f472b6)'
                   : 'rgba(255,255,255,0.1)',
                 transition:'width 0.4s, background 0.4s',
-                boxShadow: i===step ? '0 0 8px rgba(124,58,237,0.7)' : 'none',
+                boxShadow: i===step ? '0 0 8px rgba(56,189,248,0.7)' : 'none',
               }}/>
             ))}
           </div>

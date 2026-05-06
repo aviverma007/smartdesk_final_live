@@ -354,56 +354,131 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
   const [showSettings, setShowSettings] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
+
+  useEffect(() => { localStorage.setItem("sd-sidebar-collapsed", collapsed); }, [collapsed]);
+
   return (
-    <div style={{ width:232, minWidth:232, background:"var(--sidebar-bg)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:"1px solid rgba(16,93,169,0.15)", display:"flex", flexDirection:"column", padding:"22px 12px 16px", position:"sticky", top:0, height:"100vh", overflow:"hidden", zIndex:30, transition:"background .3s" }}>
-      {/* Logo */}
-      <div style={{ display:"flex", alignItems:"center", gap:11, padding:"0 6px", marginBottom:28 }}>
-        <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#105da9,#1a7fd4)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 18px rgba(13,43,110,0.45)", flexShrink:0, border:"1px solid rgba(255,255,255,0.1)" }}>
-          <img src="/images/swd-logo.png" alt="SWD" width={32} height={32} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
-        </div>
-        <div>
-          <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.02rem", color:"var(--text-primary)", lineHeight:1 }}>SmartDesk</div>
-          <div style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.62rem", color:"var(--text-muted)", marginTop:3, letterSpacing:"0.04em" }}>Enterprise Portal</div>
-        </div>
-      </div>
+    <div style={{ position:"relative", flexShrink:0 }}>
+      {/* Collapse/expand arrow button */}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        style={{
+          position:"absolute", top:24, right:-14, zIndex:40,
+          width:28, height:28, borderRadius:"50%",
+          background:"linear-gradient(135deg,#105da9,#1a7fd4)",
+          border:"2px solid #fff",
+          boxShadow:"0 2px 8px rgba(16,93,169,0.4)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor:"pointer", transition:"all .2s",
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+          {collapsed
+            ? <><polyline points="9 18 15 12 9 6"/></>
+            : <><polyline points="15 18 9 12 15 6"/></>
+          }
+        </svg>
+      </button>
 
-      <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.62rem", fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.14em", textTransform:"uppercase", padding:"0 8px", marginBottom:6 }}>
-        Explore
-      </div>
-
-      {/* Nav items */}
-      <div style={{ display:"flex", flexDirection:"column", gap:1, flex:1 }}>
-        {NAV.map(({ id, label, Icon }) => (
-          <div key={id} className={`nav-item${active===id?" active":""}`} onClick={() => setActive(id)}>
-            <span style={{ opacity:active===id?1:0.6, color:active===id?"#c084fc":"inherit" }}><Icon/></span>
-            {label}
+      <div style={{
+        width: collapsed ? 64 : 232,
+        minWidth: collapsed ? 64 : 232,
+        background:"linear-gradient(180deg, #105da9 0%, #0e4d8f 60%, #0a3d72 100%)",
+        display:"flex", flexDirection:"column",
+        padding: collapsed ? "22px 10px 16px" : "22px 12px 16px",
+        position:"sticky", top:0, height:"100vh",
+        overflow:"hidden", zIndex:30,
+        transition:"width .25s ease, min-width .25s ease, padding .25s ease",
+        boxShadow:"4px 0 20px rgba(16,93,169,0.25)",
+      }}>
+        {/* Logo */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"0 4px", marginBottom:28, justifyContent: collapsed?"center":"flex-start" }}>
+          <div style={{ width:40, height:40, borderRadius:11, background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:"1px solid rgba(255,255,255,0.25)", backdropFilter:"blur(8px)" }}>
+            <img src="/images/swd-logo.png" alt="SWD" width={28} height={28} style={{ objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
           </div>
-        ))}
-      </div>
-
-      {/* Settings */}
-      <div style={{ borderTop:"1px solid var(--border)", paddingTop:10, marginBottom:4, position:"relative" }}>
-        {showSettings && <SettingsPanel theme={theme} setTheme={setTheme} onClose={()=>setShowSettings(false)}/>}
-        <div className="nav-item" style={{ opacity:0.7 }} onClick={()=>setShowSettings(s=>!s)}>
-          <span style={{ opacity:0.6 }}><IcoSettings/></span>
-          Settings
+          {!collapsed && (
+            <div>
+              <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:800, fontSize:"1.05rem", color:"#ffffff", lineHeight:1, letterSpacing:"-0.01em" }}>SmartDesk</div>
+              <div style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.6rem", color:"rgba(255,255,255,0.6)", marginTop:3 }}>Enterprise Portal</div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* User card — no A avatar, just name + status */}
-      <div style={{ paddingTop:6, borderTop:"1px solid var(--border)" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 8px", borderRadius:10, cursor:"pointer", transition:"background .2s" }}
-          onMouseEnter={e=>e.currentTarget.style.background="rgba(155,109,255,0.07)"}
-          onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-        >
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Admin User</div>
-            <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
-              <span className="online-dot" style={{ width:6, height:6 }}/>
-              <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"var(--accent-green)" }}>Online</span>
+        {/* Section label */}
+        {!collapsed && (
+          <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.6rem", fontWeight:800, color:"rgba(255,255,255,0.45)", letterSpacing:"0.18em", textTransform:"uppercase", padding:"0 8px", marginBottom:8 }}>Explore</div>
+        )}
+
+        {/* Nav items */}
+        <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
+          {NAV.map(({ id, label, Icon }) => (
+            <div key={id}
+              className={`nav-item${active===id?" active":""}`}
+              onClick={() => setActive(id)}
+              title={collapsed ? label : ""}
+              style={{
+                justifyContent: collapsed ? "center" : "flex-start",
+                padding: collapsed ? "10px" : "9px 12px",
+                background: active===id ? "rgba(255,255,255,0.18)" : "transparent",
+                color: active===id ? "#ffffff" : "rgba(255,255,255,0.72)",
+                border: `1px solid ${active===id ? "rgba(255,255,255,0.25)" : "transparent"}`,
+                boxShadow: active===id ? "0 2px 12px rgba(0,0,0,0.15)" : "none",
+                borderRadius: 9,
+              }}
+              onMouseEnter={e => { if (active!==id) { e.currentTarget.style.background="rgba(255,255,255,0.10)"; e.currentTarget.style.color="#fff"; }}}
+              onMouseLeave={e => { if (active!==id) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="rgba(255,255,255,0.72)"; }}}
+            >
+              <span style={{ flexShrink:0, opacity: active===id ? 1 : 0.8 }}><Icon/></span>
+              {!collapsed && <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", fontWeight: active===id ? 700 : 600 }}>{label}</span>}
+              {!collapsed && id==="attendance" && (
+                <span style={{ marginLeft:"auto", fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:".58rem", fontWeight:800, padding:"2px 6px", borderRadius:10, background:"rgba(74,222,128,0.25)", border:"1px solid rgba(74,222,128,0.5)", color:"#86efac", letterSpacing:".04em" }}>LIVE</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height:1, background:"rgba(255,255,255,0.12)", margin:"8px 0" }}/>
+
+        {/* Settings */}
+        <div style={{ position:"relative", marginBottom:4 }}>
+          {showSettings && <SettingsPanel theme={theme} setTheme={setTheme} onClose={()=>setShowSettings(false)}/>}
+          <div
+            className="nav-item"
+            style={{ justifyContent:collapsed?"center":"flex-start", padding:collapsed?"10px":"9px 12px", color:"rgba(255,255,255,0.55)", background:"transparent", border:"1px solid transparent" }}
+            onClick={() => setShowSettings(s=>!s)}
+            title={collapsed?"Settings":""}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.08)";e.currentTarget.style.color="rgba(255,255,255,0.85)";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}
+          >
+            <IcoSettings/>
+            {!collapsed && <span style={{ fontWeight:600 }}>Settings</span>}
+          </div>
+        </div>
+
+        {/* User */}
+        {!collapsed && (
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.12)", paddingTop:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 8px", borderRadius:10, transition:"background .2s" }}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+            >
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"#ffffff" }}>Admin User</div>
+                <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                  <span className="online-dot" style={{ width:6, height:6 }}/>
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"#86efac" }}>Online</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+        {collapsed && (
+          <div style={{ display:"flex", justifyContent:"center", paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.12)" }}>
+            <span className="online-dot" style={{ width:8, height:8 }}/>
+          </div>
+        )}
       </div>
     </div>
   );
