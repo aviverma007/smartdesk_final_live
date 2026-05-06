@@ -8,7 +8,7 @@ const API_HOST = window.location.hostname === 'localhost'
 const API = `${API_HOST}/api/attendance`;
 
 const G = {
-  card: { background:'rgba(10,16,32,0.75)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:12, position:'relative', overflow:'hidden' },
+  card: { background:'rgba(8,12,28,0.82)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)', border:'1px solid rgba(14,165,233,0.28)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)' },
   topLine: (c='#0ea5e9') => ({ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${c},transparent)` }),
   label: { fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'rgba(150,180,220,0.75)', textTransform:'uppercase', letterSpacing:'.1em', fontWeight:600 },
   val: (c) => ({ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.9rem', color:c, lineHeight:1, textShadow:`0 0 20px ${c}60` }),
@@ -34,15 +34,22 @@ const fmtHours = mins => {
 const pct = (a,b) => b ? Math.round((a/b)*100) : 0;
 
 const StatCard = ({ label, value, color, sub, icon }) => (
-  <div style={{ ...G.card, padding:'16px 18px' }}>
-    <div style={G.topLine(color)} />
+  <div style={{
+    background:`linear-gradient(135deg, rgba(10,16,32,0.85) 0%, rgba(${color==='#00e5a0'?'0,229,160':'rgba'==='#ff6b35'?'255,107,53':color==='#a78bfa'?'167,139,250':'56,189,248'},0.08) 100%)`,
+    backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)',
+    border:`1px solid ${color}45`,
+    borderRadius:14, padding:'18px 20px', position:'relative', overflow:'hidden',
+    boxShadow:`0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px ${color}20, inset 0 1px 0 rgba(255,255,255,0.06)`
+  }}>
+    <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${color},transparent)` }}/>
+    <div style={{ position:'absolute', top:-30, right:-30, width:80, height:80, borderRadius:'50%', background:`${color}10`, filter:'blur(20px)' }}/>
     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
       <div>
-        <div style={{ ...G.label, marginBottom:8 }}>{label}</div>
-        <div style={G.val(color)}>{value ?? '—'}</div>
-        {sub && <div style={G.sub}>{sub}</div>}
+        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:`${color}cc`, textTransform:'uppercase', letterSpacing:'.12em', fontWeight:700, marginBottom:10 }}>{label}</div>
+        <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:900, fontSize:'2.2rem', color, lineHeight:1, textShadow:`0 0 24px ${color}70, 0 0 48px ${color}30` }}>{value ?? '—'}</div>
+        {sub && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:'rgba(140,170,210,0.55)', marginTop:5 }}>{sub}</div>}
       </div>
-      <div style={{ width:40, height:40, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>{icon}</div>
+      <div style={{ width:42, height:42, borderRadius:12, background:`${color}15`, border:`1px solid ${color}40`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, boxShadow:`0 0 12px ${color}30` }}>{icon}</div>
     </div>
   </div>
 );
@@ -299,7 +306,7 @@ const LiveAttendance = () => {
           {/* ── LIVE TICKER ── */}
           {liveData && (
             <div style={{ ...G.card, padding:'10px 18px', marginBottom:18, display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
-              <div style={G.topLine('#0ea5e9')}/>
+              <div style={G.topLine('#ff6b35')}/>
               <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                 <div style={{ width:8, height:8, borderRadius:'50%', background:'#4ade80', boxShadow:'0 0 8px #4ade80', animation:'dotPulse 1.5s ease-in-out infinite' }}/>
                 <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'.78rem', color:'rgba(220,235,255,0.95)', letterSpacing:'.05em' }}>LIVE TODAY</span>
@@ -318,31 +325,17 @@ const LiveAttendance = () => {
           )}
 
           {/* ── STAT CARDS ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12, marginBottom:18 }}>
-            <StatCard label="Total Present" value={summary.totalPresent} color="#4ade80" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="✅"/>
-            <StatCard label="First Check-in" value={fmtTime(summary.firstCheckIn)} color="#0ea5e9" sub="Earliest punch" icon="🌅"/>
-            <StatCard label="Last Check-in" value={fmtTime(summary.lastCheckIn)} color="#9b6dff" sub="Latest punch" icon="⏰"/>
-            <StatCard label="Total Punches" value={summary.totalPunches} color="#fbbf24" sub="All device logs" icon="📍"/>
-            <StatCard label="Avg Hours" value={enriched.filter(e=>e.hoursWorked>0).length ? (enriched.filter(e=>e.hoursWorked>0).reduce((s,e)=>s+e.hoursWorked,0)/enriched.filter(e=>e.hoursWorked>0).length).toFixed(1)+'h' : '—'} color="#2dd4bf" sub="Per employee" icon="⏱"/>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12, marginBottom:18 }}>
+            <StatCard label="Total Present" value={summary.totalPresent} color="#00e5a0" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="✅"/>
+            <StatCard label="Total Punches" value={summary.totalPunches} color="#ff6b35" sub="All device logs" icon="📍"/>
+            <StatCard label="Employees on Floor" value={liveData?.presentCount||'—'} color="#a78bfa" sub="Currently punched in today" icon="🏢"/>
+            <StatCard label="Unique Employees" value={[...new Set(enriched.map(e=>e.empCode))].length} color="#38bdf8" sub="Distinct employees" icon="👥"/>
           </div>
 
           {/* ── CHARTS ROW ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'180px 1fr 240px', gap:12, marginBottom:18 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 240px', gap:12, marginBottom:18 }}>
 
-            {/* Donut */}
-            <div style={{ ...G.card, padding:'16px', display:'flex', flexDirection:'column', alignItems:'center' }}>
-              <div style={G.topLine('#4ade80')}/>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.75rem', color:'rgba(200,220,255,0.9)', marginBottom:10, alignSelf:'flex-start' }}>Attendance Split</div>
-              <DonutChart present={summary.totalPresent||0} absent={Math.max(0,(dirEmployees.length||0)-(summary.totalPresent||0))} leave={0} total={dirEmployees.length||summary.totalPresent||1}/>
-              <div style={{ display:'flex', flexDirection:'column', gap:5, width:'100%', marginTop:8 }}>
-                {[['#4ade80','Present',summary.totalPresent],['#f472b6','Absent',Math.max(0,(dirEmployees.length||0)-(summary.totalPresent||0))],['#60a5fa','Leave',0]].map(([c,l,v])=>(
-                  <div key={l} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:5 }}><div style={{ width:8, height:8, borderRadius:'50%', background:c }}/><span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'rgba(160,185,220,0.8)' }}>{l}</span></div>
-                    <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.72rem', color:c, fontWeight:700 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+
 
             {/* Hours bar chart */}
             <div style={{ ...G.card, padding:'16px' }}>
