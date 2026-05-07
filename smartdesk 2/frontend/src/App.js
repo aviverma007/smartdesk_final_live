@@ -356,7 +356,7 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
-  const { user, logout, isEmployee } = useAuth();
+  const { user, logout, isEmployee, isDashboard } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
 
@@ -416,7 +416,11 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
 
         {/* Nav items */}
         <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
-          {NAV.filter(n => isEmployee === true ? ['home','attendance'].includes(n.id) : true).map(({ id, label, Icon }) => (
+          {NAV.filter(n => {
+            if (isDashboard === true) return n.id === 'dashboard';
+            if (isEmployee === true)  return ['home','directory','attendance','policies','holiday-calendar'].includes(n.id);
+            return true; // admin sees all
+          }).map(({ id, label, Icon }) => (
             <div key={id}
               className={`nav-item${active===id?" active":""}`}
               onClick={() => setActive(id)}
@@ -566,8 +570,13 @@ const QuickTicker = () => {
 
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
-  const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee } = useAuth();
-  const [active, setActive] = useState("home");
+  const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee, isDashboard } = useAuth();
+  const { user: authUser } = useAuth();
+  const [active, setActive] = useState(() => {
+    const saved = localStorage.getItem('sd-user');
+    if (saved) { try { const u = JSON.parse(saved); if (u.role==='dashboard') return 'dashboard'; } catch{} }
+    return 'home';
+  });
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
   const [showSearch, setShowSearch] = useState(false);
@@ -615,7 +624,7 @@ const AppContent = () => {
 
   const CONTENT = {
     "home":             <Home/>,
-    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} restrictToEmpId={isEmployee === true ? user?.empId : null}/>,
+    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} restrictToEmpId={isEmployee === true ? user?.empId : null}/> ,
     "attendance":       <LiveAttendance initEmpCode={attendanceEmpCode} onCodeUsed={() => setAttendanceEmpCode("")}/>,
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,

@@ -35,6 +35,12 @@ export const AuthProvider = ({ children }) => {
       return { success:true };
     }
 
+    // Dashboard-only user
+    if (id.toLowerCase() === 'dashboard' && pw === 'SmartWorld@2026') {
+      login({ name:'Dashboard Viewer', role:'dashboard', empId:'dashboard', loginTime:new Date().toISOString() });
+      return { success:true };
+    }
+
     // Employee: password = Smart@ + reverse(empId)
     const expected = makePassword(id);
     if (pw === expected) {
@@ -66,11 +72,12 @@ export const AuthProvider = ({ children }) => {
     }, 2800);
   };
 
-  const isAdmin    = user?.role === 'admin';
-  const isEmployee = user?.role === 'employee';
+  const isAdmin     = user?.role === 'admin';
+  const isEmployee  = user?.role === 'employee';
+  const isDashboard = user?.role === 'dashboard';
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, logout, initializeAuth, isAdmin, isEmployee }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard }}>
       {children}
     </AuthContext.Provider>
   );
