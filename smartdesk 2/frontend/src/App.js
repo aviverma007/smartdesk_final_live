@@ -356,6 +356,7 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
+  const { user, logout } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
 
@@ -415,7 +416,7 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
 
         {/* Nav items */}
         <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
-          {NAV.map(({ id, label, Icon }) => (
+          {NAV.filter(n => isEmployee ? ['home','attendance'].includes(n.id) : true).map(({ id, label, Icon }) => (
             <div key={id}
               className={`nav-item${active===id?" active":""}`}
               onClick={() => setActive(id)}
@@ -463,17 +464,24 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
         {/* User */}
         {!collapsed && (
           <div style={{ borderTop:"1px solid rgba(255,255,255,0.12)", paddingTop:10 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 8px", borderRadius:10, transition:"background .2s" }}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-            >
+            <div style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 8px", borderRadius:10 }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"#ffffff" }}>Admin User</div>
+                <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.82rem", fontWeight:700, color:"#ffffff", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {user?.name || 'User'}
+                </div>
                 <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                   <span className="online-dot" style={{ width:6, height:6 }}/>
-                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"#86efac" }}>Online</span>
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.65rem", color:"#86efac" }}>
+                    {user?.role === 'admin' ? 'Admin' : `Emp: ${user?.empId}`}
+                  </span>
                 </div>
               </div>
+              <button onClick={logout} title="Logout"
+                style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:7, padding:"5px 8px", color:"rgba(255,255,255,0.7)", cursor:"pointer", fontSize:13, transition:"all .2s" }}
+                onMouseEnter={e=>{e.target.style.background="rgba(239,68,68,0.25)";e.target.style.color="#fca5a5";}}
+                onMouseLeave={e=>{e.target.style.background="rgba(255,255,255,0.1)";e.target.style.color="rgba(255,255,255,0.7)";}}>
+                ⏻
+              </button>
             </div>
           </div>
         )}
@@ -558,7 +566,7 @@ const QuickTicker = () => {
 
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
-  const { isAuthenticated, showLoading, initializeAuth } = useAuth();
+  const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee } = useAuth();
   const [active, setActive] = useState("home");
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
@@ -603,7 +611,7 @@ const AppContent = () => {
 
   const CONTENT = {
     "home":             <Home/>,
-    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }}/>,
+    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} restrictToEmpId={isEmployee ? user?.empId : null}/>,
     "attendance":       <LiveAttendance initEmpCode={attendanceEmpCode} onCodeUsed={() => setAttendanceEmpCode("")}/>,
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,

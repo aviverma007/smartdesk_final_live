@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { employeeAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 // Dynamically use whatever host the app is running on — works on any machine
 const API_HOST = `http://${window.location.hostname}:5082`;
@@ -107,15 +108,21 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
   const [connected, setConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveData, setLiveData] = useState(null);
+  const { user, isAdmin, isEmployee } = useAuth();
   const searchRef = useRef(null);
 
-  // Pre-fill search when coming from Employee Directory
+  // Employees can only see their own attendance
+  const myEmpCode = isEmployee ? String(user?.empId || '').trim() : null;
+
+  // Pre-fill search — employee sees only their own, admin can use initEmpCode
   useEffect(() => {
-    if (initEmpCode) {
+    if (myEmpCode) {
+      setEmpCodeSearch(myEmpCode);
+    } else if (initEmpCode) {
       setEmpCodeSearch(initEmpCode);
       if (onCodeUsed) onCodeUsed();
     }
-  }, [initEmpCode]);
+  }, [initEmpCode, myEmpCode]);
   const isRange = fromDate !== toDate;
 
   // Load employee directory for name matching
@@ -216,9 +223,14 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
     return tb - ta;
   });
 
-  const filtered = sorted.filter(e =>
-    !empCodeSearch || e.empCode.toLowerCase().includes(empCodeSearch.toLowerCase()) || e.empName.toLowerCase().includes(empCodeSearch.toLowerCase())
-  );
+  // Employees: locked to their own empCode only
+  const filtered = sorted.filter(e => {
+    const code = e.empCode.toLowerCase();
+    const name = e.empName.toLowerCase();
+    if (myEmpCode) return code === myEmpCode.toLowerCase();
+    if (!empCodeSearch) return true;
+    return code.includes(empCodeSearch.toLowerCase()) || name.includes(empCodeSearch.toLowerCase());
+  });
 
   // Excel export
   const exportExcel = () => {
@@ -391,8 +403,10 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
             <div style={G.topLine()}/>
             {/* Table header + filters */}
             <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(14,165,233,0.12)', display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'rgba(200,220,255,0.95)' }}>Employee Attendance Records</div>
-              <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'rgba(200,220,255,0.95)' }}>
+              {myEmpCode ? `My Attendance — ${myEmpCode}` : 'Employee Attendance Records'}
+            </div>
+              {!myEmpCode && <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                 {/* Employee Code search */}
                 <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'7px 12px', minWidth:200 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(16,93,169,0.6)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -411,7 +425,16 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   Download Excel
                 </button>
-              </div>
+              </div>}
+              {myEmpCode && (
+                <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center' }}>
+                  <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.75rem', color:'rgba(140,170,210,0.6)' }}>{filtered.length} records</span>
+                  <button style={G.btn('rgba(34,197,94,0.12)','rgba(34,197,94,0.4)','#22c55e')} onClick={exportExcel} disabled={!filtered.length}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download My Attendance
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Table */}
