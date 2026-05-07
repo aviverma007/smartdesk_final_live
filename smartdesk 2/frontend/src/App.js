@@ -633,7 +633,6 @@ const AppContent = () => {
 
   return (
     <div style={{ display:"flex", minHeight:"100vh", background:"var(--bg-base)", position:"relative", transition:"background .3s" }}>
-      <CustomCursor/>
       <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
       {/* Smart World gold logo watermark — bottom right */}
       <div style={{ position:"fixed", bottom:0, right:0, width:"45%", maxWidth:600, zIndex:0, pointerEvents:"none", opacity:0.06 }}>
@@ -706,4 +705,11 @@ const SettingsDropdown = ({ theme, setTheme, collapsed }) => {
   );
 };
 
-export default function App() { return <AuthProvider><AppContent/></AuthProvider>; }
+export default function App() {
+  return (
+    <AuthProvider>
+      <CustomCursor/>
+      <AppContent/>
+    </AuthProvider>
+  );
+}
