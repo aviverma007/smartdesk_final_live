@@ -75,7 +75,7 @@ const CustomCursor = () => {
 
     const spawnTrail = (x, y) => {
       const el = document.createElement("div");
-      const size = 3 + Math.random() * 5;
+      const size = 2 + Math.random() * 3;
       const theme = document.documentElement.getAttribute("data-theme");
       const colors = theme === "light"
         ? ["#7c3aed","#db2777","#2563eb","#000000","#4a4a4a"]
@@ -111,7 +111,7 @@ const CustomCursor = () => {
         rafRef.current = requestAnimationFrame(() => {
           if (logoRef.current) {
             logoRef.current.style.transform =
-              `translate(${pos.current.x - 20}px, ${pos.current.y - 20}px)`;
+              `translate(${pos.current.x - 12}px, ${pos.current.y - 12}px)`;
           }
           rafRef.current = null;
         });
@@ -134,7 +134,7 @@ const CustomCursor = () => {
       transform: "translate(-200px, -200px)",
       filter: "drop-shadow(0 0 6px rgba(255,255,255,0.6))",
     }}>
-      <img ref={imgRef} src={getSWDSvg("white")} alt="" width={40} height={40} id="swd-cursor-img"
+      <img ref={imgRef} src={getSWDSvg("white")} alt="" width={24} height={24} id="swd-cursor-img"
         draggable={false} style={{ display:"block", userSelect:"none", filter:"drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}/>
     </div>
   );
