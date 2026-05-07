@@ -37,8 +37,8 @@ const IcoSend     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="
 const IcoX        = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const IcoSparkle  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/></svg>;
 
-/* ── Custom Cursor — zero lag, no DOM trail ─────────────────────────────── */
-const getSWDSvg = (color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 40 40">
+/* ── Custom Cursor — SWD Logo + trailing particles only ─────────────────── */
+const getSWDSvg = (color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
   <circle cx="20" cy="26" r="12" stroke="${color}" stroke-width="2.5" fill="none"/>
   <line x1="20" y1="1" x2="20" y2="38" stroke="${color}" stroke-width="2.8"/>
   <polygon points="20,0 15,10 20,8 25,10" fill="${color}"/>
@@ -47,49 +47,101 @@ const getSWDSvg = (color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmln
 </svg>`)}`;
 
 const CustomCursor = () => {
-  const imgRef = useRef(null);
-  const wrapRef = useRef(null);
+  const logoRef  = useRef(null);
+  const imgRef   = useRef(null);
+  const pos      = useRef({ x: -200, y: -200 });
+  const rafRef   = useRef(null);
+  const trailIdx = useRef(0);
 
+  // Update cursor color when theme changes
   useEffect(() => {
-    const el = wrapRef.current;
-    const img = imgRef.current;
-    if (!el || !img) return;
-
-    const onMove = (e) => {
-      el.style.transform = `translate(${e.clientX - 20}px,${e.clientY - 20}px)`;
-    };
-
     const updateColor = () => {
       const theme = document.documentElement.getAttribute("data-theme");
-      img.src = getSWDSvg(theme === "light" ? "#000000" : "white");
-      img.style.filter = theme === "light"
-        ? "drop-shadow(0 0 4px rgba(255,255,255,0.8))"
-        : "drop-shadow(0 0 4px rgba(255,255,255,0.5))";
+      const color = theme === "light" ? "#000000" : "white";
+      const glow  = theme === "light" ? "drop-shadow(0 0 6px rgba(255,255,255,0.9))" : "drop-shadow(0 0 6px rgba(255,255,255,0.6))";
+      if (imgRef.current) {
+        imgRef.current.src = getSWDSvg(color);
+        imgRef.current.style.filter = glow;
+      }
     };
     updateColor();
-    const obs = new MutationObserver(updateColor);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const observer = new MutationObserver(updateColor);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
-    window.addEventListener("mousemove", onMove, { passive: true });
+  useEffect(() => {
+    let lastTrail = 0;
+
+    const spawnTrail = (x, y) => {
+      const el = document.createElement("div");
+      const size = 2 + Math.random() * 3;
+      const theme = document.documentElement.getAttribute("data-theme");
+      const colors = theme === "light"
+        ? ["#7c3aed","#db2777","#2563eb","#000000","#4a4a4a"]
+        : ["#9b6dff","#f472b6","#60a5fa","#4ade80","#ffffff"];
+      const color = colors[trailIdx.current % colors.length];
+      trailIdx.current++;
+      Object.assign(el.style, {
+        position: "fixed", borderRadius: "50%",
+        width: size + "px", height: size + "px",
+        background: color,
+        boxShadow: `0 0 ${size * 2}px ${color}`,
+        left: (x - size / 2) + "px",
+        top:  (y - size / 2) + "px",
+        pointerEvents: "none",
+        zIndex: "999995",
+        animation: "trailFade 0.5s ease forwards",
+      });
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 500);
+    };
+
+    const onMove = (e) => {
+      pos.current = { x: e.clientX, y: e.clientY };
+
+      // Trail every 35ms
+      const now = Date.now();
+      if (now - lastTrail > 35) {
+        spawnTrail(e.clientX, e.clientY);
+        lastTrail = now;
+      }
+
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          if (logoRef.current) {
+            logoRef.current.style.transform =
+              `translate(${pos.current.x - 12}px, ${pos.current.y - 12}px)`;
+          }
+          rafRef.current = null;
+        });
+      }
+    };
+
+    window.addEventListener("mousemove", onMove);
     return () => {
       window.removeEventListener("mousemove", onMove);
-      obs.disconnect();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
   return (
-    <div ref={wrapRef} style={{
-      position:"fixed", top:0, left:0,
-      width:40, height:40,
-      pointerEvents:"none", zIndex:999999,
-      willChange:"transform",
-      transform:"translate(-200px,-200px)",
+    <div ref={logoRef} style={{
+      position: "fixed", top: 0, left: 0,
+      width: 24, height: 24,
+      pointerEvents: "none", zIndex: 999999,
+      willChange: "transform",
+      transform: "translate(-200px, -200px)",
+      filter: "drop-shadow(0 0 6px rgba(255,255,255,0.6))",
     }}>
-      <img ref={imgRef} alt="" width={40} height={40} id="swd-cursor-img"
-        draggable={false} style={{ display:"block", userSelect:"none" }}/>
+      <img ref={imgRef} src={getSWDSvg("white")} alt="" width={24} height={24} id="swd-cursor-img"
+        draggable={false} style={{ display:"block", userSelect:"none", filter:"drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}/>
     </div>
   );
 };
+
+const IcoAttend  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>;
+const IcoProfile = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 
 /* ── Nav config ─────────────────────────────────────────────────────────── */
 const NAV = [
@@ -519,12 +571,14 @@ const QuickTicker = () => {
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
   const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee, isDashboard } = useAuth();
+  const { user: authUser } = useAuth();
   const [active, setActive] = useState(() => {
     const saved = localStorage.getItem('sd-user');
     if (saved) { try { const u = JSON.parse(saved); if (u.role==='dashboard') return 'dashboard'; } catch{} }
     return 'home';
   });
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
   const [showSearch, setShowSearch] = useState(false);
   const [attendanceEmpCode, setAttendanceEmpCode] = useState("");
 
@@ -544,6 +598,10 @@ const AppContent = () => {
     document.body.style.backgroundRepeat = "no-repeat";
     document.body.style.backgroundAttachment = "fixed";
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("sd-sidebar-collapsed", sidebarCollapsed);
+  }, [sidebarCollapsed]);
 
   // Ctrl+K to open search
   useEffect(() => {
@@ -575,6 +633,7 @@ const AppContent = () => {
 
   return (
     <div style={{ display:"flex", minHeight:"100vh", background:"var(--bg-base)", position:"relative", transition:"background .3s" }}>
+      <CustomCursor/>
       <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
       {/* Smart World gold logo watermark — bottom right */}
       <div style={{ position:"fixed", bottom:0, right:0, width:"45%", maxWidth:600, zIndex:0, pointerEvents:"none", opacity:0.06 }}>
