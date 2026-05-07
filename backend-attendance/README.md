@@ -1,46 +1,31 @@
-# SmartDesk Live Attendance API
+# SmartDesk Attendance API
 
-Connects to your eTimeTracklite SQL Server and exposes secure REST endpoints for the SmartDesk frontend.
+## Ports
+- **Frontend:** http://localhost:82 (or http://YOUR-IP:82)
+- **Backend API:** http://localhost:5082 (or http://YOUR-IP:5082)
 
-## Quick Start
-
+## Start Backend
 ```bash
 cd backend-attendance
 npm install
-```
-
-**Set your SQL password** — open `server.js`, find line:
-```js
-password: '',  // ← SET YOUR PASSWORD HERE
-```
-Replace the empty string with your SQL Server `sa` password.
-
-Then:
-```bash
 npm start
-# API running on http://localhost:5001
+# Runs on port 5082
 ```
 
-## API Endpoints
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/health` | Test connection to SQL Server |
-| `GET /api/attendance?date=YYYY-MM-DD` | All employees for a date |
-| `GET /api/attendance/summary?date=YYYY-MM-DD` | Present/Absent/Leave totals |
-| `GET /api/attendance/departments?date=YYYY-MM-DD` | Breakdown by department |
-| `GET /api/attendance/live` | Real-time today stats (refreshes every 30s) |
-| `GET /api/attendance/tables` | List all DB tables (schema discovery) |
-
-## SQL Server Details
-- Server: `192.168.66.33`
-- Database: `etimetracklite1AI`
-- Port: `1433`
-
-## Running in Production
-For 24/7 uptime, run with PM2:
+## Start Frontend
 ```bash
-npm install -g pm2
-pm2 start server.js --name smartdesk-attendance
-pm2 save
+cd "smartdesk 2/frontend"
+npm install
+npm start
+# Runs on port 82
 ```
+
+## Open Firewall (run as Admin on the server)
+```cmd
+netsh advfirewall firewall add rule name="SmartDesk Frontend" protocol=TCP dir=in localport=82 action=allow
+netsh advfirewall firewall add rule name="SmartDesk API" protocol=TCP dir=in localport=5082 action=allow
+```
+
+## Access from other machines
+- App: http://192.168.10.99:82
+- API health check: http://192.168.10.99:5082/api/health

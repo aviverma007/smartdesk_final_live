@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { employeeAPI } from '../services/api';
 
 // Dynamically use whatever host the app is running on — works on any machine
-const API_HOST = `http://${window.location.hostname}:5001`;
+const API_HOST = `http://${window.location.hostname}:5082`;
 const API = `${API_HOST}/api/attendance`;
 
 const G = {
