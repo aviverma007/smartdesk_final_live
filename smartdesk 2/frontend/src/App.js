@@ -356,7 +356,7 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isEmployee } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
 
