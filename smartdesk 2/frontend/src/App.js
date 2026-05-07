@@ -525,14 +525,12 @@ const QuickTicker = () => {
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
   const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee, isDashboard } = useAuth();
-  const { user: authUser } = useAuth();
   const [active, setActive] = useState(() => {
     const saved = localStorage.getItem('sd-user');
     if (saved) { try { const u = JSON.parse(saved); if (u.role==='dashboard') return 'dashboard'; } catch{} }
     return 'home';
   });
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
   const [showSearch, setShowSearch] = useState(false);
   const [attendanceEmpCode, setAttendanceEmpCode] = useState("");
 
@@ -552,10 +550,6 @@ const AppContent = () => {
     document.body.style.backgroundRepeat = "no-repeat";
     document.body.style.backgroundAttachment = "fixed";
   }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem("sd-sidebar-collapsed", sidebarCollapsed);
-  }, [sidebarCollapsed]);
 
   // Ctrl+K to open search
   useEffect(() => {
