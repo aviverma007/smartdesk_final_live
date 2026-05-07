@@ -83,7 +83,7 @@ const EmployeeCard = ({ employee, onImageUpdate, onClick, isDetailView, onViewAt
           {!hasImage && <span style={{ fontFamily:"'Orbitron', monospace", fontSize:'.8rem', fontWeight:700, color:'#00d4ff' }}>{initials}</span>}
         </div>
 
-        {isAdmin() && (
+        {isAdmin && (
           <Dialog>
             <DialogTrigger asChild>
               <button
