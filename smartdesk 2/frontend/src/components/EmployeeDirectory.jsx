@@ -80,7 +80,7 @@ const S = {
   },
 };
 
-const EmployeeDirectory = ({ onViewAttendance }) => {
+const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId }) => {
   const [nameSearch, setNameSearch] = useState("");
   const [employeeIdSearch, setEmployeeIdSearch] = useState("");
   const [departmentSearch, setDepartmentSearch] = useState("");
@@ -113,6 +113,13 @@ const EmployeeDirectory = ({ onViewAttendance }) => {
 
   const filteredEmployees = useMemo(() => {
     const has = debouncedSearchTerms.name || debouncedSearchTerms.employeeId || debouncedSearchTerms.department || debouncedSearchTerms.designation || debouncedSearchTerms.location;
+    // Employee restriction — only show their own record
+    if (restrictToEmpId) {
+      return employees.filter(emp => {
+        const id = String(emp.employeeId || emp.employee_id || emp.empCode || emp.id || '').trim();
+        return id === String(restrictToEmpId).trim();
+      });
+    }
     if (!isAdmin && !has) return [];
     return employees.filter(emp => {
       const nm = (emp.name || emp.fullName || '').toLowerCase();

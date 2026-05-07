@@ -573,7 +573,11 @@ const AppContent = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [attendanceEmpCode, setAttendanceEmpCode] = useState("");
 
-  useEffect(() => { initializeAuth(); }, []);
+  useEffect(() => {
+    // Clear old session key from previous version
+    localStorage.removeItem('user');
+    initializeAuth();
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
