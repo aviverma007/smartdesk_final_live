@@ -571,7 +571,6 @@ const QuickTicker = () => {
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
   const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee, isDashboard } = useAuth();
-  const { user: authUser } = useAuth();
   const [active, setActive] = useState(() => {
     const saved = localStorage.getItem('sd-user');
     if (saved) { try { const u = JSON.parse(saved); if (u.role==='dashboard') return 'dashboard'; } catch{} }
