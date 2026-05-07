@@ -55,16 +55,10 @@ const CustomCursor = () => {
     const img = imgRef.current;
     if (!el || !img) return;
 
-    let x = -100, y = -100;
-
     const onMove = (e) => {
-      x = e.clientX - 12;
-      y = e.clientY - 12;
-      // Direct style mutation — fastest possible, no React re-render
-      el.style.transform = `translate(${x}px,${y}px)`;
+      el.style.transform = `translate(${e.clientX - 20}px,${e.clientY - 20}px)`;
     };
 
-    // Theme-aware color
     const updateColor = () => {
       const theme = document.documentElement.getAttribute("data-theme");
       img.src = getSWDSvg(theme === "light" ? "#000000" : "white");
@@ -86,12 +80,12 @@ const CustomCursor = () => {
   return (
     <div ref={wrapRef} style={{
       position:"fixed", top:0, left:0,
-      width:24, height:24,
+      width:40, height:40,
       pointerEvents:"none", zIndex:999999,
       willChange:"transform",
-      transform:"translate(-100px,-100px)",
+      transform:"translate(-200px,-200px)",
     }}>
-      <img ref={imgRef} alt="" width={24} height={24} id="swd-cursor-img"
+      <img ref={imgRef} alt="" width={40} height={40} id="swd-cursor-img"
         draggable={false} style={{ display:"block", userSelect:"none" }}/>
     </div>
   );
