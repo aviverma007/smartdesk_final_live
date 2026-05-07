@@ -7,7 +7,7 @@ const API_HOST = `http://${window.location.hostname}:5090`;
 const API = `${API_HOST}/api/attendance`;
 
 const G = {
-  card: { background:'rgba(8,12,28,0.82)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)', border:'1px solid rgba(14,165,233,0.28)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)' },
+  card: { background:'#ffffff', border:'1px solid rgba(16,93,169,0.18)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'0 2px 16px rgba(16,93,169,0.10)' },
   topLine: (c='#105da9') => ({ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${c},transparent)` }),
   label: { fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'rgba(150,180,220,0.75)', textTransform:'uppercase', letterSpacing:'.1em', fontWeight:600 },
   val: (c) => ({ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.9rem', color:c, lineHeight:1, textShadow:`0 0 20px ${c}60` }),
@@ -32,23 +32,22 @@ const fmtHours = mins => {
 };
 const pct = (a,b) => b ? Math.round((a/b)*100) : 0;
 
-const StatCard = ({ label, value, color, sub, icon }) => (
+const StatCard = ({ label, value, color, sub, icon, lightBg }) => (
   <div style={{
-    background:`linear-gradient(135deg, rgba(10,16,32,0.85) 0%, rgba(${color==='#00e5a0'?'0,229,160':'rgba'==='#ff6b35'?'255,107,53':color==='#a78bfa'?'167,139,250':'56,189,248'},0.08) 100%)`,
-    backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)',
-    border:`1px solid ${color}45`,
+    background: lightBg || '#ffffff',
+    border:`1px solid ${color}30`,
     borderRadius:14, padding:'18px 20px', position:'relative', overflow:'hidden',
-    boxShadow:`0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px ${color}20, inset 0 1px 0 rgba(255,255,255,0.06)`
+    boxShadow:`0 2px 12px rgba(16,93,169,0.10), 0 0 0 1px ${color}15`
   }}>
-    <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${color},transparent)` }}/>
-    <div style={{ position:'absolute', top:-30, right:-30, width:80, height:80, borderRadius:'50%', background:`${color}10`, filter:'blur(20px)' }}/>
+    <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,transparent,${color},transparent)` }}/>
+    <div style={{ position:'absolute', top:-20, right:-20, width:70, height:70, borderRadius:'50%', background:`${color}12`, filter:'blur(15px)' }}/>
     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
       <div>
-        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:`${color}cc`, textTransform:'uppercase', letterSpacing:'.12em', fontWeight:700, marginBottom:10 }}>{label}</div>
-        <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:900, fontSize:'2.2rem', color, lineHeight:1, textShadow:`0 0 24px ${color}70, 0 0 48px ${color}30` }}>{value ?? '—'}</div>
-        {sub && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:'rgba(140,170,210,0.55)', marginTop:5 }}>{sub}</div>}
+        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:`${color}`, textTransform:'uppercase', letterSpacing:'.12em', fontWeight:700, marginBottom:10 }}>{label}</div>
+        <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:900, fontSize:'2.2rem', color, lineHeight:1 }}>{value ?? '—'}</div>
+        {sub && <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', color:'#64748b', marginTop:5 }}>{sub}</div>}
       </div>
-      <div style={{ width:42, height:42, borderRadius:12, background:`${color}15`, border:`1px solid ${color}40`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, boxShadow:`0 0 12px ${color}30` }}>{icon}</div>
+      <div style={{ width:42, height:42, borderRadius:12, background:`${color}12`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>{icon}</div>
     </div>
   </div>
 );
@@ -276,20 +275,20 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           {/* From date */}
-          <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'6px 10px' }}>
-            <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem' }}>FROM</label>
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'#f0f7ff', border:'1px solid rgba(16,93,169,0.25)', borderRadius:8, padding:'6px 10px' }}>
+            <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem', color:'#105da9' }}>FROM</label>
             <input type="date" value={fromDate} max={toDate}
               onChange={e => { setFromDate(e.target.value); if(e.target.value > toDate) setToDate(e.target.value); }}
-              style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
+              style={{ background:'transparent', border:'none', outline:'none', color:'#0f172a', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
           {/* Arrow */}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(16,93,169,0.6)" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           {/* To date */}
-          <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'6px 10px' }}>
-            <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem' }}>TO</label>
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'#f0f7ff', border:'1px solid rgba(16,93,169,0.25)', borderRadius:8, padding:'6px 10px' }}>
+            <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem', color:'#105da9' }}>TO</label>
             <input type="date" value={toDate} min={fromDate} max={today}
               onChange={e => setToDate(e.target.value)}
-              style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.95)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
+              style={{ background:'transparent', border:'none', outline:'none', color:'#0f172a', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
           {isRange && (
             <div style={{ padding:'5px 10px', borderRadius:6, background:'rgba(14,165,233,0.1)', border:'1px solid rgba(14,165,233,0.25)', fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#105da9', fontWeight:600, whiteSpace:'nowrap' }}>
@@ -311,8 +310,8 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
 
       {/* ── ERROR ── */}
       {error && (
-        <div style={{ background:'rgba(244,114,182,0.08)', border:'1px solid rgba(244,114,182,0.3)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
-          <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#f472b6', marginBottom:4 }}>⚠ Connection Error</div>
+        <div style={{ background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
+          <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#dc2626', marginBottom:4 }}>⚠ Connection Error</div>
           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)', lineHeight:1.5, marginBottom:8 }}>{error}</div>
           <code style={{ fontFamily:'monospace', fontSize:'.72rem', background:'rgba(0,0,0,0.3)', padding:'4px 8px', borderRadius:4, color:'rgba(200,220,255,0.8)' }}>cd backend-attendance && npm install && npm start</code>
         </div>
@@ -328,37 +327,62 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
 
       {summary && (
         <>
-          {/* ── LIVE TICKER ── */}
-          {liveData && (
-            <div style={{ ...G.card, padding:'10px 18px', marginBottom:18, display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
-              <div style={G.topLine('#ff6b35')}/>
+          {/* ── LIVE TICKER — admin only ── */}
+          {liveData && !myEmpCode && (
+            <div style={{ background:'#fff', border:'1px solid rgba(16,93,169,0.2)', borderRadius:12, padding:'10px 18px', marginBottom:18, display:'flex', alignItems:'center', gap:24, flexWrap:'wrap', boxShadow:'0 2px 10px rgba(16,93,169,0.08)', position:'relative', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,transparent,#105da9,transparent)' }}/>
               <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                <div style={{ width:8, height:8, borderRadius:'50%', background:'#4ade80', boxShadow:'0 0 8px #4ade80', animation:'dotPulse 1.5s ease-in-out infinite' }}/>
-                <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'.78rem', color:'rgba(220,235,255,0.95)', letterSpacing:'.05em' }}>LIVE TODAY</span>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 6px #22c55e', animation:'dotPulse 1.5s ease-in-out infinite' }}/>
+                <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'.78rem', color:'#105da9', letterSpacing:'.05em' }}>LIVE TODAY</span>
               </div>
               {[
-                { label:'Currently In', val:liveData.presentCount, color:'#4ade80' },
-                { label:'Total Punches', val:liveData.totalPunches, color:'#60a5fa' },
-                { label:'Last Punch', val:liveData.lastCheckIn ? fmtTime(liveData.lastCheckIn) : '—', color:'rgba(200,220,255,0.8)' },
+                { label:'Currently In', val:liveData.presentCount, color:'#16a34a' },
+                { label:'Total Punches', val:liveData.totalPunches, color:'#105da9' },
+                { label:'Last Punch', val:liveData.lastCheckIn ? fmtTime(liveData.lastCheckIn) : '—', color:'#374151' },
               ].map(({label,val,color})=>(
                 <div key={label} style={{ display:'flex', gap:6, alignItems:'baseline' }}>
-                  <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'rgba(140,170,210,0.7)' }}>{label}:</span>
+                  <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#64748b' }}>{label}:</span>
                   <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.85rem', color }}>{val}</span>
                 </div>
               ))}
             </div>
           )}
+          {/* Employee personal live status */}
+          {myEmpCode && filtered.length > 0 && (
+            <div style={{ background:'linear-gradient(135deg,#eff8ff,#dbeafe)', border:'1px solid rgba(16,93,169,0.25)', borderRadius:12, padding:'10px 18px', marginBottom:18, display:'flex', alignItems:'center', gap:20, flexWrap:'wrap', boxShadow:'0 2px 10px rgba(16,93,169,0.10)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 6px #22c55e', animation:'dotPulse 1.5s ease-in-out infinite' }}/>
+                <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'.78rem', color:'#105da9' }}>MY ATTENDANCE TODAY</span>
+              </div>
+              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#374151' }}>Punch In: <strong style={{color:'#16a34a'}}>{fmtTime(filtered[0]?.inTime)}</strong></span>
+              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#374151' }}>Punch Out: <strong style={{color:'#105da9'}}>{fmtTime(filtered[0]?.outTime)}</strong></span>
+              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#374151' }}>Hours: <strong style={{color:'#7c3aed'}}>{fmtHours(filtered[0]?.workMinutes)}</strong></span>
+            </div>
+          )}
 
-          {/* ── STAT CARDS ── */}
+          {/* ── STAT CARDS — employee sees own data, admin sees all ── */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12, marginBottom:18 }}>
-            <StatCard label="Total Present" value={summary.totalPresent} color="#00e5a0" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="✅"/>
-            <StatCard label="Total Punches" value={summary.totalPunches} color="#ff6b35" sub="All device logs" icon="📍"/>
-            <StatCard label="Employees on Floor" value={liveData?.presentCount||'—'} color="#a78bfa" sub="Currently punched in today" icon="🏢"/>
-            <StatCard label="Unique Employees" value={[...new Set(enriched.map(e=>e.empCode))].length} color="#38bdf8" sub="Distinct employees" icon="👥"/>
+            {myEmpCode ? (
+              // Employee view — personal stats only
+              <>
+                <StatCard label="My Punch In" value={filtered[0] ? fmtTime(filtered[0].inTime) : '—'} color="#105da9" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="🕐" lightBg="linear-gradient(135deg,#eff8ff,#dbeafe)"/>
+                <StatCard label="My Punch Out" value={filtered[0] ? fmtTime(filtered[0].outTime) : '—'} color="#0d9488" sub="Last recorded punch" icon="🕕" lightBg="linear-gradient(135deg,#f0fdf9,#ccfbf1)"/>
+                <StatCard label="Hours Worked" value={filtered[0] ? fmtHours(filtered[0].workMinutes) : '—'} color="#7c3aed" sub="Total today" icon="⏱" lightBg="linear-gradient(135deg,#faf5ff,#ede9fe)"/>
+                <StatCard label="Total Punches" value={filtered[0]?.totalPunches || '—'} color="#ea580c" sub="Device logs today" icon="📍" lightBg="linear-gradient(135deg,#fff7ed,#fed7aa)"/>
+              </>
+            ) : (
+              // Admin view — global stats
+              <>
+                <StatCard label="Total Present" value={summary.totalPresent} color="#105da9" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="✅" lightBg="linear-gradient(135deg,#eff8ff,#dbeafe)"/>
+                <StatCard label="Total Punches" value={summary.totalPunches} color="#ea580c" sub="All device logs" icon="📍" lightBg="linear-gradient(135deg,#fff7ed,#fed7aa)"/>
+                <StatCard label="Employees on Floor" value={liveData?.presentCount||'—'} color="#7c3aed" sub="Currently punched in today" icon="🏢" lightBg="linear-gradient(135deg,#faf5ff,#ede9fe)"/>
+                <StatCard label="Unique Employees" value={[...new Set(enriched.map(e=>e.empCode))].length} color="#0d9488" sub="Distinct employees" icon="👥" lightBg="linear-gradient(135deg,#f0fdf9,#ccfbf1)"/>
+              </>
+            )}
           </div>
 
-          {/* ── CHARTS ROW ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 240px', gap:12, marginBottom:18 }}>
+          {/* ── CHARTS ROW — admin only ── */}
+          {!myEmpCode && <div style={{ display:'grid', gridTemplateColumns:'1fr 240px', gap:12, marginBottom:18 }}>
 
 
 
@@ -396,14 +420,14 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                 })}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* ── EMPLOYEE TABLE ── */}
           <div style={{ ...G.card }}>
             <div style={G.topLine()}/>
             {/* Table header + filters */}
             <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(14,165,233,0.12)', display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'rgba(200,220,255,0.95)' }}>
+              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#0f172a' }}>
               {myEmpCode ? `My Attendance — ${myEmpCode}` : 'Employee Attendance Records'}
             </div>
               {!myEmpCode && <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
@@ -415,7 +439,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                     value={empCodeSearch}
                     onChange={e=>setEmpCodeSearch(e.target.value)}
                     placeholder="Employee Code / Name..."
-                    style={{ background:'transparent', border:'none', outline:'none', color:'rgba(220,235,255,0.9)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', width:'100%' }}
+                    style={{ background:'transparent', border:'none', outline:'none', color:'#0f172a', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', width:'100%' }}
                   />
                   {empCodeSearch && <span onClick={()=>setEmpCodeSearch('')} style={{ color:'rgba(16,93,169,0.6)', cursor:'pointer', fontSize:14, lineHeight:1 }}>✕</span>}
                 </div>
@@ -443,7 +467,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                 <thead style={{ position:'sticky', top:0, zIndex:2 }}>
                   <tr style={{ background:'rgba(8,14,28,0.9)', borderBottom:'1px solid rgba(14,165,233,0.18)' }}>
                     {['Employee Code','Employee Name','Department','Date','Punch In','Punch Out','Hours Worked','Punches'].map(h=>(
-                      <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.67rem', color:'rgba(100,160,220,0.75)', letterSpacing:'.1em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+                      <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.67rem', color:'#105da9', letterSpacing:'.1em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -455,9 +479,9 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                     >
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color:'#105da9', fontWeight:700 }}>{emp.empCode}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'rgba(220,235,255,0.95)', whiteSpace:'nowrap' }}>{emp.empName}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'rgba(160,185,220,0.8)' }}>{emp.department||'—'}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'rgba(140,170,210,0.7)' }}>{emp.date||fromDate}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#0f172a', whiteSpace:'nowrap' }}>{emp.empName}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#64748b' }}>{emp.department||'—'}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'#64748b' }}>{emp.date||fromDate}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.inTime ? '#4ade80' : 'rgba(140,170,210,0.4)' }}>{fmtTime(emp.inTime)}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.outTime && emp.outTime !== emp.inTime ? '#60a5fa' : 'rgba(140,170,210,0.4)' }}>{emp.outTime && emp.outTime !== emp.inTime ? fmtTime(emp.outTime) : '—'}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.workMinutes>0 ? '#fbbf24' : 'rgba(140,170,210,0.4)', fontWeight: emp.workMinutes>0 ? 700 : 400 }}>{fmtHours(emp.workMinutes)}</td>
