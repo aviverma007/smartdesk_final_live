@@ -47,98 +47,49 @@ const getSWDSvg = (color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmln
 </svg>`)}`;
 
 const CustomCursor = () => {
-  const logoRef  = useRef(null);
-  const imgRef   = useRef(null);
-  const pos      = useRef({ x: -200, y: -200 });
-  const rafRef   = useRef(null);
-  const trailIdx = useRef(0);
+  const wrapRef = useRef(null);
+  const imgRef  = useRef(null);
 
-  // Update cursor color when theme changes
   useEffect(() => {
+    const el  = wrapRef.current;
+    const img = imgRef.current;
+    if (!el || !img) return;
+
+    // Color based on theme
     const updateColor = () => {
-      const theme = document.documentElement.getAttribute("data-theme");
-      const color = theme === "light" ? "#000000" : "white";
-      const glow  = theme === "light" ? "drop-shadow(0 0 6px rgba(255,255,255,0.9))" : "drop-shadow(0 0 6px rgba(255,255,255,0.6))";
-      if (imgRef.current) {
-        imgRef.current.src = getSWDSvg(color);
-        imgRef.current.style.filter = glow;
-      }
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      img.src = getSWDSvg(isDark ? "white" : "#000000");
     };
     updateColor();
-    const observer = new MutationObserver(updateColor);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
+    const obs = new MutationObserver(updateColor);
+    obs.observe(document.documentElement, { attributes:true, attributeFilter:["data-theme"] });
 
-  useEffect(() => {
-    let lastTrail = 0;
-
-    const spawnTrail = (x, y) => {
-      const el = document.createElement("div");
-      const size = 2 + Math.random() * 3;
-      const theme = document.documentElement.getAttribute("data-theme");
-      const colors = theme === "light"
-        ? ["#7c3aed","#db2777","#2563eb","#000000","#4a4a4a"]
-        : ["#9b6dff","#f472b6","#60a5fa","#4ade80","#ffffff"];
-      const color = colors[trailIdx.current % colors.length];
-      trailIdx.current++;
-      Object.assign(el.style, {
-        position: "fixed", borderRadius: "50%",
-        width: size + "px", height: size + "px",
-        background: color,
-        boxShadow: `0 0 ${size * 2}px ${color}`,
-        left: (x - size / 2) + "px",
-        top:  (y - size / 2) + "px",
-        pointerEvents: "none",
-        zIndex: "999995",
-        animation: "trailFade 0.5s ease forwards",
-      });
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 500);
-    };
-
+    // Direct DOM write — absolutely zero lag, no RAF, no state
     const onMove = (e) => {
-      pos.current = { x: e.clientX, y: e.clientY };
-
-      // Trail every 35ms
-      const now = Date.now();
-      if (now - lastTrail > 35) {
-        spawnTrail(e.clientX, e.clientY);
-        lastTrail = now;
-      }
-
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          if (logoRef.current) {
-            logoRef.current.style.transform =
-              `translate(${pos.current.x - 12}px, ${pos.current.y - 12}px)`;
-          }
-          rafRef.current = null;
-        });
-      }
+      el.style.transform = `translate(${e.clientX - 20}px,${e.clientY - 20}px)`;
     };
+    window.addEventListener("mousemove", onMove, { passive:true });
 
-    window.addEventListener("mousemove", onMove);
     return () => {
       window.removeEventListener("mousemove", onMove);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      obs.disconnect();
     };
   }, []);
 
   return (
-    <div ref={logoRef} style={{
-      position: "fixed", top: 0, left: 0,
-      width: 24, height: 24,
-      pointerEvents: "none", zIndex: 999999,
-      willChange: "transform",
-      transform: "translate(-200px, -200px)",
-      filter: "drop-shadow(0 0 6px rgba(255,255,255,0.6))",
+    <div ref={wrapRef} style={{
+      position:"fixed", top:0, left:0,
+      width:40, height:40,
+      pointerEvents:"none", zIndex:999999,
+      willChange:"transform",
+      transform:"translate(-200px,-200px)",
     }}>
-      <img ref={imgRef} src={getSWDSvg("white")} alt="" width={24} height={24} id="swd-cursor-img"
-        draggable={false} style={{ display:"block", userSelect:"none", filter:"drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}/>
+      <img ref={imgRef} alt="" width={40} height={40} id="swd-cursor-img"
+        draggable={false} style={{ display:"block", userSelect:"none" }}/>
     </div>
   );
 };
+
 
 const IcoAttend  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>;
 const IcoProfile = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
