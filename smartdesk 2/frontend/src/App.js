@@ -416,7 +416,7 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
 
         {/* Nav items */}
         <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
-          {NAV.filter(n => isEmployee ? ['home','attendance'].includes(n.id) : true).map(({ id, label, Icon }) => (
+          {NAV.filter(n => isEmployee === true ? ['home','attendance'].includes(n.id) : true).map(({ id, label, Icon }) => (
             <div key={id}
               className={`nav-item${active===id?" active":""}`}
               onClick={() => setActive(id)}
@@ -615,7 +615,7 @@ const AppContent = () => {
 
   const CONTENT = {
     "home":             <Home/>,
-    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} restrictToEmpId={isEmployee ? user?.empId : null}/>,
+    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} restrictToEmpId={isEmployee === true ? user?.empId : null}/>,
     "attendance":       <LiveAttendance initEmpCode={attendanceEmpCode} onCodeUsed={() => setAttendanceEmpCode("")}/>,
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,
