@@ -86,10 +86,10 @@
 /* ══════════════════════════════════════════════════════════════════
    RESET + CURSOR
 ══════════════════════════════════════════════════════════════════ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
-@keyframes trailFade { 0%{opacity:.8;transform:scale(1)} 100%{opacity:0;transform:scale(.1)} }
-[data-theme="light"] #swd-cursor-img { filter: brightness(0) saturate(100%) invert(20%) sepia(80%) saturate(800%) hue-rotate(195deg) brightness(80%) !important; }
+
+
 
 /* ══════════════════════════════════════════════════════════════════
    BODY + BACKGROUND

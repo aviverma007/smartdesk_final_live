@@ -38,58 +38,6 @@ const IcoX        = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="
 const IcoSparkle  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/></svg>;
 
 /* ── Custom Cursor — SWD Logo + trailing particles only ─────────────────── */
-const getSWDSvg = (color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-  <circle cx="20" cy="26" r="12" stroke="${color}" stroke-width="2.5" fill="none"/>
-  <line x1="20" y1="1" x2="20" y2="38" stroke="${color}" stroke-width="2.8"/>
-  <polygon points="20,0 15,10 20,8 25,10" fill="${color}"/>
-  <line x1="20" y1="20" x2="11" y2="29" stroke="${color}" stroke-width="2.2"/>
-  <line x1="20" y1="20" x2="29" y2="29" stroke="${color}" stroke-width="2.2"/>
-</svg>`)}`;
-
-const CustomCursor = () => {
-  const wrapRef = useRef(null);
-  const imgRef  = useRef(null);
-
-  useEffect(() => {
-    const el  = wrapRef.current;
-    const img = imgRef.current;
-    if (!el || !img) return;
-
-    // Color based on theme
-    const updateColor = () => {
-      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-      img.src = getSWDSvg(isDark ? "white" : "#000000");
-    };
-    updateColor();
-    const obs = new MutationObserver(updateColor);
-    obs.observe(document.documentElement, { attributes:true, attributeFilter:["data-theme"] });
-
-    // Direct DOM write — absolutely zero lag, no RAF, no state
-    const onMove = (e) => {
-      el.style.transform = `translate(${e.clientX - 20}px,${e.clientY - 20}px)`;
-    };
-    window.addEventListener("mousemove", onMove, { passive:true });
-
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      obs.disconnect();
-    };
-  }, []);
-
-  return (
-    <div ref={wrapRef} style={{
-      position:"fixed", top:0, left:0,
-      width:40, height:40,
-      pointerEvents:"none", zIndex:999999,
-      willChange:"transform",
-      transform:"translate(-200px,-200px)",
-    }}>
-      <img ref={imgRef} alt="" width={40} height={40} id="swd-cursor-img"
-        draggable={false} style={{ display:"block", userSelect:"none" }}/>
-    </div>
-  );
-};
-
 
 const IcoAttend  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>;
 const IcoProfile = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
@@ -583,7 +531,6 @@ const AppContent = () => {
 
   return (
     <div style={{ display:"flex", minHeight:"100vh", background:"var(--bg-base)", position:"relative", transition:"background .3s" }}>
-      <CustomCursor/>
       <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
       {/* Smart World gold logo watermark — bottom right */}
       <div style={{ position:"fixed", bottom:0, right:0, width:"45%", maxWidth:600, zIndex:0, pointerEvents:"none", opacity:0.06 }}>
@@ -659,7 +606,6 @@ const SettingsDropdown = ({ theme, setTheme, collapsed }) => {
 export default function App() {
   return (
     <AuthProvider>
-      <CustomCursor/>
       <AppContent/>
     </AuthProvider>
   );

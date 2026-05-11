@@ -116,17 +116,18 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId }) => {
     // Employee restriction — only show their own record
     if (restrictToEmpId) {
       return employees.filter(emp => {
-        const id = String(emp.employeeId || emp.employee_id || emp.empCode || emp.id || '').trim();
+        const id = String(emp.id || emp.employeeId || emp.empCode || '').trim();
         return id === String(restrictToEmpId).trim();
       });
     }
     if (!isAdmin && !has) return [];
     return employees.filter(emp => {
-      const nm = (emp.name || emp.fullName || '').toLowerCase();
-      const id = String(emp.employeeId || emp.employee_id || emp.empCode || emp.id || '').toLowerCase();
-      const dp = (emp.department || emp.dept || '').toLowerCase();
-      const dg = (emp.designation || emp.position || emp.jobTitle || '').toLowerCase();
-      const lc = (emp.location || emp.city || emp.office || '').toLowerCase();
+      // Actual field names from dataService: id, name, department, grade, location
+      const nm = (emp.name || '').toLowerCase();
+      const id = String(emp.id || emp.employeeId || emp.empCode || '').toLowerCase();
+      const dp = (emp.department || '').toLowerCase();
+      const dg = (emp.grade || emp.designation || emp.position || '').toLowerCase();
+      const lc = (emp.location || '').toLowerCase();
       const s = debouncedSearchTerms;
       return (!s.name       || nm.includes(s.name.toLowerCase()))
           && (!s.employeeId || id.includes(s.employeeId.toLowerCase()))
