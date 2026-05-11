@@ -113,20 +113,24 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId }) => {
 
   const filteredEmployees = useMemo(() => {
     const has = debouncedSearchTerms.name || debouncedSearchTerms.employeeId || debouncedSearchTerms.department || debouncedSearchTerms.designation || debouncedSearchTerms.location;
-    // Employee restriction — only show their own record
+
+    // Employee: show only own record
     if (restrictToEmpId) {
-      return employees.filter(emp => {
-        const id = String(emp.id || emp.employeeId || emp.empCode || '').trim();
-        return id === String(restrictToEmpId).trim();
-      });
+      return employees.filter(emp => String(emp.id || '').trim() === String(restrictToEmpId).trim());
     }
+
+    // Admin with no search: show all employees
+    if (isAdmin && !has) return employees;
+
+    // Non-admin with no search: show nothing
     if (!isAdmin && !has) return [];
+
+    // Filter by search terms
     return employees.filter(emp => {
-      // Actual field names from dataService: id, name, department, grade, location
       const nm = (emp.name || '').toLowerCase();
-      const id = String(emp.id || emp.employeeId || emp.empCode || '').toLowerCase();
+      const id = String(emp.id || '').toLowerCase();
       const dp = (emp.department || '').toLowerCase();
-      const dg = (emp.grade || emp.designation || emp.position || '').toLowerCase();
+      const dg = (emp.grade || emp.designation || '').toLowerCase();
       const lc = (emp.location || '').toLowerCase();
       const s = debouncedSearchTerms;
       return (!s.name       || nm.includes(s.name.toLowerCase()))
