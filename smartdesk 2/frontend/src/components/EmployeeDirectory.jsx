@@ -114,18 +114,10 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId }) => {
   const filteredEmployees = useMemo(() => {
     const has = debouncedSearchTerms.name || debouncedSearchTerms.employeeId || debouncedSearchTerms.department || debouncedSearchTerms.designation || debouncedSearchTerms.location;
 
-    // Employee: show only own record
-    if (restrictToEmpId) {
-      return employees.filter(emp => String(emp.id || '').trim() === String(restrictToEmpId).trim());
-    }
+    // No search term — show all employees to everyone
+    if (!has) return employees;
 
-    // Admin with no search: show all employees
-    if (isAdmin && !has) return employees;
-
-    // Non-admin with no search: show nothing
-    if (!isAdmin && !has) return [];
-
-    // Filter by search terms
+    // Filter by search terms — all users see all matching employees
     return employees.filter(emp => {
       const nm = (emp.name || '').toLowerCase();
       const id = String(emp.id || '').toLowerCase();

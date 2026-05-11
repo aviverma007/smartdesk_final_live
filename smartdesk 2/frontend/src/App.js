@@ -522,7 +522,7 @@ const AppContent = () => {
 
   const CONTENT = {
     "home":             <Home/>,
-    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} restrictToEmpId={isEmployee === true ? user?.empId : null}/> ,
+    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }}/> ,
     "attendance":       <LiveAttendance initEmpCode={attendanceEmpCode} onCodeUsed={() => setAttendanceEmpCode("")}/>,
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,
