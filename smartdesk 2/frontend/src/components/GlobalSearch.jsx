@@ -25,6 +25,7 @@ const GlobalSearch = ({ onClose }) => {
   const [employees, setEmployees]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [aiAnswer, setAiAnswer]       = useState('');
+  const [aiError, setAiError]         = useState('');
   const [aiLoading, setAiLoading]     = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [recent, setRecent]           = useState(() => JSON.parse(localStorage.getItem('sd-recent-search') || '[]'));
@@ -70,8 +71,10 @@ const GlobalSearch = ({ onClose }) => {
   // ── Groq AI search — debounced 600ms ─────────────────────────────────────
   const askGroq = useCallback(async (q) => {
     if (!q || q.length < 3) { setAiAnswer(''); return; }
+    if (!GROQ_API_KEY) { setAiError('Add REACT_APP_GROQ_API_KEY to your .env file and restart npm start'); return; }
     setAiLoading(true);
     setAiAnswer('');
+    setAiError('');
     try {
       // Build context from loaded employees (first 60)
       const empContext = employees.slice(0, 60).map(e =>
@@ -109,6 +112,7 @@ Keep answers short and helpful.`
       const text = data?.choices?.[0]?.message?.content || '';
       setAiAnswer(text.trim());
     } catch (e) {
+      setAiError('AI unavailable: ' + (e.message || 'Check API key in .env'));
       setAiAnswer('');
     }
     setAiLoading(false);
@@ -116,7 +120,7 @@ Keep answers short and helpful.`
 
   useEffect(() => {
     clearTimeout(timerRef.current);
-    if (!query.trim() || query.length < 3) { setAiAnswer(''); setAiLoading(false); return; }
+    if (!query.trim() || query.length < 3) { setAiAnswer(''); setAiLoading(false); setAiError(''); return; }
     timerRef.current = setTimeout(() => askGroq(query), 600);
     return () => clearTimeout(timerRef.current);
   }, [query, askGroq]);
@@ -176,6 +180,13 @@ Keep answers short and helpful.`
                   </div>
                 : <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.84rem', color:'#1e3a5f', lineHeight:1.6, margin:0 }}>{aiAnswer}</p>
               }
+            </div>
+          )}
+
+          {/* AI Error */}
+          {aiError && (
+            <div style={{ margin:'8px 14px 4px', padding:'10px 14px', background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:10 }}>
+              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#dc2626', margin:0 }}>⚠ {aiError}</p>
             </div>
           )}
 
