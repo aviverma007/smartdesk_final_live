@@ -60,77 +60,48 @@ class DataService {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      this.employees = jsonData.map(row => {
-        // Convert mobile number safely
-        const mobile = row['MOBILE'] ? String(row['MOBILE']) : '';
-        
-        // Convert extension safely
-        const extension = row['EXTENSION NUMBER'] ? String(row['EXTENSION NUMBER']) : '0';
-        
-        // Handle reporting ID
-        let reportingId = null;
-        if (row['REPORTING ID'] && String(row['REPORTING ID']).trim() !== '') {
-          reportingId = String(row['REPORTING ID']);
-        }
-        
-        // Handle date of joining - Convert Excel serial number to date
+      this.employees = jsonData.map((row, index) => {
+        // New Excel: Code, Name, Mobile No, DOJ, Designation, Department, Location, Email ID
+        const mobile = row['Mobile No'] ? String(row['Mobile No']) : '';
+
         let dateJoining = '';
-        if (row['DATE OF JOINING']) {
+        if (row['DOJ']) {
           try {
-            const rawDate = row['DATE OF JOINING'];
-            
-            // If it's a number (Excel serial date), convert it
+            const rawDate = row['DOJ'];
             if (typeof rawDate === 'number') {
-              // Excel serial date: days since January 1, 1900
-              // JavaScript Date: milliseconds since January 1, 1970
-              // Excel epoch: January 1, 1900 (but Excel incorrectly treats 1900 as leap year)
-              const excelEpoch = new Date(1900, 0, 1); // January 1, 1900
-              const msPerDay = 24 * 60 * 60 * 1000;
-              // Subtract 2 days to account for Excel's leap year bug and 0-indexing
-              const jsDate = new Date(excelEpoch.getTime() + (rawDate - 2) * msPerDay);
-              dateJoining = jsDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-            } 
-            // If it's already a string, try to parse it
-            else if (typeof rawDate === 'string') {
-              const parsedDate = new Date(rawDate);
-              if (!isNaN(parsedDate.getTime())) {
-                dateJoining = parsedDate.toISOString().split('T')[0];
-              } else {
-                dateJoining = String(rawDate).split(' ')[0];
-              }
+              const jsDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+              dateJoining = jsDate.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+            } else if (rawDate instanceof Date) {
+              dateJoining = rawDate.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+            } else {
+              dateJoining = String(rawDate).split('T')[0];
             }
-            // If it's a Date object
-            else if (rawDate instanceof Date) {
-              dateJoining = rawDate.toISOString().split('T')[0];
-            }
-            // Fallback
-            else {
-              dateJoining = String(rawDate);
-            }
-          } catch (error) {
-            console.warn('Error parsing date for employee:', row['EMP NAME'], 'Raw date:', row['DATE OF JOINING']);
-            dateJoining = String(row['DATE OF JOINING']);
-          }
+          } catch(e) { dateJoining = ''; }
         }
+
+        const nameParts = String(row['Name'] || '').split(' ').filter(Boolean);
+        const initials = nameParts.slice(0,2).map(w => w[0].toUpperCase()).join('');
 
         return {
-          id: String(row['EMP ID']),
-          name: String(row['EMP NAME'] || '').trim(),
-          department: String(row['DEPARTMENT'] || '').trim(),
-          grade: String(row['GRADE'] || '').trim(),
-          reportingManager: row['REPORTING MANAGER'] ? String(row['REPORTING MANAGER']).trim() : '*',
-          reportingId: reportingId,
-          location: String(row['LOCATION'] || '').trim(),
+          id: String(row['Code'] || index + 1),
+          name: String(row['Name'] || '').trim(),
+          department: String(row['Department'] || '').trim(),
+          grade: String(row['Designation'] || '').trim(),
+          designation: String(row['Designation'] || '').trim(),
+          reportingManager: '',
+          reportingId: null,
+          location: String(row['Location'] || '').trim(),
           mobile: mobile,
-          extension: extension,
-          email: String(row['EMAIL ID'] || '').trim(),
+          extension: '',
+          email: String(row['Email ID'] || '').trim(),
           dateOfJoining: dateJoining,
-          profileImage: '/api/placeholder/150/150'
+          profileImage: '/api/placeholder/150/150',
+          initials: initials,
+          status: 'active',
         };
-      });
+      }).filter(emp => emp.name && emp.id);
 
-      // Extract unique departments and locations
-      this.departments = ['All Departments', ...new Set(this.employees.map(emp => emp.department).filter(dept => dept))];
+            this.departments = ['All Departments', ...new Set(this.employees.map(emp => emp.department).filter(dept => dept))];
       this.locations = ['All Locations', ...new Set(this.employees.map(emp => emp.location).filter(loc => loc))];
 
       console.log(`Loaded ${this.employees.length} employees`);
