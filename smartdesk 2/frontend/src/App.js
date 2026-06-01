@@ -479,6 +479,7 @@ const AppContent = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
   const [showSearch, setShowSearch] = useState(false);
   const [attendanceEmpCode, setAttendanceEmpCode] = useState("");
+  const [searchEmpId, setSearchEmpId] = useState("");
 
   useEffect(() => {
     // Clear old session key from previous version
@@ -512,8 +513,6 @@ const AppContent = () => {
   }, []);
 
   if (showLoading || !isAuthenticated) return <LoginForm/>;
-
-  const [searchEmpId, setSearchEmpId] = useState('');
 
   const handleSearchResult = (result) => {
     setShowSearch(false);
