@@ -513,16 +513,22 @@ const AppContent = () => {
 
   if (showLoading || !isAuthenticated) return <LoginForm/>;
 
+  const [searchEmpId, setSearchEmpId] = useState('');
+
   const handleSearchResult = (result) => {
     setShowSearch(false);
     if (!result) return;
-    if (result.type === 'nav') setActive(result.navId);
-    else if (result.type === 'employee') setActive('directory');
+    if (result.type === 'nav') {
+      setActive(result.navId);
+    } else if (result.type === 'employee') {
+      setSearchEmpId(result.empId || '');
+      setActive('directory');
+    }
   };
 
   const CONTENT = {
     "home":             <Home/>,
-    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }}/> ,
+    "directory":        <EmployeeDirectory onViewAttendance={(code) => { setAttendanceEmpCode(code); setActive("attendance"); }} highlightEmpId={searchEmpId} onHighlightDone={() => setSearchEmpId("")}/> ,
     "attendance":       <LiveAttendance initEmpCode={attendanceEmpCode} onCodeUsed={() => setAttendanceEmpCode("")}/>,
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,

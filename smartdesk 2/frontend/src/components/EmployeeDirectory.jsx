@@ -80,7 +80,7 @@ const S = {
   },
 };
 
-const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId }) => {
+const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, onHighlightDone }) => {
   const [nameSearch, setNameSearch] = useState("");
   const [employeeIdSearch, setEmployeeIdSearch] = useState("");
   const [departmentSearch, setDepartmentSearch] = useState("");
@@ -93,6 +93,17 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const { isAdmin } = useAuth();
+
+  // Auto-open employee card when coming from global search
+  useEffect(() => {
+    if (!highlightEmpId || !employees.length) return;
+    const emp = employees.find(e => String(e.id).trim() === String(highlightEmpId).trim());
+    if (emp) {
+      setSelectedEmployee(emp);
+      setShowDetailModal(true);
+      if (onHighlightDone) onHighlightDone();
+    }
+  }, [highlightEmpId, employees]);
 
   useEffect(() => {
     const load = async () => {

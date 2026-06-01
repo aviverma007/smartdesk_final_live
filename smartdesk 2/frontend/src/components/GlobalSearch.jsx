@@ -115,7 +115,8 @@ Keep answers short and helpful.`
       console.log('Groq response status:', res.status);
       console.log('Groq response data:', JSON.stringify(data).slice(0, 200));
       if (data.error) {
-        setAiError('Groq error: ' + (data.error.message || JSON.stringify(data.error)));
+        // Rate limit or other error — fail silently, don't show red error
+        console.warn('Groq error:', data.error.message);
         setAiLoading(false);
         return;
       }
@@ -127,9 +128,8 @@ Keep answers short and helpful.`
         setAiError('Empty response from AI');
       }
     } catch (e) {
-      console.error('Groq fetch error:', e);
-      setAiError('AI error: ' + (e.message || 'Network error'));
-      setAiAnswer('');
+      console.warn('Groq fetch error:', e.message);
+      // Fail silently — don't show error to user
     }
     setAiLoading(false);
   };
@@ -159,7 +159,13 @@ Keep answers short and helpful.`
     const updated = [entry, ...recent.filter(x => x !== entry)].slice(0, 6);
     setRecent(updated);
     localStorage.setItem('sd-recent-search', JSON.stringify(updated));
-    onClose(r);
+    if (r.type === 'employee') {
+      onClose({ type: 'employee', navId: 'directory', empId: r.data?.id, empName: r.data?.name, data: r.data });
+    } else if (r.type === 'policy') {
+      onClose({ type: 'nav', navId: 'policies', label: r.label });
+    } else {
+      onClose(r);
+    }
   };
 
   const onKey = (e) => {
