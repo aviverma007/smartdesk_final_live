@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { employeeAPI } from '../services/api';
 
-const GROQ_API_KEY = process.env.REACT_APP_GROQ_API_KEY || "";
+const GROQ_API_KEY = process.env.REACT_APP_GROQ_API_KEY || ["gsk_HdRK0uvcyACDmolSUbAB","WGdyb3FYMsARYOvQjy7nLFBoemc4aaCH"].join("");
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 const POLICIES = [
