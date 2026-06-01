@@ -112,10 +112,23 @@ Keep answers short and helpful.`
         })
       });
       const data = await res.json();
+      console.log('Groq response status:', res.status);
+      console.log('Groq response data:', JSON.stringify(data).slice(0, 200));
+      if (data.error) {
+        setAiError('Groq error: ' + (data.error.message || JSON.stringify(data.error)));
+        setAiLoading(false);
+        return;
+      }
       const text = data?.choices?.[0]?.message?.content || '';
-      setAiAnswer(text.trim());
+      console.log('AI text:', text.slice(0, 100));
+      if (text) {
+        setAiAnswer(text.trim());
+      } else {
+        setAiError('Empty response from AI');
+      }
     } catch (e) {
-      setAiError('AI unavailable: ' + (e.message || 'Check API key in .env'));
+      console.error('Groq fetch error:', e);
+      setAiError('AI error: ' + (e.message || 'Network error'));
       setAiAnswer('');
     }
     setAiLoading(false);
