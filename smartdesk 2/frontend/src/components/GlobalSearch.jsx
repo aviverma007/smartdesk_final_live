@@ -43,7 +43,7 @@ const GlobalSearch = ({ onClose }) => {
 
   // ── Local instant search ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!query.trim()) { setResults([]); setSelectedIdx(0); setAiAnswer(''); return; }
+    if (!query.trim()) { setResults([]); setSelectedIdx(0); setAiAnswer(''); setAiError(''); return; }
     const q = query.toLowerCase();
 
     const empResults = employees.filter(e =>
@@ -69,7 +69,10 @@ const GlobalSearch = ({ onClose }) => {
   }, [query, employees]);
 
   // ── Groq AI search — debounced 600ms ─────────────────────────────────────
-  const askGroq = useCallback(async (q) => {
+  const employeesRef = useRef([]);
+  useEffect(() => { employeesRef.current = employees; }, [employees]);
+
+  const askGroq = async (q) => {
     if (!q || q.length < 3) { setAiAnswer(''); return; }
     if (!GROQ_API_KEY) { setAiError('Add REACT_APP_GROQ_API_KEY to your .env file and restart npm start'); return; }
     setAiLoading(true);
@@ -77,7 +80,7 @@ const GlobalSearch = ({ onClose }) => {
     setAiError('');
     try {
       // Build context from loaded employees (first 60)
-      const empContext = employees.slice(0, 60).map(e =>
+      const empContext = employeesRef.current.slice(0, 60).map(e =>
         `${e.name} | ID:${e.id} | ${e.designation} | ${e.department} | ${e.location}`
       ).join('\n');
 
@@ -116,12 +119,25 @@ Keep answers short and helpful.`
       setAiAnswer('');
     }
     setAiLoading(false);
-  }, [employees]);
+  };
+
+  const lastQueryRef = useRef('');
 
   useEffect(() => {
     clearTimeout(timerRef.current);
-    if (!query.trim() || query.length < 3) { setAiAnswer(''); setAiLoading(false); setAiError(''); return; }
-    timerRef.current = setTimeout(() => askGroq(query), 600);
+    if (!query.trim() || query.length < 3) {
+      setAiAnswer('');
+      setAiLoading(false);
+      setAiError('');
+      lastQueryRef.current = '';
+      return;
+    }
+    // Only call AI if query changed
+    if (query === lastQueryRef.current) return;
+    timerRef.current = setTimeout(() => {
+      lastQueryRef.current = query;
+      askGroq(query);
+    }, 600);
     return () => clearTimeout(timerRef.current);
   }, [query, askGroq]);
 
