@@ -94,16 +94,24 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const { isAdmin } = useAuth();
 
-  // Auto-open employee card when coming from global search
+  // When coming from global search — fill the ID search box and trigger filter
+  useEffect(() => {
+    if (!highlightEmpId) return;
+    // Pre-fill the employee ID search so the employee shows up
+    setEmployeeIdSearch(String(highlightEmpId));
+    setDebouncedSearchTerms(prev => ({ ...prev, employeeId: String(highlightEmpId) }));
+    if (onHighlightDone) onHighlightDone();
+  }, [highlightEmpId]);
+
+  // Auto-open card once filtered results are ready
   useEffect(() => {
     if (!highlightEmpId || !employees.length) return;
     const emp = employees.find(e => String(e.id).trim() === String(highlightEmpId).trim());
     if (emp) {
       setSelectedEmployee(emp);
       setShowDetailModal(true);
-      if (onHighlightDone) onHighlightDone();
     }
-  }, [highlightEmpId, employees]);
+  }, [employees, highlightEmpId]);
 
   useEffect(() => {
     const load = async () => {
