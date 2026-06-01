@@ -482,7 +482,7 @@ class DataService {
   }
 
   // Employee API methods
-  async getEmployees(searchParams = {}) {
+  async async getEmployees(searchParams = {}) {
     if (!this.isLoaded) await this.loadAllData();
     
     let filtered = [...this.employees];
@@ -490,11 +490,11 @@ class DataService {
     if (searchParams.search) {
       const search = searchParams.search.toLowerCase();
       filtered = filtered.filter(emp => 
-        emp.name.toLowerCase().startsWith(search) ||
-        emp.id.toLowerCase().startsWith(search) ||
-        emp.department.toLowerCase().startsWith(search) ||
-        emp.location.toLowerCase().startsWith(search) ||
-        emp.grade.toLowerCase().startsWith(search) ||
+        (emp.name || '').toLowerCase().includes(search) ||
+        (emp.id || '').toLowerCase().includes(search) ||
+        (emp.department || '').toLowerCase().includes(search) ||
+        (emp.location || '').toLowerCase().includes(search) ||
+        (emp.grade || '').toLowerCase().startsWith(search) ||
         emp.mobile.startsWith(search)
       );
     }

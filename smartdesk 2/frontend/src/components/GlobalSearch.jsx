@@ -20,12 +20,18 @@ const GlobalSearch = ({ onClose }) => {
   const [query, setQuery]           = useState('');
   const [results, setResults]       = useState([]);
   const [employees, setEmployees]   = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [recent, setRecent]         = useState(() => JSON.parse(localStorage.getItem('sd-recent-search') || '[]'));
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
-  useEffect(() => { employeeAPI.getAll().then(setEmployees).catch(() => {}); }, []);
+  useEffect(() => {
+    setLoading(true);
+    employeeAPI.getAll()
+      .then(data => { setEmployees(data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!query.trim()) { setResults([]); setSelectedIdx(0); return; }
@@ -162,7 +168,7 @@ const GlobalSearch = ({ onClose }) => {
             <span>↑↓ navigate</span><span>↵ select</span><span>ESC close</span>
           </div>
           <div style={{ fontSize:'.65rem', color:'#105da9', fontFamily:"'DM Sans',sans-serif", fontWeight:600 }}>
-            {employees.length > 0 ? `${employees.length} employees loaded` : 'Loading...'}
+            {loading ? '⏳ Loading employees...' : `${employees.length} employees indexed`}
           </div>
         </div>
       </div>
