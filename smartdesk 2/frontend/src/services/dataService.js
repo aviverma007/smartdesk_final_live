@@ -482,7 +482,7 @@ class DataService {
   }
 
   // Employee API methods
-  async async getEmployees(searchParams = {}) {
+  async getEmployees(searchParams = {}) {
     if (!this.isLoaded) await this.loadAllData();
     
     let filtered = [...this.employees];
