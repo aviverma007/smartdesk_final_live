@@ -481,7 +481,12 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color:'#105da9', fontWeight:700 }}>{emp.empCode}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#0f172a', whiteSpace:'nowrap' }}>{emp.empName}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#64748b' }}>{emp.department||'—'}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'#64748b' }}>{emp.date||fromDate}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'#64748b' }}>
+                        <div>{emp.date||fromDate}</div>
+                        <div style={{ fontSize:'.65rem', color:'#105da9', fontWeight:700, marginTop:2 }}>
+                          {new Date((emp.date||fromDate)+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long'})}
+                        </div>
+                      </td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.inTime ? '#4ade80' : 'rgba(140,170,210,0.4)' }}>{fmtTime(emp.inTime)}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.outTime && emp.outTime !== emp.inTime ? '#60a5fa' : 'rgba(140,170,210,0.4)' }}>{emp.outTime && emp.outTime !== emp.inTime ? fmtTime(emp.outTime) : '—'}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.workMinutes>0 ? '#fbbf24' : 'rgba(140,170,210,0.4)', fontWeight: emp.workMinutes>0 ? 700 : 400 }}>{fmtHours(emp.workMinutes)}</td>
