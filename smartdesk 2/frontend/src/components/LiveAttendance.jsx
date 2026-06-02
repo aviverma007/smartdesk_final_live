@@ -404,20 +404,27 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
               <div style={G.topLine('#9b6dff')}/>
               <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.75rem', color:'rgba(200,220,255,0.9)', marginBottom:12 }}>Punch Timeline</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {['06:00','07:00','08:00','09:00','10:00','11:00','12:00'].map(hr=>{
-                  const hrNum = parseInt(hr);
-                  const cnt = enriched.filter(e=>e.inTime && new Date(e.inTime).getHours()===hrNum).length;
-                  const maxCnt = Math.max(...['06','07','08','09','10','11','12'].map(h=>enriched.filter(e=>e.inTime&&new Date(e.inTime).getHours()===parseInt(h)).length),1);
-                  return (
-                    <div key={hr} style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.62rem', color:'rgba(140,170,210,0.6)', width:36, flexShrink:0 }}>{hr}</span>
-                      <div style={{ flex:1, height:8, borderRadius:4, background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:`${cnt/maxCnt*100}%`, background:'linear-gradient(90deg,#9b6dff,#0ea5e9)', borderRadius:4, transition:'width .8s ease' }}/>
+                {(() => {
+                  // Build all hours that have punches + always show 06-20
+                  const allHours = Array.from({length:15}, (_,i) => i+6); // 06 to 20
+                  const counts = allHours.map(h => enriched.filter(e => e.inTime && new Date(String(e.inTime).replace('T',' ').replace('Z','')).getHours() === h).length);
+                  const maxCnt = Math.max(...counts, 1);
+                  return allHours.map((h, i) => {
+                    const cnt = counts[i];
+                    const label = `${String(h).padStart(2,'0')}:00`;
+                    const pct = (cnt/maxCnt)*100;
+                    const barColor = cnt === 0 ? 'rgba(200,210,230,0.15)' : cnt === maxCnt ? '#105da9' : 'linear-gradient(90deg,#7c3aed,#105da9)';
+                    return (
+                      <div key={h} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.62rem', color: cnt > 0 ? '#105da9' : '#94a3b8', width:38, flexShrink:0, fontWeight: cnt > 0 ? 700 : 400 }}>{label}</span>
+                        <div style={{ flex:1, height:10, borderRadius:5, background:'#e8f3fd', overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${pct}%`, background: cnt === maxCnt ? '#105da9' : 'linear-gradient(90deg,#7c3aed,#1a7fd4)', borderRadius:5, transition:'width .8s ease', minWidth: cnt > 0 ? 8 : 0 }}/>
+                        </div>
+                        <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.65rem', color: cnt > 0 ? '#105da9' : '#cbd5e1', width:22, textAlign:'right', fontWeight: cnt > 0 ? 700 : 400 }}>{cnt > 0 ? cnt : ''}</span>
                       </div>
-                      <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.62rem', color:'rgba(200,220,255,0.7)', width:20, textAlign:'right' }}>{cnt}</span>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>}
