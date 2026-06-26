@@ -151,6 +151,20 @@ CREATE TABLE dbo.AppUsers (
 IF COL_LENGTH('dbo.AssetItems','Given') IS NULL ALTER TABLE dbo.AssetItems ADD [Given] BIT NOT NULL DEFAULT(0);
 IF COL_LENGTH('dbo.AssetItems','NotGiven') IS NULL ALTER TABLE dbo.AssetItems ADD NotGiven BIT NOT NULL DEFAULT(0);
 IF COL_LENGTH('dbo.AssetRequests','ITSubmittedAt') IS NULL ALTER TABLE dbo.AssetRequests ADD ITSubmittedAt DATETIME NULL;
+
+IF OBJECT_ID('dbo.AssetSelfRequests','U') IS NULL
+CREATE TABLE dbo.AssetSelfRequests (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  EmpId      NVARCHAR(40) NOT NULL,
+  Items      NVARCHAR(MAX) NULL,   -- JSON array of {key,label}
+  Reason     NVARCHAR(MAX) NULL,
+  Status     NVARCHAR(30) NOT NULL DEFAULT('pending'), -- pending | approved | rejected
+  ITRemarks  NVARCHAR(MAX) NULL,
+  DecidedBy  NVARCHAR(80) NULL,
+  DecidedAt  DATETIME NULL,
+  CreatedBy  NVARCHAR(80) NULL,
+  CreatedAt  DATETIME NOT NULL DEFAULT(GETDATE())
+);
   `);
   console.log('   ✓ Tables ready');
 }
@@ -437,6 +451,58 @@ app.post('/api/assets/:id/it-submit', async (req, res) => {
       .query(`UPDATE dbo.AssetRequests
               SET ITSubmittedAt=GETDATE(), Status='employee_review', SubmittedAt=NULL, UpdatedAt=GETDATE()
               WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════ EMPLOYEE SELF-SERVICE ASSET REQUESTS ══════════════════ */
+// Employee raises a request for a new asset
+app.post('/api/asset-requests', async (req, res) => {
+  if (!can(req, 'employee')) return deny(res);
+  try {
+    const b = req.body || {};
+    const items = Array.isArray(b.items) ? b.items : [];
+    if (items.length === 0) return res.status(400).json({ success: false, error: 'Select at least one asset.' });
+    const p = await getPool();
+    const r = await p.request()
+      .input('EmpId', sql.NVarChar, actor(req))
+      .input('Items', sql.NVarChar, JSON.stringify(items))
+      .input('Reason', sql.NVarChar, b.reason || null)
+      .input('CreatedBy', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.AssetSelfRequests (EmpId,Items,Reason,CreatedBy)
+              OUTPUT INSERTED.* VALUES (@EmpId,@Items,@Reason,@CreatedBy)`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// List: employee sees own; IT/HR/manager/admin see all
+app.get('/api/asset-requests', async (req, res) => {
+  if (!can(req, 'employee', 'it', 'hr', 'manager')) return deny(res);
+  try {
+    const p = await getPool();
+    let rows;
+    if (role(req) === 'employee') {
+      rows = await p.request().input('me', sql.NVarChar, actor(req))
+        .query(`SELECT * FROM dbo.AssetSelfRequests WHERE EmpId=@me ORDER BY CreatedAt DESC`);
+    } else {
+      rows = await p.request().query(`SELECT * FROM dbo.AssetSelfRequests ORDER BY CreatedAt DESC`);
+    }
+    res.json({ success: true, records: rows.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// IT approves or rejects with remarks
+app.post('/api/asset-requests/:id/decide', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try {
+    const action = (req.body || {}).action === 'reject' ? 'rejected' : 'approved';
+    const p = await getPool();
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('Status', sql.NVarChar, action)
+      .input('Remarks', sql.NVarChar, (req.body || {}).remarks || null)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.AssetSelfRequests SET Status=@Status, ITRemarks=@Remarks, DecidedBy=@By, DecidedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

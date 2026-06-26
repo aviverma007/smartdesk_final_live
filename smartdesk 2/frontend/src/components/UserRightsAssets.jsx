@@ -393,7 +393,83 @@ const AssetsView = ({ onBack }) => {
           {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
         </div>
       )}
+
+      <AssetRequestsSection />
     </div>
+  );
+};
+
+/* ═══════════ EMPLOYEE SELF-SERVICE ASSET REQUESTS (with IT approval) ════════ */
+const AssetRequestsSection = () => {
+  const api = useApi();
+  const { isHr, isIt, isManager, isAdmin, isEmployee } = useAuth();
+  const isReviewer = isIt || isAdmin;
+  const [list, setList] = useState([]);
+  const [picked, setPicked] = useState([]);
+  const [reason, setReason] = useState('');
+  const [notes, setNotes] = useState({});
+  const [msg, setMsg] = useState('');
+  const load = useCallback(async () => { const d = await api('/asset-requests'); if (d.success) setList(d.records); }, [api]);
+  useEffect(() => { load(); }, [load]);
+  const toggle = (k) => setPicked(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
+  const submit = async () => {
+    if (picked.length === 0) return setMsg('Select at least one asset.');
+    const items = ASSET_CATALOGUE.filter(a => picked.includes(a.key));
+    const d = await api('/asset-requests', 'POST', { items, reason });
+    if (d.success) { setMsg('Request submitted — pending IT approval.'); setPicked([]); setReason(''); load(); } else setMsg(d.error || 'Failed.');
+  };
+  const decide = async (id, action) => {
+    const d = await api(`/asset-requests/${id}/decide`, 'POST', { action, remarks: notes[id] || '' });
+    setMsg(d.success ? (action === 'approve' ? 'Approved.' : 'Rejected.') : (d.error || 'Failed.')); load();
+  };
+
+  return (
+    <>
+      {isEmployee && (
+        <div style={card}>
+          <h2 style={h2}>Request a new asset</h2>
+          <div style={label}>Assets needed</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            {ASSET_CATALOGUE.map(a => (
+              <label key={a.key} style={chip(picked.includes(a.key))}>
+                <input type="checkbox" checked={picked.includes(a.key)} onChange={() => toggle(a.key)} style={{ marginRight: 7 }} />{a.label}
+              </label>
+            ))}
+          </div>
+          <Field l="Reason (optional)"><textarea style={{ ...input, minHeight: 56 }} value={reason} onChange={e => setReason(e.target.value)} /></Field>
+          <button style={primaryBtn} onClick={submit}>Submit request</button>
+          {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+        </div>
+      )}
+
+      <div style={card}>
+        <h2 style={h2}>{isEmployee ? 'My asset requests' : 'New-asset requests'}</h2>
+        {list.length === 0 && <Empty text="No requests yet." />}
+        {list.map(r => {
+          let items = []; try { items = JSON.parse(r.Items || '[]'); } catch {}
+          const decided = r.Status !== 'pending';
+          return (
+            <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isEmployee ? '' : `ID ${r.EmpId} · `}{items.map(i => i.label).join(', ') || '—'}</div>
+                  {r.Reason && <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{r.Reason}</div>}
+                </div>
+                <Pill status={r.Status} />
+              </div>
+              {r.ITRemarks && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>IT remarks: {r.ITRemarks}</div>}
+              {isReviewer && !decided && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
+                  <button style={primaryBtn} onClick={() => decide(r.Id, 'approve')}>Approve</button>
+                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => decide(r.Id, 'reject')}>Reject</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 };
 
