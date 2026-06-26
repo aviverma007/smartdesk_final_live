@@ -1,0 +1,543 @@
+/**
+ * SmartDesk — User Rights & Assets backend
+ * -----------------------------------------
+ * Three workflows, each with a two-stage approval state machine:
+ *   1) Onboarding / User-ID allocation   (HR fills -> onboarded -> EmpId assigned)
+ *   2) Asset allocation                  (HR requests -> employee confirms receipt -> locked to HR/IT)
+ *   3) Application & rights allocation    (request -> manager approves -> IT marks given -> submitted)
+ *
+ * Persistence: SQL Server (config from .env). Tables are auto-created on boot.
+ * Email: set-password LINK (never a plaintext password) via Outlook/O365 SMTP.
+ *
+ * NOTE on auth: this mirrors the existing SmartDesk trust model, where roles are
+ * carried from the client. Routes read `x-user-role` / `x-user-id` headers and
+ * gate sensitive actions on them. This is lightweight, not hardened auth — fine
+ * for an internal portal, but do not expose this service to the public internet.
+ */
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const sql = require('mssql');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+const app = express();
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'OPTIONS'], allowedHeaders: ['Content-Type', 'x-user-role', 'x-user-id'] }));
+app.use(express.json({ limit: '1mb' }));
+
+// ── SQL Server config ─────────────────────────────────────────────────────────
+const dbConfig = {
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER || '2023-DT1',
+  database: process.env.DB_DATABASE || 'SmartDeskApp',
+  port: parseInt(process.env.DB_PORT || '1433', 10),
+  options: { trustServerCertificate: true, enableArithAbort: true, encrypt: false },
+  pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
+  connectionTimeout: 30000,
+  requestTimeout: 30000,
+};
+
+let pool;
+async function getPool() {
+  if (!pool) pool = await sql.connect(dbConfig);
+  return pool;
+}
+
+// ── Fixed asset catalogue (v1) ──────────────────────────────────────────────
+const ASSET_CATALOGUE = [
+  { key: 'laptop',        label: 'Laptop' },
+  { key: 'laptop_bag',    label: 'Laptop Bag' },
+  { key: 'mouse',         label: 'Mouse' },
+  { key: 'charger',       label: 'Charger' },
+  { key: 'onboarding_kit', label: 'Onboarding Kit' },
+];
+
+// ── Auto-migration: create tables if they don't exist ───────────────────────
+async function migrate() {
+  const p = await getPool();
+  await p.request().batch(`
+IF OBJECT_ID('dbo.Onboarding','U') IS NULL
+CREATE TABLE dbo.Onboarding (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  FullName     NVARCHAR(200) NOT NULL,
+  DOB          DATE NULL,
+  Gender       NVARCHAR(20) NULL,
+  PastCompany  NVARCHAR(200) NULL,
+  Profile      NVARCHAR(200) NULL,
+  ManagerName  NVARCHAR(200) NULL,
+  Department   NVARCHAR(200) NULL,
+  JoiningDate  DATE NULL,
+  Phone        NVARCHAR(40) NULL,
+  EmpId        NVARCHAR(40) NULL,
+  Status       NVARCHAR(30) NOT NULL DEFAULT('pending'),  -- pending | onboarded
+  CreatedBy    NVARCHAR(80) NULL,
+  CreatedAt    DATETIME NOT NULL DEFAULT(GETDATE()),
+  UpdatedAt    DATETIME NOT NULL DEFAULT(GETDATE())
+);
+
+IF OBJECT_ID('dbo.AssetRequests','U') IS NULL
+CREATE TABLE dbo.AssetRequests (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  EmpId        NVARCHAR(40) NOT NULL,
+  Email        NVARCHAR(200) NOT NULL,
+  Status       NVARCHAR(30) NOT NULL DEFAULT('pending'), -- pending | credentials_sent | employee_review | submitted
+  CreatedBy    NVARCHAR(80) NULL,
+  CreatedAt    DATETIME NOT NULL DEFAULT(GETDATE()),
+  UpdatedAt    DATETIME NOT NULL DEFAULT(GETDATE()),
+  SubmittedAt  DATETIME NULL
+);
+
+IF OBJECT_ID('dbo.AssetItems','U') IS NULL
+CREATE TABLE dbo.AssetItems (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  RequestId   INT NOT NULL,
+  ItemKey     NVARCHAR(60) NOT NULL,
+  ItemLabel   NVARCHAR(120) NOT NULL,
+  Requested   BIT NOT NULL DEFAULT(0),
+  Received    BIT NOT NULL DEFAULT(0),
+  NotRequired BIT NOT NULL DEFAULT(0)
+);
+
+IF OBJECT_ID('dbo.AccessRequests','U') IS NULL
+CREATE TABLE dbo.AccessRequests (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  RequestType   NVARCHAR(30) NOT NULL DEFAULT('new'), -- new | authorization | deletion
+  RequesterName NVARCHAR(200) NULL,
+  Company       NVARCHAR(200) NULL,
+  Department    NVARCHAR(200) NULL,
+  EmpId         NVARCHAR(40) NULL,
+  Email         NVARCHAR(200) NULL,
+  WorkLocation  NVARCHAR(120) NULL,
+  Language      NVARCHAR(60) NULL,
+  ScopeOfWork   NVARCHAR(MAX) NULL,
+  Applications  NVARCHAR(MAX) NULL,  -- JSON array of selected app keys
+  Details       NVARCHAR(MAX) NULL,
+  Status        NVARCHAR(30) NOT NULL DEFAULT('pending_manager'), -- pending_manager | manager_approved | it_given | submitted
+  ManagerNote   NVARCHAR(MAX) NULL,
+  ManagerApprovedBy NVARCHAR(80) NULL,
+  ManagerApprovedAt DATETIME NULL,
+  ITGivenBy     NVARCHAR(80) NULL,
+  ITGivenAt     DATETIME NULL,
+  CreatedBy     NVARCHAR(80) NULL,
+  CreatedAt     DATETIME NOT NULL DEFAULT(GETDATE()),
+  UpdatedAt     DATETIME NOT NULL DEFAULT(GETDATE())
+);
+
+IF OBJECT_ID('dbo.SetPasswordTokens','U') IS NULL
+CREATE TABLE dbo.SetPasswordTokens (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  EmpId     NVARCHAR(40) NULL,
+  Email     NVARCHAR(200) NOT NULL,
+  Token     NVARCHAR(80) NOT NULL,
+  ExpiresAt DATETIME NOT NULL,
+  UsedAt    DATETIME NULL,
+  CreatedAt DATETIME NOT NULL DEFAULT(GETDATE())
+);
+
+IF OBJECT_ID('dbo.AppUsers','U') IS NULL
+CREATE TABLE dbo.AppUsers (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  EmpId        NVARCHAR(40) NULL,
+  Email        NVARCHAR(200) NOT NULL,
+  PasswordHash NVARCHAR(200) NOT NULL,
+  CreatedAt    DATETIME NOT NULL DEFAULT(GETDATE()),
+  UpdatedAt    DATETIME NOT NULL DEFAULT(GETDATE())
+);
+  `);
+  console.log('   ✓ Tables ready');
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const role = (req) => String(req.headers['x-user-role'] || '').toLowerCase();
+const actor = (req) => String(req.headers['x-user-id'] || 'unknown');
+const can = (req, ...roles) => roles.includes(role(req)) || role(req) === 'admin';
+function deny(res) { return res.status(403).json({ success: false, error: 'Not allowed for your role.' }); }
+function hashPw(pw) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(pw, salt, 32).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+// ── Email (set-password link) ────────────────────────────────────────────────
+function mailer() {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) return null;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: false,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+}
+async function sendSetPasswordLink(email, empId) {
+  const token = crypto.randomBytes(24).toString('hex');
+  const p = await getPool();
+  await p.request()
+    .input('e', sql.NVarChar, email)
+    .input('emp', sql.NVarChar, empId || null)
+    .input('t', sql.NVarChar, token)
+    .input('exp', sql.DateTime, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+    .query(`INSERT INTO dbo.SetPasswordTokens (EmpId, Email, Token, ExpiresAt) VALUES (@emp, @e, @t, @exp)`);
+  const base = process.env.APP_BASE_URL || 'http://localhost:92';
+  const link = `${base}/?setpw=${token}`;
+  const tx = mailer();
+  if (!tx) { console.warn('   ! SMTP not configured — link generated but not emailed:', link); return { emailed: false, link }; }
+  await tx.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: 'Welcome to SmartDesk — set your password',
+    html: `<p>Welcome to SmartDesk.</p>
+           <p>Click the link below to set your password and activate your access. This link expires in 7 days.</p>
+           <p><a href="${link}">Set my password</a></p>
+           <p>If the button doesn't work, paste this into your browser:<br>${link}</p>`,
+  });
+  return { emailed: true, link };
+}
+
+// ── Health ────────────────────────────────────────────────────────────────────
+app.get('/api/health', async (req, res) => {
+  try { await getPool(); res.json({ success: true, db: dbConfig.server + '/' + dbConfig.database, smtp: !!mailer() }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.get('/api/assets/catalogue', (req, res) => res.json({ success: true, catalogue: ASSET_CATALOGUE }));
+
+/* ═══════════════════════ 1) ONBOARDING / USER-ID ═══════════════════════════ */
+app.post('/api/onboarding', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.fullName) return res.status(400).json({ success: false, error: 'Full name is required.' });
+    const p = await getPool();
+    const r = await p.request()
+      .input('FullName', sql.NVarChar, b.fullName)
+      .input('DOB', sql.Date, b.dob || null)
+      .input('Gender', sql.NVarChar, b.gender || null)
+      .input('PastCompany', sql.NVarChar, b.pastCompany || null)
+      .input('Profile', sql.NVarChar, b.profile || null)
+      .input('ManagerName', sql.NVarChar, b.managerName || null)
+      .input('Department', sql.NVarChar, b.department || null)
+      .input('JoiningDate', sql.Date, b.joiningDate || null)
+      .input('Phone', sql.NVarChar, b.phone || null)
+      .input('CreatedBy', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.Onboarding (FullName,DOB,Gender,PastCompany,Profile,ManagerName,Department,JoiningDate,Phone,CreatedBy)
+              OUTPUT INSERTED.* VALUES (@FullName,@DOB,@Gender,@PastCompany,@Profile,@ManagerName,@Department,@JoiningDate,@Phone,@CreatedBy)`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.get('/api/onboarding', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const p = await getPool();
+    const status = req.query.status;
+    const q = status
+      ? await p.request().input('s', sql.NVarChar, status).query(`SELECT * FROM dbo.Onboarding WHERE Status=@s ORDER BY CreatedAt DESC`)
+      : await p.request().query(`SELECT * FROM dbo.Onboarding ORDER BY CreatedAt DESC`);
+    res.json({ success: true, records: q.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.put('/api/onboarding/:id', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const b = req.body || {};
+    const p = await getPool();
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('FullName', sql.NVarChar, b.fullName)
+      .input('DOB', sql.Date, b.dob || null)
+      .input('Gender', sql.NVarChar, b.gender || null)
+      .input('PastCompany', sql.NVarChar, b.pastCompany || null)
+      .input('Profile', sql.NVarChar, b.profile || null)
+      .input('ManagerName', sql.NVarChar, b.managerName || null)
+      .input('Department', sql.NVarChar, b.department || null)
+      .input('JoiningDate', sql.Date, b.joiningDate || null)
+      .input('Phone', sql.NVarChar, b.phone || null)
+      .query(`UPDATE dbo.Onboarding SET FullName=@FullName,DOB=@DOB,Gender=@Gender,PastCompany=@PastCompany,
+              Profile=@Profile,ManagerName=@ManagerName,Department=@Department,JoiningDate=@JoiningDate,Phone=@Phone,
+              UpdatedAt=GETDATE() WHERE Id=@Id AND Status='pending'`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Mark onboarded + assign Employee ID -> saves the person permanently
+app.post('/api/onboarding/:id/complete', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const empId = String((req.body || {}).empId || '').trim();
+    if (!empId) return res.status(400).json({ success: false, error: 'Employee ID is required to complete onboarding.' });
+    const p = await getPool();
+    const r = await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('EmpId', sql.NVarChar, empId)
+      .query(`UPDATE dbo.Onboarding SET EmpId=@EmpId, Status='onboarded', UpdatedAt=GETDATE()
+              OUTPUT INSERTED.* WHERE Id=@Id`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ 2) ASSET ALLOCATION ═══════════════════════════════ */
+app.post('/api/assets', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const b = req.body || {};
+    const empId = String(b.empId || '').trim();
+    const email = String(b.email || '').trim();
+    const items = Array.isArray(b.items) ? b.items : []; // array of item keys HR ticked
+    if (!empId || !email) return res.status(400).json({ success: false, error: 'Employee ID and email are required.' });
+    const p = await getPool();
+    const reqRow = await p.request()
+      .input('EmpId', sql.NVarChar, empId)
+      .input('Email', sql.NVarChar, email)
+      .input('CreatedBy', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.AssetRequests (EmpId,Email,CreatedBy) OUTPUT INSERTED.* VALUES (@EmpId,@Email,@CreatedBy)`);
+    const reqId = reqRow.recordset[0].Id;
+    for (const cat of ASSET_CATALOGUE) {
+      const requested = items.includes(cat.key) ? 1 : 0;
+      await p.request()
+        .input('RequestId', sql.Int, reqId)
+        .input('ItemKey', sql.NVarChar, cat.key)
+        .input('ItemLabel', sql.NVarChar, cat.label)
+        .input('Requested', sql.Bit, requested)
+        .query(`INSERT INTO dbo.AssetItems (RequestId,ItemKey,ItemLabel,Requested) VALUES (@RequestId,@ItemKey,@ItemLabel,@Requested)`);
+    }
+    res.json({ success: true, requestId: reqId });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+async function loadAssetRequest(p, id) {
+  const r = await p.request().input('Id', sql.Int, id).query(`SELECT * FROM dbo.AssetRequests WHERE Id=@Id`);
+  if (!r.recordset[0]) return null;
+  const items = await p.request().input('RequestId', sql.Int, id).query(`SELECT * FROM dbo.AssetItems WHERE RequestId=@RequestId ORDER BY Id`);
+  return { ...r.recordset[0], items: items.recordset };
+}
+
+app.get('/api/assets', async (req, res) => {
+  if (!can(req, 'hr', 'it')) return deny(res);
+  try {
+    const p = await getPool();
+    const rows = await p.request().query(`SELECT * FROM dbo.AssetRequests ORDER BY CreatedAt DESC`);
+    res.json({ success: true, records: rows.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.get('/api/assets/:id', async (req, res) => {
+  try { const p = await getPool(); const r = await loadAssetRequest(p, req.params.id);
+    if (!r) return res.status(404).json({ success: false, error: 'Not found.' });
+    res.json({ success: true, record: r });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Employee fetches their own asset request
+app.get('/api/assets/by-emp/:empId', async (req, res) => {
+  try {
+    const p = await getPool();
+    const rows = await p.request().input('EmpId', sql.NVarChar, req.params.empId)
+      .query(`SELECT TOP 1 * FROM dbo.AssetRequests WHERE EmpId=@EmpId ORDER BY CreatedAt DESC`);
+    if (!rows.recordset[0]) return res.json({ success: true, record: null });
+    res.json({ success: true, record: await loadAssetRequest(p, rows.recordset[0].Id) });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// HR/IT: send credentials (set-password link) to the employee email
+app.post('/api/assets/:id/send-credentials', async (req, res) => {
+  if (!can(req, 'hr', 'it')) return deny(res);
+  try {
+    const p = await getPool();
+    const r = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.AssetRequests WHERE Id=@Id`);
+    const row = r.recordset[0];
+    if (!row) return res.status(404).json({ success: false, error: 'Not found.' });
+    const out = await sendSetPasswordLink(row.Email, row.EmpId);
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.AssetRequests SET Status='credentials_sent', UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true, emailed: out.emailed, link: out.emailed ? undefined : out.link });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Employee ticks received / not-required (cannot edit once submitted)
+app.put('/api/assets/:id/employee-confirm', async (req, res) => {
+  try {
+    const p = await getPool();
+    const cur = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT Status FROM dbo.AssetRequests WHERE Id=@Id`);
+    if (!cur.recordset[0]) return res.status(404).json({ success: false, error: 'Not found.' });
+    if (cur.recordset[0].Status === 'submitted' && !can(req, 'hr', 'it'))
+      return res.status(403).json({ success: false, error: 'This request is submitted and locked. Contact HR/IT.' });
+    const updates = Array.isArray((req.body || {}).items) ? req.body.items : [];
+    for (const it of updates) {
+      await p.request()
+        .input('RequestId', sql.Int, req.params.id)
+        .input('ItemKey', sql.NVarChar, it.key)
+        .input('Received', sql.Bit, it.received ? 1 : 0)
+        .input('NotRequired', sql.Bit, it.notRequired ? 1 : 0)
+        .query(`UPDATE dbo.AssetItems SET Received=@Received, NotRequired=@NotRequired WHERE RequestId=@RequestId AND ItemKey=@ItemKey`);
+    }
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.AssetRequests SET Status=CASE WHEN Status='submitted' THEN 'submitted' ELSE 'employee_review' END, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Employee submits (locks the request to HR/IT only)
+app.post('/api/assets/:id/submit', async (req, res) => {
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.AssetRequests SET Status='submitted', SubmittedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ 3) APPLICATION & RIGHTS ═══════════════════════════ */
+app.post('/api/access', async (req, res) => {
+  if (!can(req, 'hr', 'it', 'employee')) return deny(res);
+  try {
+    const b = req.body || {};
+    const p = await getPool();
+    const r = await p.request()
+      .input('RequestType', sql.NVarChar, b.requestType || 'new')
+      .input('RequesterName', sql.NVarChar, b.requesterName || null)
+      .input('Company', sql.NVarChar, b.company || null)
+      .input('Department', sql.NVarChar, b.department || null)
+      .input('EmpId', sql.NVarChar, b.empId || null)
+      .input('Email', sql.NVarChar, b.email || null)
+      .input('WorkLocation', sql.NVarChar, b.workLocation || null)
+      .input('Language', sql.NVarChar, b.language || null)
+      .input('ScopeOfWork', sql.NVarChar, b.scopeOfWork || null)
+      .input('Applications', sql.NVarChar, JSON.stringify(b.applications || []))
+      .input('Details', sql.NVarChar, b.details || null)
+      .input('CreatedBy', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.AccessRequests
+              (RequestType,RequesterName,Company,Department,EmpId,Email,WorkLocation,Language,ScopeOfWork,Applications,Details,CreatedBy)
+              OUTPUT INSERTED.* VALUES
+              (@RequestType,@RequesterName,@Company,@Department,@EmpId,@Email,@WorkLocation,@Language,@ScopeOfWork,@Applications,@Details,@CreatedBy)`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.get('/api/access', async (req, res) => {
+  if (!can(req, 'hr', 'it', 'manager')) return deny(res);
+  try { const p = await getPool();
+    const rows = await p.request().query(`SELECT * FROM dbo.AccessRequests ORDER BY CreatedAt DESC`);
+    res.json({ success: true, records: rows.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.get('/api/access/:id', async (req, res) => {
+  try { const p = await getPool();
+    const r = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.AccessRequests WHERE Id=@Id`);
+    if (!r.recordset[0]) return res.status(404).json({ success: false, error: 'Not found.' });
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Manager: add optional note + approve (pending_manager -> manager_approved)
+app.post('/api/access/:id/manager-approve', async (req, res) => {
+  if (!can(req, 'manager')) return deny(res);
+  try { const p = await getPool();
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('Note', sql.NVarChar, (req.body || {}).note || null)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.AccessRequests SET Status='manager_approved', ManagerNote=@Note,
+              ManagerApprovedBy=@By, ManagerApprovedAt=GETDATE(), UpdatedAt=GETDATE()
+              WHERE Id=@Id AND Status='pending_manager'`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// IT: mark given (manager_approved -> it_given)
+app.post('/api/access/:id/it-given', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try { const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id).input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.AccessRequests SET Status='it_given', ITGivenBy=@By, ITGivenAt=GETDATE(), UpdatedAt=GETDATE()
+              WHERE Id=@Id AND Status='manager_approved'`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// IT: final submit (it_given -> submitted)
+app.post('/api/access/:id/submit', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try { const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.AccessRequests SET Status='submitted', UpdatedAt=GETDATE() WHERE Id=@Id AND Status='it_given'`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ APP-USER LOGIN ════════════════════════════════════ */
+// Verifies a password that an employee set via the set-password link.
+// Accepts either Employee ID or email as the identifier.
+app.post('/api/login', async (req, res) => {
+  try {
+    const id = String((req.body || {}).id || '').trim();
+    const pw = String((req.body || {}).password || '');
+    if (!id || !pw) return res.status(400).json({ success: false, error: 'Missing credentials.' });
+    const p = await getPool();
+    const r = await p.request().input('id', sql.NVarChar, id)
+      .query(`SELECT TOP 1 * FROM dbo.AppUsers WHERE EmpId=@id OR Email=@id`);
+    const row = r.recordset[0];
+    if (!row) return res.json({ success: false, error: 'No account found. Use the set-password link from your email.' });
+    const [salt, hash] = String(row.PasswordHash).split(':');
+    const test = crypto.scryptSync(pw, salt, 32).toString('hex');
+    if (test !== hash) return res.json({ success: false, error: 'Incorrect password.' });
+    res.json({ success: true, user: { empId: row.EmpId, email: row.Email, role: 'employee' } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ SET-PASSWORD LINK ═════════════════════════════════ */
+app.get('/api/set-password/validate', async (req, res) => {
+  try {
+    const token = String(req.query.token || '');
+    const p = await getPool();
+    const r = await p.request().input('t', sql.NVarChar, token)
+      .query(`SELECT TOP 1 * FROM dbo.SetPasswordTokens WHERE Token=@t`);
+    const row = r.recordset[0];
+    if (!row) return res.json({ success: false, error: 'Invalid link.' });
+    if (row.UsedAt) return res.json({ success: false, error: 'This link has already been used.' });
+    if (new Date(row.ExpiresAt) < new Date()) return res.json({ success: false, error: 'This link has expired.' });
+    res.json({ success: true, email: row.Email, empId: row.EmpId });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.post('/api/set-password', async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password || String(password).length < 6)
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters.' });
+    const p = await getPool();
+    const r = await p.request().input('t', sql.NVarChar, token).query(`SELECT TOP 1 * FROM dbo.SetPasswordTokens WHERE Token=@t`);
+    const row = r.recordset[0];
+    if (!row || row.UsedAt || new Date(row.ExpiresAt) < new Date())
+      return res.status(400).json({ success: false, error: 'This link is invalid or expired.' });
+    const hash = hashPw(String(password));
+    const existing = await p.request().input('e', sql.NVarChar, row.Email).query(`SELECT TOP 1 Id FROM dbo.AppUsers WHERE Email=@e`);
+    if (existing.recordset[0]) {
+      await p.request().input('e', sql.NVarChar, row.Email).input('h', sql.NVarChar, hash)
+        .query(`UPDATE dbo.AppUsers SET PasswordHash=@h, UpdatedAt=GETDATE() WHERE Email=@e`);
+    } else {
+      await p.request().input('emp', sql.NVarChar, row.EmpId || null).input('e', sql.NVarChar, row.Email).input('h', sql.NVarChar, hash)
+        .query(`INSERT INTO dbo.AppUsers (EmpId,Email,PasswordHash) VALUES (@emp,@e,@h)`);
+    }
+    await p.request().input('id', sql.Int, row.Id).query(`UPDATE dbo.SetPasswordTokens SET UsedAt=GETDATE() WHERE Id=@id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 5093;
+(async () => {
+  try {
+    await getPool();
+    await migrate();
+  } catch (err) {
+    console.error('   ! DB connection/migration failed (fill in .env): ', err.message);
+  }
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n✅ SmartDesk User Rights & Assets API`);
+    console.log(`   Local:   http://localhost:${PORT}/api/health  (port ${PORT})`);
+    console.log(`   DB:      ${dbConfig.server} → ${dbConfig.database} as ${dbConfig.user || '(unset)'}`);
+    console.log(`   SMTP:    ${process.env.SMTP_HOST ? process.env.SMTP_HOST : '(unset — links logged to console)'}\n`);
+  });
+})();

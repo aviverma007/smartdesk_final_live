@@ -1,0 +1,389 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth, URA_API } from '../context/AuthContext';
+
+/* ── Static config (mirrors backend) ─────────────────────────────────────── */
+const ASSET_CATALOGUE = [
+  { key: 'laptop', label: 'Laptop' },
+  { key: 'laptop_bag', label: 'Laptop Bag' },
+  { key: 'mouse', label: 'Mouse' },
+  { key: 'charger', label: 'Charger' },
+  { key: 'onboarding_kit', label: 'Onboarding Kit' },
+];
+const APPLICATIONS = ['SAP', 'Sales Force', '4QT', 'Farvision', 'Novade', 'QMS/Vendor Globe', 'DMS', 'Tally', 'Reloy', 'ManageEngine', 'Computax'];
+const REQUEST_TYPES = [
+  { key: 'new', label: 'New ID / Application' },
+  { key: 'authorization', label: 'Authorization' },
+  { key: 'deletion', label: 'ID Deletion' },
+];
+
+/* ── Status display ──────────────────────────────────────────────────────── */
+const STATUS_META = {
+  pending: { label: 'Pending', color: 'var(--accent-orange)' },
+  onboarded: { label: 'Onboarded', color: 'var(--accent-green)' },
+  credentials_sent: { label: 'Credentials Sent', color: 'var(--accent-sky)' },
+  employee_review: { label: 'With Employee', color: 'var(--accent-sky)' },
+  submitted: { label: 'Submitted', color: 'var(--accent-green)' },
+  pending_manager: { label: 'Awaiting Manager', color: 'var(--accent-orange)' },
+  manager_approved: { label: 'Manager Approved', color: 'var(--accent-sky)' },
+  it_given: { label: 'IT — Given', color: 'var(--accent-teal)' },
+};
+const Pill = ({ status }) => {
+  const m = STATUS_META[status] || { label: status, color: 'var(--text-muted)' };
+  return <span style={{ fontSize: '.72rem', fontWeight: 700, color: m.color, background: `color-mix(in srgb, ${m.color} 14%, transparent)`,
+    border: `1px solid ${m.color}`, borderRadius: 20, padding: '3px 10px', whiteSpace: 'nowrap' }}>{m.label}</span>;
+};
+
+/* ── Shared styles ───────────────────────────────────────────────────────── */
+const card = { background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: 20, marginBottom: 16 };
+const label = { display: 'block', fontSize: '.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, fontFamily: "'DM Sans',sans-serif" };
+const input = { width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '.88rem', fontFamily: "'DM Sans',sans-serif", outline: 'none', marginBottom: 12 };
+const primaryBtn = { padding: '10px 18px', borderRadius: 9, border: 'none', cursor: 'pointer', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '.86rem' };
+const ghostBtn = { ...primaryBtn, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' };
+const h2 = { fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)', margin: '0 0 4px' };
+
+/* ── API helper (sends role headers) ─────────────────────────────────────── */
+function useApi() {
+  const { user } = useAuth();
+  return useCallback(async (path, method = 'GET', body) => {
+    const res = await fetch(`${URA_API}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return res.json();
+  }, [user]);
+}
+
+/* ═══════════════════════════ 1) ONBOARDING ═════════════════════════════════ */
+const OnboardingView = ({ onBack }) => {
+  const api = useApi();
+  const blank = { fullName: '', dob: '', gender: '', pastCompany: '', profile: '', managerName: '', department: '', joiningDate: '', phone: '' };
+  const [form, setForm] = useState(blank);
+  const [records, setRecords] = useState([]);
+  const [msg, setMsg] = useState('');
+  const [empIds, setEmpIds] = useState({});
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const load = useCallback(async () => { const d = await api('/onboarding'); if (d.success) setRecords(d.records); }, [api]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    if (!form.fullName.trim()) return setMsg('Full name is required.');
+    const d = await api('/onboarding', 'POST', form);
+    if (d.success) { setForm(blank); setMsg('Saved — pending onboarding.'); load(); } else setMsg(d.error || 'Could not save.');
+  };
+  const complete = async (id) => {
+    const empId = (empIds[id] || '').trim();
+    if (!empId) return setMsg('Enter an Employee ID to complete onboarding.');
+    const d = await api(`/onboarding/${id}/complete`, 'POST', { empId });
+    if (d.success) { setMsg('Onboarded and saved.'); load(); } else setMsg(d.error || 'Could not complete.');
+  };
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="User ID Allocation — Onboarding" subtitle="Capture a new joiner before onboarding. Assign the Employee ID once they join." />
+      <div style={card}>
+        <h2 style={h2}>New joiner details</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+          <Field l="Full name *"><input style={input} value={form.fullName} onChange={e => set('fullName', e.target.value)} /></Field>
+          <Field l="Date of birth"><input type="date" style={input} value={form.dob} onChange={e => set('dob', e.target.value)} /></Field>
+          <Field l="Gender"><select style={input} value={form.gender} onChange={e => set('gender', e.target.value)}><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></Field>
+          <Field l="Past company"><input style={input} value={form.pastCompany} onChange={e => set('pastCompany', e.target.value)} /></Field>
+          <Field l="Profile / role"><input style={input} value={form.profile} onChange={e => set('profile', e.target.value)} /></Field>
+          <Field l="Manager name"><input style={input} value={form.managerName} onChange={e => set('managerName', e.target.value)} /></Field>
+          <Field l="Department"><input style={input} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
+          <Field l="Joining date"><input type="date" style={input} value={form.joiningDate} onChange={e => set('joiningDate', e.target.value)} /></Field>
+          <Field l="Phone number"><input style={input} value={form.phone} onChange={e => set('phone', e.target.value)} /></Field>
+        </div>
+        <button style={primaryBtn} onClick={create}>Save joiner</button>
+        {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+      </div>
+
+      <div style={card}>
+        <h2 style={h2}>Joiners</h2>
+        {records.length === 0 && <Empty text="No joiners yet." />}
+        {records.map(r => (
+          <div key={r.Id} style={rowStyle}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.FullName}</div>
+              <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[r.Department, r.ManagerName, r.EmpId && `ID: ${r.EmpId}`].filter(Boolean).join(' · ')}</div>
+            </div>
+            <Pill status={r.Status} />
+            {r.Status === 'pending' && (
+              <div style={{ display: 'flex', gap: 8, marginLeft: 12 }}>
+                <input placeholder="Employee ID" style={{ ...input, marginBottom: 0, width: 130 }}
+                  value={empIds[r.Id] || ''} onChange={e => setEmpIds(s => ({ ...s, [r.Id]: e.target.value }))} />
+                <button style={primaryBtn} onClick={() => complete(r.Id)}>Complete</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════ 2) ASSETS ═════════════════════════════════════ */
+const AssetsView = ({ onBack }) => {
+  const api = useApi();
+  const { isHr, isIt, isAdmin, user } = useAuth();
+  const staff = isHr || isIt || isAdmin;
+  const [empId, setEmpId] = useState('');
+  const [email, setEmail] = useState('');
+  const [picked, setPicked] = useState([]);
+  const [list, setList] = useState([]);
+  const [detail, setDetail] = useState(null);
+  const [msg, setMsg] = useState('');
+
+  const loadList = useCallback(async () => { const d = await api('/assets'); if (d.success) setList(d.records); }, [api]);
+  const loadMine = useCallback(async () => { const d = await api(`/assets/by-emp/${encodeURIComponent(user?.empId || '')}`); if (d.success) setDetail(d.record); }, [api, user]);
+  useEffect(() => { if (staff) loadList(); else loadMine(); }, [staff, loadList, loadMine]);
+
+  const toggle = (k) => setPicked(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
+  const create = async () => {
+    if (!empId.trim() || !email.trim()) return setMsg('Employee ID and email are required.');
+    const d = await api('/assets', 'POST', { empId: empId.trim(), email: email.trim(), items: picked });
+    if (d.success) { setMsg('Asset request created.'); setEmpId(''); setEmail(''); setPicked([]); loadList(); } else setMsg(d.error || 'Could not create.');
+  };
+  const openDetail = async (id) => { const d = await api(`/assets/${id}`); if (d.success) setDetail(d.record); };
+  const sendCreds = async (id) => { const d = await api(`/assets/${id}/send-credentials`, 'POST'); setMsg(d.success ? (d.emailed ? 'Set-password link emailed.' : `Link (SMTP off): ${d.link}`) : (d.error || 'Failed.')); loadList(); };
+
+  // employee confirm
+  const [confirmItems, setConfirmItems] = useState({});
+  useEffect(() => {
+    if (detail?.items) { const m = {}; detail.items.forEach(i => m[i.ItemKey] = { received: !!i.Received, notRequired: !!i.NotRequired }); setConfirmItems(m); }
+  }, [detail]);
+  const locked = detail?.Status === 'submitted' && !staff;
+  const saveConfirm = async () => {
+    const items = Object.entries(confirmItems).map(([key, v]) => ({ key, received: v.received, notRequired: v.notRequired }));
+    const d = await api(`/assets/${detail.Id}/employee-confirm`, 'PUT', { items });
+    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) (staff ? openDetail(detail.Id) : loadMine());
+  };
+  const submitConfirm = async () => {
+    await saveConfirm();
+    const d = await api(`/assets/${detail.Id}/submit`, 'POST');
+    setMsg(d.success ? 'Submitted. The list is now locked.' : (d.error || 'Failed.')); if (d.success) (staff ? openDetail(detail.Id) : loadMine());
+  };
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Asset Management" subtitle={staff ? 'Request assets for an employee, then send their welcome link.' : 'Confirm the assets you received.'} />
+
+      {staff && (
+        <div style={card}>
+          <h2 style={h2}>New asset request</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+            <Field l="Employee ID *"><input style={input} value={empId} onChange={e => setEmpId(e.target.value)} /></Field>
+            <Field l="Employee email *"><input style={input} value={email} onChange={e => setEmail(e.target.value)} /></Field>
+          </div>
+          <div style={label}>Assets to allocate</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            {ASSET_CATALOGUE.map(a => (
+              <label key={a.key} style={chip(picked.includes(a.key))}>
+                <input type="checkbox" checked={picked.includes(a.key)} onChange={() => toggle(a.key)} style={{ marginRight: 7 }} />{a.label}
+              </label>
+            ))}
+          </div>
+          <button style={primaryBtn} onClick={create}>Create request</button>
+          {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+        </div>
+      )}
+
+      {staff && (
+        <div style={card}>
+          <h2 style={h2}>Asset requests</h2>
+          {list.length === 0 && <Empty text="No requests yet." />}
+          {list.map(r => (
+            <div key={r.Id} style={rowStyle}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>ID {r.EmpId}</div>
+                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{r.Email}</div>
+              </div>
+              <Pill status={r.Status} />
+              <button style={{ ...ghostBtn, marginLeft: 10 }} onClick={() => openDetail(r.Id)}>View</button>
+              {isIt || isHr || isAdmin ? <button style={{ ...primaryBtn, marginLeft: 8 }} onClick={() => sendCreds(r.Id)}>Send welcome link</button> : null}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {detail && (
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={h2}>Assets for {detail.EmpId}</h2><Pill status={detail.Status} />
+          </div>
+          {locked && <p style={{ fontSize: '.84rem', color: 'var(--accent-orange)' }}>Submitted and locked. Contact HR/IT for changes.</p>}
+          <div style={{ marginTop: 12 }}>
+            {detail.items?.filter(i => i.Requested || staff).map(i => (
+              <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}{i.Requested ? '' : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (not requested)</span>}</div>
+                <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
+                  <input type="checkbox" disabled={locked || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
+                    onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: e.target.checked, notRequired: false } }))} /> Received
+                </label>
+                <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
+                  <input type="checkbox" disabled={locked || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
+                    onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: false, notRequired: e.target.checked } }))} /> Not required
+                </label>
+              </div>
+            ))}
+          </div>
+          {!locked && (
+            <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
+              <button style={ghostBtn} onClick={saveConfirm}>Save</button>
+              {!staff && <button style={primaryBtn} onClick={submitConfirm}>Submit</button>}
+            </div>
+          )}
+          {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════════════ 3) ACCESS / RIGHTS ════════════════════════════ */
+const AccessView = ({ onBack }) => {
+  const api = useApi();
+  const { isHr, isIt, isManager, isAdmin, isEmployee } = useAuth();
+  const canCreate = isHr || isIt || isEmployee || isAdmin;
+  const blank = { requestType: 'new', requesterName: '', company: '', department: '', empId: '', email: '', workLocation: '', language: 'EN-English', scopeOfWork: '', applications: [], details: '' };
+  const [form, setForm] = useState(blank);
+  const [list, setList] = useState([]);
+  const [notes, setNotes] = useState({});
+  const [msg, setMsg] = useState('');
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const toggleApp = (a) => setForm(f => ({ ...f, applications: f.applications.includes(a) ? f.applications.filter(x => x !== a) : [...f.applications, a] }));
+  const load = useCallback(async () => { const d = await api('/access'); if (d.success) setList(d.records); }, [api]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    const d = await api('/access', 'POST', form);
+    if (d.success) { setForm(blank); setMsg('Request submitted — awaiting manager approval.'); load(); } else setMsg(d.error || 'Could not submit.');
+  };
+  const approve = async (id) => { const d = await api(`/access/${id}/manager-approve`, 'POST', { note: notes[id] || '' }); setMsg(d.success ? 'Approved.' : (d.error || 'Failed.')); load(); };
+  const given = async (id) => { const d = await api(`/access/${id}/it-given`, 'POST'); setMsg(d.success ? 'Marked as given.' : (d.error || 'Failed.')); load(); };
+  const submit = async (id) => { const d = await api(`/access/${id}/submit`, 'POST'); setMsg(d.success ? 'Submitted.' : (d.error || 'Failed.')); load(); };
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Application & Rights Allocation" subtitle="Request access. Manager approves, then IT provisions." />
+
+      {canCreate && (
+        <div style={card}>
+          <h2 style={h2}>Request form</h2>
+          <div style={{ display: 'flex', gap: 18, margin: '12px 0' }}>
+            {REQUEST_TYPES.map(t => (
+              <label key={t.key} style={{ fontSize: '.86rem', color: 'var(--text-primary)' }}>
+                <input type="radio" name="rtype" checked={form.requestType === t.key} onChange={() => set('requestType', t.key)} style={{ marginRight: 6 }} />{t.label}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <Field l="Requester name"><input style={input} value={form.requesterName} onChange={e => set('requesterName', e.target.value)} /></Field>
+            <Field l="Company"><input style={input} value={form.company} onChange={e => set('company', e.target.value)} /></Field>
+            <Field l="Department"><input style={input} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
+            <Field l="Employee ID"><input style={input} value={form.empId} onChange={e => set('empId', e.target.value)} /></Field>
+            <Field l="Email"><input style={input} value={form.email} onChange={e => set('email', e.target.value)} /></Field>
+            <Field l="Work location"><input style={input} value={form.workLocation} onChange={e => set('workLocation', e.target.value)} /></Field>
+          </div>
+          <div style={label}>Applications</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            {APPLICATIONS.map(a => (
+              <label key={a} style={chip(form.applications.includes(a))}>
+                <input type="checkbox" checked={form.applications.includes(a)} onChange={() => toggleApp(a)} style={{ marginRight: 7 }} />{a}
+              </label>
+            ))}
+          </div>
+          <Field l="Scope of work & function"><textarea style={{ ...input, minHeight: 60 }} value={form.scopeOfWork} onChange={e => set('scopeOfWork', e.target.value)} /></Field>
+          <Field l="Description of required authorization"><textarea style={{ ...input, minHeight: 60 }} value={form.details} onChange={e => set('details', e.target.value)} /></Field>
+          <button style={primaryBtn} onClick={create}>Submit request</button>
+          {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+        </div>
+      )}
+
+      <div style={card}>
+        <h2 style={h2}>Requests</h2>
+        {list.length === 0 && <Empty text="No requests yet." />}
+        {list.map(r => {
+          let apps = []; try { apps = JSON.parse(r.Applications || '[]'); } catch {}
+          return (
+            <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.RequesterName || r.EmpId || `Request #${r.Id}`} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}>· {r.RequestType}</span></div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{apps.join(', ') || '—'}</div>
+                </div>
+                <Pill status={r.Status} />
+              </div>
+              {r.ManagerNote && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>Manager note: {r.ManagerNote}</div>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                {(isManager || isAdmin) && r.Status === 'pending_manager' && (
+                  <>
+                    <input placeholder="Optional note" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
+                    <button style={primaryBtn} onClick={() => approve(r.Id)}>Approve</button>
+                  </>
+                )}
+                {(isIt || isAdmin) && r.Status === 'manager_approved' && <button style={primaryBtn} onClick={() => given(r.Id)}>Mark given</button>}
+                {(isIt || isAdmin) && r.Status === 'it_given' && <button style={primaryBtn} onClick={() => submit(r.Id)}>Submit</button>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/* ── Small helpers ───────────────────────────────────────────────────────── */
+const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border)' };
+const Field = ({ l, children }) => <div><div style={label}>{l}</div>{children}</div>;
+const Empty = ({ text }) => <p style={{ color: 'var(--text-muted)', fontSize: '.88rem', padding: '8px 0' }}>{text}</p>;
+const chip = (on) => ({ display: 'inline-flex', alignItems: 'center', padding: '7px 13px', borderRadius: 9, cursor: 'pointer',
+  fontSize: '.84rem', fontFamily: "'DM Sans',sans-serif", border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+  background: on ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'var(--bg-base)', color: on ? 'var(--accent)' : 'var(--text-primary)' });
+const BackBar = ({ onBack, title, subtitle }) => (
+  <div style={{ marginBottom: 18 }}>
+    <button onClick={onBack} style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem', marginBottom: 12 }}>← Back</button>
+    <h1 style={{ ...h2, fontSize: '1.5rem' }}>{title}</h1>
+    <p style={{ color: 'var(--text-muted)', fontSize: '.9rem', margin: 0 }}>{subtitle}</p>
+  </div>
+);
+
+/* ── Landing buttons ─────────────────────────────────────────────────────── */
+const BUTTONS = [
+  { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
+  { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['hr', 'it', 'admin', 'employee'] },
+  { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['hr', 'it', 'manager', 'admin', 'employee'] },
+];
+
+const UserRightsAssets = () => {
+  const { user } = useAuth();
+  const r = user?.role || '';
+  const [view, setView] = useState('home');
+  const visible = BUTTONS.filter(b => b.roles.includes(r));
+
+  if (view === 'onboarding') return <OnboardingView onBack={() => setView('home')} />;
+  if (view === 'assets') return <AssetsView onBack={() => setView('home')} />;
+  if (view === 'access') return <AccessView onBack={() => setView('home')} />;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '.68rem', fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 5 }}>HR · IT · Manager</p>
+        <h1 style={{ ...h2, fontSize: '1.6rem' }}>User Rights & Assets</h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '.9rem', margin: 0 }}>Onboarding, asset allocation, and application access — each with two levels of approval.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 16 }}>
+        {visible.map(b => (
+          <div key={b.id} onClick={() => setView(b.id)} style={{ background: b.grad, borderRadius: 14, padding: 22, cursor: 'pointer', color: '#fff',
+            minHeight: 130, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 6px 22px rgba(0,0,0,0.28)' }}>
+            <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: '1.15rem' }}>{b.title}</div>
+            <div style={{ fontSize: '.84rem', opacity: .85, marginTop: 8 }}>{b.desc}</div>
+          </div>
+        ))}
+        {visible.length === 0 && <Empty text="Your role has no actions here. Sign in as HR, IT, or Manager." />}
+      </div>
+    </div>
+  );
+};
+
+export default UserRightsAssets;
