@@ -486,6 +486,7 @@ const AccessView = ({ onBack }) => {
   const [viewing, setViewing] = useState(null);
   const [acSearch, setAcSearch] = useState('');
   const [acFilter, setAcFilter] = useState('all'); // all | pending | approved
+  const [showForm, setShowForm] = useState(false);
   const [msg, setMsg] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleApp = (a) => setForm(f => ({ ...f, applications: f.applications.includes(a) ? f.applications.filter(x => x !== a) : [...f.applications, a] }));
@@ -494,7 +495,7 @@ const AccessView = ({ onBack }) => {
 
   const create = async () => {
     const d = await api('/access', 'POST', form);
-    if (d.success) { setForm(blank); setMsg('Request submitted — awaiting IT approval.'); load(); } else setMsg(d.error || 'Could not submit.');
+    if (d.success) { setForm(blank); setShowForm(false); setMsg('Request submitted — awaiting IT approval.'); load(); } else setMsg(d.error || 'Could not submit.');
   };
   const decide = async (id, action) => {
     const d = await api(`/access/${id}/it-${action}`, 'POST', { remarks: notes[id] || '' });
@@ -505,7 +506,11 @@ const AccessView = ({ onBack }) => {
     <div>
       <BackBar onBack={onBack} title="Application & Rights Allocation" subtitle={canCreate ? 'Fill the form to request application access. IT will review and approve.' : (canApprove ? 'Review requests, add remarks, and approve.' : 'View application & rights requests.')} />
 
-      {canCreate && (
+      {canCreate && list.length > 0 && !showForm && (
+        <button style={{ ...primaryBtn, marginBottom: 16 }} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New form</button>
+      )}
+
+      {canCreate && (list.length === 0 || showForm) && (
         <div style={card}>
           <h2 style={h2}>Request form</h2>
           <div style={{ display: 'flex', gap: 18, margin: '12px 0' }}>
@@ -533,7 +538,10 @@ const AccessView = ({ onBack }) => {
           </div>
           <Field l="Scope of work & function"><textarea style={{ ...input, minHeight: 60 }} value={form.scopeOfWork} onChange={e => set('scopeOfWork', e.target.value)} /></Field>
           <Field l="Description of required authorization"><textarea style={{ ...input, minHeight: 60 }} value={form.details} onChange={e => set('details', e.target.value)} /></Field>
-          <button style={primaryBtn} onClick={create}>Submit request</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={primaryBtn} onClick={create}>Submit request</button>
+            {list.length > 0 && <button style={ghostBtn} onClick={() => { setShowForm(false); setMsg(''); }}>Cancel</button>}
+          </div>
           {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
         </div>
       )}
