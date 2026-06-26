@@ -137,6 +137,8 @@ const AssetsView = ({ onBack }) => {
   const [email, setEmail] = useState('');
   const [picked, setPicked] = useState([]);
   const [list, setList] = useState([]);
+  const [aSearch, setASearch] = useState('');
+  const [aFilter, setAFilter] = useState('all'); // all | pending | submitted
   const [detail, setDetail] = useState(null);
   const [msg, setMsg] = useState('');
 
@@ -228,18 +230,30 @@ const AssetsView = ({ onBack }) => {
       {staff && (
         <div style={card}>
           <h2 style={h2}>Asset requests</h2>
-          {list.length === 0 && <Empty text="No requests yet." />}
-          {list.map(r => (
-            <div key={r.Id} style={rowStyle}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>ID {r.EmpId}</div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{r.Email}</div>
-              </div>
-              <Pill status={r.Status} />
-              <button style={{ ...ghostBtn, marginLeft: 10 }} onClick={() => openDetail(r.Id)}>View</button>
-              {(isHr || isAdmin) ? <button style={{ ...primaryBtn, marginLeft: 8 }} onClick={() => sendCreds(r.Id)}>Send welcome link</button> : null}
-            </div>
-          ))}
+          <FilterBar search={aSearch} setSearch={setASearch} filter={aFilter} setFilter={setAFilter}
+            placeholder="Search by Employee ID or email…"
+            options={[{ key: 'all', label: 'All' }, { key: 'pending', label: 'Pending' }, { key: 'submitted', label: 'Submitted' }]} />
+          {(() => {
+            const shown = list.filter(r => {
+              const s = aSearch.trim().toLowerCase();
+              const matchSearch = !s || String(r.EmpId).toLowerCase().includes(s) || (r.Email || '').toLowerCase().includes(s);
+              const matchFilter = aFilter === 'all' || (aFilter === 'submitted' ? r.Status === 'submitted' : r.Status !== 'submitted');
+              return matchSearch && matchFilter;
+            });
+            return shown.length === 0
+              ? <Empty text="No matching requests." />
+              : shown.map(r => (
+                <div key={r.Id} style={rowStyle}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>ID {r.EmpId}</div>
+                    <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{r.Email}</div>
+                  </div>
+                  <Pill status={r.Status} />
+                  <button style={{ ...ghostBtn, marginLeft: 10 }} onClick={() => openDetail(r.Id)}>View</button>
+                  {(isHr || isAdmin) ? <button style={{ ...primaryBtn, marginLeft: 8 }} onClick={() => sendCreds(r.Id)}>Send welcome link</button> : null}
+                </div>
+              ));
+          })()}
         </div>
       )}
 
@@ -345,6 +359,8 @@ const AccessView = ({ onBack }) => {
   const [list, setList] = useState([]);
   const [notes, setNotes] = useState({});
   const [viewing, setViewing] = useState(null);
+  const [acSearch, setAcSearch] = useState('');
+  const [acFilter, setAcFilter] = useState('all'); // all | pending | approved
   const [msg, setMsg] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleApp = (a) => setForm(f => ({ ...f, applications: f.applications.includes(a) ? f.applications.filter(x => x !== a) : [...f.applications, a] }));
@@ -396,8 +412,19 @@ const AccessView = ({ onBack }) => {
 
       <div style={card}>
         <h2 style={h2}>Requests</h2>
-        {list.length === 0 && <Empty text="No requests yet." />}
-        {list.map(r => {
+        <FilterBar search={acSearch} setSearch={setAcSearch} filter={acFilter} setFilter={setAcFilter}
+          placeholder="Search by name, ID, email or app…"
+          options={[{ key: 'all', label: 'All' }, { key: 'pending', label: 'Pending' }, { key: 'approved', label: 'Approved' }]} />
+        {(() => {
+          const shown = list.filter(r => {
+            const s = acSearch.trim().toLowerCase();
+            const hay = `${r.RequesterName || ''} ${r.EmpId || ''} ${r.Email || ''} ${r.Applications || ''}`.toLowerCase();
+            const matchSearch = !s || hay.includes(s);
+            const matchFilter = acFilter === 'all' || (acFilter === 'approved' ? r.Status === 'approved' : r.Status !== 'approved');
+            return matchSearch && matchFilter;
+          });
+          if (shown.length === 0) return <Empty text="No matching requests." />;
+          return shown.map(r => {
           let apps = []; try { apps = JSON.parse(r.Applications || '[]'); } catch {}
           const approved = r.Status === 'approved';
           return (
@@ -446,7 +473,8 @@ const AccessView = ({ onBack }) => {
               )}
             </div>
           );
-        })}
+        });
+        })()}
       </div>
     </div>
   );
@@ -462,6 +490,20 @@ const ViewField = ({ l, v }) => (
   </div>
 );
 const Empty = ({ text }) => <p style={{ color: 'var(--text-muted)', fontSize: '.88rem', padding: '8px 0' }}>{text}</p>;
+const FilterBar = ({ search, setSearch, filter, setFilter, options, placeholder }) => (
+  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+    <input placeholder={placeholder} value={search} onChange={e => setSearch(e.target.value)} style={{ ...input, marginBottom: 0, maxWidth: 300 }} />
+    <div style={{ display: 'flex', gap: 8 }}>
+      {options.map(o => (
+        <button key={o.key} onClick={() => setFilter(o.key)} style={{ padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
+          fontSize: '.82rem', fontFamily: "'DM Sans',sans-serif",
+          border: `1px solid ${filter === o.key ? 'var(--accent)' : 'var(--border)'}`,
+          background: filter === o.key ? 'var(--accent)' : 'transparent',
+          color: filter === o.key ? '#fff' : 'var(--text-primary)' }}>{o.label}</button>
+      ))}
+    </div>
+  </div>
+);
 const chip = (on) => ({ display: 'inline-flex', alignItems: 'center', padding: '7px 13px', borderRadius: 9, cursor: 'pointer',
   fontSize: '.84rem', fontFamily: "'DM Sans',sans-serif", border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
   background: on ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'var(--bg-base)', color: on ? 'var(--accent)' : 'var(--text-primary)' });
