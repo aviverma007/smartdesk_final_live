@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, URA_API } from '../context/AuthContext';
+import { employeeAPI } from '../services/api';
 
 /* ── Static config (mirrors backend) ─────────────────────────────────────── */
 const ASSET_CATALOGUE = [
@@ -134,8 +135,34 @@ const AssetsView = ({ onBack }) => {
   const staff = isHr || isIt || isAdmin;     // can view all requests + send link
   const canCreate = isHr || isAdmin;          // only HR creates requests
   const [empId, setEmpId] = useState('');
+  const [empQuery, setEmpQuery] = useState('');
+  const [showDir, setShowDir] = useState(false);
+  const [directory, setDirectory] = useState([]);
   const [email, setEmail] = useState('');
   const [picked, setPicked] = useState([]);
+
+  // Load the employee directory (Excel + onboarded) for the picker — HR only
+  useEffect(() => {
+    if (!canCreate) return;
+    (async () => {
+      try {
+        const data = await employeeAPI.getAll();
+        let onb = [];
+        try {
+          const r = await fetch(`${URA_API}/onboarding/directory`); const j = await r.json();
+          if (j.success) onb = j.records.map(o => ({ id: o.EmpId, name: o.FullName, department: o.Department || '', email: '' }));
+        } catch (_) {}
+        const ex = new Set(data.map(e => String(e.id)));
+        setDirectory([...data, ...onb.filter(o => !ex.has(String(o.id)))]);
+      } catch (_) { setDirectory([]); }
+    })();
+  }, [canCreate]);
+  const dirMatches = empQuery.trim()
+    ? directory.filter(e => {
+        const s = empQuery.trim().toLowerCase();
+        return String(e.id).toLowerCase().includes(s) || (e.name || '').toLowerCase().includes(s);
+      }).slice(0, 8)
+    : [];
   const [list, setList] = useState([]);
   const [aSearch, setASearch] = useState('');
   const [aFilter, setAFilter] = useState('all'); // all | pending | submitted
@@ -150,7 +177,7 @@ const AssetsView = ({ onBack }) => {
   const create = async () => {
     if (!empId.trim() || !email.trim()) return setMsg('Employee ID and email are required.');
     const d = await api('/assets', 'POST', { empId: empId.trim(), email: email.trim(), items: picked });
-    if (d.success) { setMsg('Asset request created.'); setEmpId(''); setEmail(''); setPicked([]); loadList(); } else setMsg(d.error || 'Could not create.');
+    if (d.success) { setMsg('Asset request created.'); setEmpId(''); setEmpQuery(''); setEmail(''); setPicked([]); loadList(); } else setMsg(d.error || 'Could not create.');
   };
   const openDetail = async (id) => {
     if (detail?.Id === id) { setDetail(null); return; } // clicking View again hides it
@@ -211,7 +238,25 @@ const AssetsView = ({ onBack }) => {
         <div style={card}>
           <h2 style={h2}>New asset request</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
-            <Field l="Employee ID *"><input style={input} value={empId} onChange={e => setEmpId(e.target.value)} /></Field>
+            <Field l="Employee ID *">
+              <div style={{ position: 'relative' }}>
+                <input style={input} placeholder="Search name or ID…" value={empQuery}
+                  onChange={e => { setEmpQuery(e.target.value); setEmpId(e.target.value); setShowDir(true); }}
+                  onFocus={() => setShowDir(true)} onBlur={() => setTimeout(() => setShowDir(false), 150)} />
+                {showDir && dirMatches.length > 0 && (
+                  <div style={{ position: 'absolute', zIndex: 20, left: 0, right: 0, top: 44, background: 'var(--bg-base)',
+                    border: '1px solid var(--border)', borderRadius: 9, maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.18)' }}>
+                    {dirMatches.map(e => (
+                      <div key={e.id} onMouseDown={() => { setEmpId(String(e.id)); setEmail(e.email || ''); setEmpQuery(`${e.name || ''} (${e.id})`); setShowDir(false); }}
+                        style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '.86rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{e.name || '(no name)'}</span>
+                        <span style={{ color: 'var(--text-muted)' }}> · {e.id}{e.department ? ` · ${e.department}` : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Field>
             <Field l="Employee email *"><input style={input} value={email} onChange={e => setEmail(e.target.value)} /></Field>
           </div>
           <div style={label}>Assets to allocate</div>
