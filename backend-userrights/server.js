@@ -36,9 +36,9 @@ const dbConfig = {
   options: {
     trustServerCertificate: true,
     enableArithAbort: true,
-    encrypt: false,
-    // SQL Server 2014 uses old TLS for the login packet; modern Node/OpenSSL3
-    // rejects it by default and the socket hangs up. Allow the legacy minimum.
+    encrypt: true,
+    // SQL Server 2014 uses old TLS; modern Node/OpenSSL3 rejects it by default
+    // (socket hang up). Allow the legacy minimum and trust the self-signed cert.
     cryptoCredentialsDetails: { minVersion: 'TLSv1' },
   },
   pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
