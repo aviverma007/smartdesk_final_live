@@ -378,8 +378,8 @@ app.put('/api/assets/:id/employee-confirm', async (req, res) => {
     const p = await getPool();
     const cur = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT Status FROM dbo.AssetRequests WHERE Id=@Id`);
     if (!cur.recordset[0]) return res.status(404).json({ success: false, error: 'Not found.' });
-    if (cur.recordset[0].Status === 'submitted' && !can(req, 'hr', 'it'))
-      return res.status(403).json({ success: false, error: 'This request is submitted and locked. Contact HR/IT.' });
+    if (cur.recordset[0].Status === 'submitted' && role(req) !== 'admin')
+      return res.status(403).json({ success: false, error: 'Submitted and locked. Only an admin can change it.' });
     const updates = Array.isArray((req.body || {}).items) ? req.body.items : [];
     for (const it of updates) {
       await p.request()

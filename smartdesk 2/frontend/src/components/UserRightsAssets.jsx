@@ -159,6 +159,8 @@ const AssetsView = ({ onBack }) => {
   const [confirmItems, setConfirmItems] = useState({});
   // IT confirm (Given / Not given)
   const [itItems, setItItems] = useState({});
+  const [itEditing, setItEditing] = useState(false);   // re-open IT list after IT submit
+  const [empEditing, setEmpEditing] = useState(false); // admin re-opens employee list after emp submit
   useEffect(() => {
     if (detail?.items) {
       const m = {}, n = {};
@@ -168,12 +170,15 @@ const AssetsView = ({ onBack }) => {
       });
       setConfirmItems(m); setItItems(n);
     }
+    setItEditing(false); setEmpEditing(false);
   }, [detail]);
   const isItRole = isIt || isAdmin;
-  // employee may tick Received/Not-required before they submit
-  const canEdit = (!staff && detail?.Status !== 'submitted');
-  // IT may always tick Given/Not-given
-  const canEditIT = isItRole;
+  const itSubmitted = !!detail?.ITSubmittedAt;
+  const empSubmitted = detail?.Status === 'submitted';
+  // IT can edit Given/Not-given until they submit; after submit, only via the Edit button
+  const canEditIT = isItRole && (!itSubmitted || itEditing);
+  // Employee edits Received/Not-required until they submit. After submit, ONLY admin (via Edit).
+  const canEditEmp = (!staff && !empSubmitted) || (isAdmin && (!empSubmitted || empEditing));
   const saveConfirm = async () => {
     const items = Object.entries(confirmItems).map(([key, v]) => ({ key, received: v.received, notRequired: v.notRequired }));
     const d = await api(`/assets/${detail.Id}/employee-confirm`, 'PUT', { items });
@@ -242,67 +247,85 @@ const AssetsView = ({ onBack }) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={h2}>Assets for {detail.EmpId}</h2><Pill status={detail.Status} />
           </div>
+
+          {/* IT HANDOVER — Given / Not given */}
           {isItRole && (
-            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>Mark what you handed over, then Submit. The employee separately confirms what they received.</p>
-          )}
-          {!staff && detail.Status === 'submitted' && (
-            <p style={{ fontSize: '.84rem', color: 'var(--accent-orange)' }}>Submitted and locked. Contact HR/IT for changes.</p>
-          )}
-          {isHr && !isItRole && (
-            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>Read-only — IT records the handover and the employee confirms receipt.</p>
-          )}
-
-          <div style={{ marginTop: 12 }}>
-            {detail.items?.filter(i => i.Requested || staff).map(i => (
-              <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}{i.Requested ? '' : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (not requested)</span>}</div>
-
-                {/* IT side: Given / Not given (editable for IT) */}
-                {isItRole && (<>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <strong style={{ color: 'var(--text-primary)' }}>IT handover</strong>
+                {itSubmitted && !itEditing && <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setItEditing(true)}>Edit</button>}
+              </div>
+              {itSubmitted && !itEditing
+                ? <p style={{ fontSize: '.82rem', color: 'var(--accent-green)', marginTop: 0 }}>Handover submitted. Click Edit to change.</p>
+                : <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 0 }}>Mark what you handed over, then Submit.</p>}
+              {detail.items?.filter(i => i.Requested || isItRole).map(i => (
+                <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}{i.Requested ? '' : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (not requested)</span>}</div>
                   <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                    <input type="checkbox" disabled={!i.Requested} checked={!!itItems[i.ItemKey]?.given}
+                    <input type="checkbox" disabled={!canEditIT || !i.Requested} checked={!!itItems[i.ItemKey]?.given}
                       onChange={e => setItItems(s => ({ ...s, [i.ItemKey]: { given: e.target.checked, notGiven: false } }))} /> Given
                   </label>
                   <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                    <input type="checkbox" disabled={!i.Requested} checked={!!itItems[i.ItemKey]?.notGiven}
+                    <input type="checkbox" disabled={!canEditIT || !i.Requested} checked={!!itItems[i.ItemKey]?.notGiven}
                       onChange={e => setItItems(s => ({ ...s, [i.ItemKey]: { given: false, notGiven: e.target.checked } }))} /> Not given
                   </label>
-                </>)}
+                </div>
+              ))}
+              {canEditIT && (
+                <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+                  <button style={ghostBtn} onClick={saveIT}>Save</button>
+                  <button style={primaryBtn} onClick={submitIT}>Submit</button>
+                </div>
+              )}
+            </div>
+          )}
 
-                {/* Employee side: Received / Not required (editable for employee before submit) */}
-                {!staff && (<>
+          {/* EMPLOYEE RECEIPT — Received / Not required (employee + admin) */}
+          {(!staff || isAdmin) && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Employee receipt</strong>
+                {isAdmin && empSubmitted && !empEditing && <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setEmpEditing(true)}>Edit (admin)</button>}
+              </div>
+              {empSubmitted && !empEditing
+                ? <p style={{ fontSize: '.82rem', color: 'var(--accent-orange)', marginTop: 0 }}>{isAdmin ? 'Submitted and locked. Click Edit to override.' : 'Submitted and locked. Only an admin can change it.'}</p>
+                : <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 0 }}>Tick what you received, then Submit.</p>}
+              {detail.items?.filter(i => i.Requested || isAdmin).map(i => (
+                <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}{i.Requested ? '' : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (not requested)</span>}</div>
                   <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                    <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
+                    <input type="checkbox" disabled={!canEditEmp || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
                       onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: e.target.checked, notRequired: false } }))} /> Received
                   </label>
                   <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                    <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
+                    <input type="checkbox" disabled={!canEditEmp || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
                       onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: false, notRequired: e.target.checked } }))} /> Not required
                   </label>
-                </>)}
+                </div>
+              ))}
+              {canEditEmp && (
+                <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+                  <button style={ghostBtn} onClick={saveConfirm}>Save</button>
+                  {!staff && <button style={primaryBtn} onClick={submitConfirm}>Submit</button>}
+                </div>
+              )}
+            </div>
+          )}
 
-                {/* HR read-only summary of both sides */}
-                {isHr && !isItRole && (
+          {/* HR read-only summary */}
+          {isHr && !isAdmin && (
+            <div style={{ marginTop: 12 }}>
+              {detail.items?.filter(i => i.Requested).map(i => (
+                <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}</div>
                   <div style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}>
                     IT: {i.Given ? 'Given' : i.NotGiven ? 'Not given' : '—'} · Emp: {i.Received ? 'Received' : i.NotRequired ? 'Not required' : '—'}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {isItRole && (
-            <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
-              <button style={ghostBtn} onClick={saveIT}>Save</button>
-              <button style={primaryBtn} onClick={submitIT}>Submit</button>
-            </div>
-          )}
-          {canEdit && !staff && (
-            <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
-              <button style={ghostBtn} onClick={saveConfirm}>Save</button>
-              <button style={primaryBtn} onClick={submitConfirm}>Submit</button>
-            </div>
-          )}
           {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
         </div>
       )}
