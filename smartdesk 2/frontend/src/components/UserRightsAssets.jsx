@@ -157,7 +157,10 @@ const AssetsView = ({ onBack }) => {
   useEffect(() => {
     if (detail?.items) { const m = {}; detail.items.forEach(i => m[i.ItemKey] = { received: !!i.Received, notRequired: !!i.NotRequired }); setConfirmItems(m); }
   }, [detail]);
-  const locked = detail?.Status === 'submitted' && !staff;
+  // Who may tick the checklist right now:
+  //  • employee: before they submit
+  //  • HR/IT: only AFTER the employee has submitted (to correct it)
+  const canEdit = (!staff && detail?.Status !== 'submitted') || (staff && detail?.Status === 'submitted');
   const saveConfirm = async () => {
     const items = Object.entries(confirmItems).map(([key, v]) => ({ key, received: v.received, notRequired: v.notRequired }));
     const d = await api(`/assets/${detail.Id}/employee-confirm`, 'PUT', { items });
@@ -216,23 +219,28 @@ const AssetsView = ({ onBack }) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={h2}>Assets for {detail.EmpId}</h2><Pill status={detail.Status} />
           </div>
-          {locked && <p style={{ fontSize: '.84rem', color: 'var(--accent-orange)' }}>Submitted and locked. Contact HR/IT for changes.</p>}
+          {staff && detail.Status !== 'submitted' && (
+            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>Read-only — waiting for the employee to confirm receipt. You can edit once they submit.</p>
+          )}
+          {!staff && detail.Status === 'submitted' && (
+            <p style={{ fontSize: '.84rem', color: 'var(--accent-orange)' }}>Submitted and locked. Contact HR/IT for changes.</p>
+          )}
           <div style={{ marginTop: 12 }}>
             {detail.items?.filter(i => i.Requested || staff).map(i => (
               <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}{i.Requested ? '' : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (not requested)</span>}</div>
                 <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                  <input type="checkbox" disabled={locked || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
+                  <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
                     onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: e.target.checked, notRequired: false } }))} /> Received
                 </label>
                 <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                  <input type="checkbox" disabled={locked || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
+                  <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
                     onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: false, notRequired: e.target.checked } }))} /> Not required
                 </label>
               </div>
             ))}
           </div>
-          {!locked && (
+          {canEdit && (
             <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
               <button style={ghostBtn} onClick={saveConfirm}>Save</button>
               {!staff && <button style={primaryBtn} onClick={submitConfirm}>Submit</button>}

@@ -239,6 +239,17 @@ app.get('/api/onboarding', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// Onboarded employees, for merging into the Employee Directory (any logged-in role)
+app.get('/api/onboarding/directory', async (req, res) => {
+  try {
+    const p = await getPool();
+    const q = await p.request().query(
+      `SELECT EmpId, FullName, Department, ManagerName, Profile, JoiningDate, Phone
+       FROM dbo.Onboarding WHERE Status='onboarded' AND EmpId IS NOT NULL ORDER BY FullName`);
+    res.json({ success: true, records: q.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 app.put('/api/onboarding/:id', async (req, res) => {
   if (!can(req, 'hr')) return deny(res);
   try {

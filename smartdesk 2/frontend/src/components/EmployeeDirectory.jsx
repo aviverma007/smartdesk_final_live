@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Search, Grid3X3, List, X, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useAuth } from "../context/AuthContext";
+import { URA_API } from "../context/AuthContext";
 import { employeeAPI, utilityAPI } from "../services/api";
 import EmployeeCard from "./EmployeeCard";
 import EmployeeList from "./EmployeeList";
@@ -118,7 +119,29 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, 
       try {
         setLoading(true);
         const data = await employeeAPI.getAll();
-        setEmployees(data);
+        // Merge in employees onboarded via User Rights & Assets (auto-added to directory)
+        let onboarded = [];
+        try {
+          const r = await fetch(`${URA_API}/onboarding/directory`);
+          const j = await r.json();
+          if (j.success) {
+            const existing = new Set(data.map(e => String(e.id).trim()));
+            onboarded = j.records
+              .filter(o => !existing.has(String(o.EmpId).trim()))
+              .map(o => ({
+                id: o.EmpId,
+                name: o.FullName,
+                department: o.Department || '',
+                designation: o.Profile || '',
+                grade: o.Profile || '',
+                location: '',
+                mobile: o.Phone || '',
+                email: '',
+                onboarded: true,
+              }));
+          }
+        } catch (_) { /* backend offline — show Excel list only */ }
+        setEmployees([...onboarded, ...data]);
       } catch (e) { setEmployees([]); }
       finally { setLoading(false); }
     };
