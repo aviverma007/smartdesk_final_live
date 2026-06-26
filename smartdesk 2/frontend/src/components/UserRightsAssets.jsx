@@ -45,12 +45,16 @@ const h2 = { fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, font
 function useApi() {
   const { user } = useAuth();
   return useCallback(async (path, method = 'GET', body) => {
-    const res = await fetch(`${URA_API}${path}`, {
-      method,
-      headers: { 'Content-Type': 'application/json', 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return res.json();
+    try {
+      const res = await fetch(`${URA_API}${path}`, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, offline: true, error: 'Cannot reach the User Rights service (port 5093). Is the backend running?' };
+    }
   }, [user]);
 }
 
@@ -357,16 +361,28 @@ const BUTTONS = [
 
 const UserRightsAssets = () => {
   const { user } = useAuth();
+  const api = useApi();
   const r = user?.role || '';
   const [view, setView] = useState('home');
+  const [offline, setOffline] = useState(false);
   const visible = BUTTONS.filter(b => b.roles.includes(r));
 
-  if (view === 'onboarding') return <OnboardingView onBack={() => setView('home')} />;
-  if (view === 'assets') return <AssetsView onBack={() => setView('home')} />;
-  if (view === 'access') return <AccessView onBack={() => setView('home')} />;
+  useEffect(() => { api('/health').then(d => setOffline(!d.success)); }, [api]);
+
+  const banner = offline ? (
+    <div style={{ background: 'color-mix(in srgb, var(--accent-orange) 12%, transparent)', border: '1px solid var(--accent-orange)',
+      borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '.85rem', color: 'var(--accent-orange)' }}>
+      The User Rights service isn’t reachable yet (port 5093). Start <code>backend-userrights</code> and set up the database — actions here won’t save until then.
+    </div>
+  ) : null;
+
+  if (view === 'onboarding') return <><div style={{ padding: '0 0 0' }}>{banner}</div><OnboardingView onBack={() => setView('home')} /></>;
+  if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
+  if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
 
   return (
     <div>
+      {banner}
       <div style={{ marginBottom: 22 }}>
         <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '.68rem', fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 5 }}>HR · IT · Manager</p>
         <h1 style={{ ...h2, fontSize: '1.6rem' }}>User Rights & Assets</h1>
