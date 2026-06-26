@@ -33,7 +33,14 @@ const dbConfig = {
   server: process.env.DB_SERVER || 'localhost',
   database: process.env.DB_DATABASE || 'SmartDeskApp',
   port: parseInt(process.env.DB_PORT || '1433', 10),
-  options: { trustServerCertificate: true, enableArithAbort: true, encrypt: false },
+  options: {
+    trustServerCertificate: true,
+    enableArithAbort: true,
+    encrypt: false,
+    // SQL Server 2014 uses old TLS for the login packet; modern Node/OpenSSL3
+    // rejects it by default and the socket hangs up. Allow the legacy minimum.
+    cryptoCredentialsDetails: { minVersion: 'TLSv1' },
+  },
   pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
   connectionTimeout: 30000,
   requestTimeout: 30000,
