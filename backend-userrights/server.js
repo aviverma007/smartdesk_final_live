@@ -33,14 +33,8 @@ const dbConfig = {
   server: process.env.DB_SERVER || 'localhost',
   database: process.env.DB_DATABASE || 'SmartDeskApp',
   port: parseInt(process.env.DB_PORT || '1433', 10),
-  options: {
-    trustServerCertificate: true,
-    enableArithAbort: true,
-    encrypt: true,
-    // SQL Server 2014 uses old TLS; modern Node/OpenSSL3 rejects it by default
-    // (socket hang up). Allow the legacy minimum and trust the self-signed cert.
-    cryptoCredentialsDetails: { minVersion: 'TLSv1' },
-  },
+  // Matches the working attendance backend against this same SQL Server.
+  options: { trustServerCertificate: true, enableArithAbort: true, encrypt: false },
   pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
   connectionTimeout: 30000,
   requestTimeout: 30000,
