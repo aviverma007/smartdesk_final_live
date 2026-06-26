@@ -176,29 +176,32 @@ function mailer() {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 }
-async function sendSetPasswordLink(email, empId) {
-  const token = crypto.randomBytes(24).toString('hex');
-  const p = await getPool();
-  await p.request()
-    .input('e', sql.NVarChar, email)
-    .input('emp', sql.NVarChar, empId || null)
-    .input('t', sql.NVarChar, token)
-    .input('exp', sql.DateTime, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
-    .query(`INSERT INTO dbo.SetPasswordTokens (EmpId, Email, Token, ExpiresAt) VALUES (@emp, @e, @t, @exp)`);
-  const base = process.env.APP_BASE_URL || 'http://localhost:92';
-  const link = `${base}/?setpw=${token}`;
+// Password follows the existing employee login formula: Smart@ + reversed Employee ID
+function makeEmpPassword(empId) {
+  return 'Smart@' + String(empId || '').split('').reverse().join('');
+}
+async function sendWelcomeCredentials(email, empId) {
+  const base = process.env.APP_BASE_URL || 'http://localhost:82';
+  const pw = makeEmpPassword(empId);
+  const html = `<p>Dear User,</p>
+<p>Welcome to SmartDesk!</p>
+<p>We are pleased to provide you with your SmartDesk login credentials. Please use the details below to access the application:</p>
+<p><strong>Portal Link:</strong> <a href="${base}">${base}</a><br>
+<strong>User ID:</strong> ${empId}<br>
+<strong>Password:</strong> ${pw}</p>
+<p>For security purposes, we recommend changing your password after your first login.</p>
+<p>If you experience any issues while accessing the portal or require any assistance, please feel free to contact the IT Support team.</p>
+<p>We wish you a smooth and productive experience with SmartDesk.</p>
+<p>Regards,<br>IT Support<br>Team Smartworld Developers Pvt. Ltd.</p>`;
   const tx = mailer();
-  if (!tx) { console.warn('   ! SMTP not configured — link generated but not emailed:', link); return { emailed: false, link }; }
+  if (!tx) { console.warn(`   ! SMTP not configured — would email credentials to ${email} (User ID: ${empId})`); return { emailed: false }; }
   await tx.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
-    subject: 'Welcome to SmartDesk — set your password',
-    html: `<p>Welcome to SmartDesk.</p>
-           <p>Click the link below to set your password and activate your access. This link expires in 7 days.</p>
-           <p><a href="${link}">Set my password</a></p>
-           <p>If the button doesn't work, paste this into your browser:<br>${link}</p>`,
+    subject: 'Welcome to SmartDesk — Your Login Credentials',
+    html,
   });
-  return { emailed: true, link };
+  return { emailed: true };
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────
@@ -357,7 +360,7 @@ app.get('/api/assets/by-emp/:empId', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// HR/IT: send credentials (set-password link) to the employee email
+// HR: email login credentials (User ID + password) to the employee
 app.post('/api/assets/:id/send-credentials', async (req, res) => {
   if (!can(req, 'hr')) return deny(res);
   try {
@@ -365,10 +368,10 @@ app.post('/api/assets/:id/send-credentials', async (req, res) => {
     const r = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.AssetRequests WHERE Id=@Id`);
     const row = r.recordset[0];
     if (!row) return res.status(404).json({ success: false, error: 'Not found.' });
-    const out = await sendSetPasswordLink(row.Email, row.EmpId);
+    const out = await sendWelcomeCredentials(row.Email, row.EmpId);
     await p.request().input('Id', sql.Int, req.params.id)
       .query(`UPDATE dbo.AssetRequests SET Status='credentials_sent', UpdatedAt=GETDATE() WHERE Id=@Id`);
-    res.json({ success: true, emailed: out.emailed, link: out.emailed ? undefined : out.link });
+    res.json({ success: true, emailed: out.emailed });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

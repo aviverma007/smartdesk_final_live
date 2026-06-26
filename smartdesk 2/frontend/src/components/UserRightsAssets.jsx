@@ -186,7 +186,7 @@ const AssetsView = ({ onBack }) => {
   };
   // Re-fetch the open request without toggling it closed (used after save/submit)
   const refreshDetail = async (id) => { const d = await api(`/assets/${id}`); if (d.success) setDetail(d.record); };
-  const sendCreds = async (id) => { const d = await api(`/assets/${id}/send-credentials`, 'POST'); setMsg(d.success ? (d.emailed ? 'Set-password link emailed.' : `Link (SMTP off): ${d.link}`) : (d.error || 'Failed.')); loadList(); };
+  const sendCreds = async (id) => { const d = await api(`/assets/${id}/send-credentials`, 'POST'); setMsg(d.success ? (d.emailed ? 'Login credentials emailed.' : 'Saved, but SMTP is not configured — set SMTP_PASS in .env to send.') : (d.error || 'Failed.')); loadList(); };
 
   // employee confirm (Received / Not required)
   const [confirmItems, setConfirmItems] = useState({});
