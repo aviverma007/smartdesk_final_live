@@ -344,6 +344,7 @@ const AccessView = ({ onBack }) => {
   const [form, setForm] = useState(blank);
   const [list, setList] = useState([]);
   const [notes, setNotes] = useState({});
+  const [viewing, setViewing] = useState(null);
   const [msg, setMsg] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleApp = (a) => setForm(f => ({ ...f, applications: f.applications.includes(a) ? f.applications.filter(x => x !== a) : [...f.applications, a] }));
@@ -407,7 +408,34 @@ const AccessView = ({ onBack }) => {
                   <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{apps.join(', ') || '—'}</div>
                 </div>
                 <Pill status={r.Status} />
+                <button style={{ ...ghostBtn, marginLeft: 8, padding: '6px 12px', fontSize: '.8rem' }}
+                  onClick={() => setViewing(viewing === r.Id ? null : r.Id)}>
+                  {viewing === r.Id ? 'Hide form' : 'View form'}
+                </button>
               </div>
+
+              {viewing === r.Id && (
+                <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 18px', fontSize: '.84rem' }}>
+                    <ViewField l="Request type" v={r.RequestType} />
+                    <ViewField l="Requester name" v={r.RequesterName} />
+                    <ViewField l="Company" v={r.Company} />
+                    <ViewField l="Department" v={r.Department} />
+                    <ViewField l="Employee ID" v={r.EmpId} />
+                    <ViewField l="Email" v={r.Email} />
+                    <ViewField l="Work location" v={r.WorkLocation} />
+                    <ViewField l="Language" v={r.Language} />
+                  </div>
+                  <div style={{ marginTop: 10, fontSize: '.84rem' }}>
+                    <ViewField l="Applications" v={apps.join(', ')} />
+                    <ViewField l="Scope of work & function" v={r.ScopeOfWork} />
+                    <ViewField l="Description of required authorization" v={r.Details} />
+                    {r.ManagerNote && <ViewField l="IT remarks" v={r.ManagerNote} />}
+                  </div>
+                  <p style={{ fontSize: '.74rem', color: 'var(--text-muted)', marginTop: 10, marginBottom: 0 }}>Read-only view.</p>
+                </div>
+              )}
+
               {r.ManagerNote && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>IT remarks: {r.ManagerNote}</div>}
               {/* IT: add remarks + approve (only while not yet approved) */}
               {canApprove && !approved && (
@@ -427,6 +455,12 @@ const AccessView = ({ onBack }) => {
 /* ── Small helpers ───────────────────────────────────────────────────────── */
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border)' };
 const Field = ({ l, children }) => <div><div style={label}>{l}</div>{children}</div>;
+const ViewField = ({ l, v }) => (
+  <div style={{ marginBottom: 4 }}>
+    <span style={{ color: 'var(--text-muted)' }}>{l}: </span>
+    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{v || '—'}</span>
+  </div>
+);
 const Empty = ({ text }) => <p style={{ color: 'var(--text-muted)', fontSize: '.88rem', padding: '8px 0' }}>{text}</p>;
 const chip = (on) => ({ display: 'inline-flex', alignItems: 'center', padding: '7px 13px', borderRadius: 9, cursor: 'pointer',
   fontSize: '.84rem', fontFamily: "'DM Sans',sans-serif", border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
