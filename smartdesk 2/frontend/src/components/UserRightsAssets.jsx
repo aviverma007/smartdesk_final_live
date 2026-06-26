@@ -22,7 +22,7 @@ const STATUS_META = {
   pending: { label: 'Pending', color: 'var(--accent-orange)' },
   onboarded: { label: 'Onboarded', color: 'var(--accent-green)' },
   credentials_sent: { label: 'Credentials Sent', color: 'var(--accent-sky)' },
-  employee_review: { label: 'With Employee', color: 'var(--accent-sky)' },
+  employee_review: { label: 'Pending', color: 'var(--accent-orange)' },
   submitted: { label: 'Submitted', color: 'var(--accent-green)' },
   pending_manager: { label: 'Pending', color: 'var(--accent-orange)' },
   approved: { label: 'Approved', color: 'var(--accent-green)' },
@@ -183,6 +183,8 @@ const AssetsView = ({ onBack }) => {
     if (detail?.Id === id) { setDetail(null); return; } // clicking View again hides it
     const d = await api(`/assets/${id}`); if (d.success) setDetail(d.record);
   };
+  // Re-fetch the open request without toggling it closed (used after save/submit)
+  const refreshDetail = async (id) => { const d = await api(`/assets/${id}`); if (d.success) setDetail(d.record); };
   const sendCreds = async (id) => { const d = await api(`/assets/${id}/send-credentials`, 'POST'); setMsg(d.success ? (d.emailed ? 'Set-password link emailed.' : `Link (SMTP off): ${d.link}`) : (d.error || 'Failed.')); loadList(); };
 
   // employee confirm (Received / Not required)
@@ -209,25 +211,26 @@ const AssetsView = ({ onBack }) => {
   const canEditIT = isItRole && (!itSubmitted || itEditing);
   // Employee edits Received/Not-required until they submit. After submit, ONLY admin (via Edit).
   const canEditEmp = (!staff && !empSubmitted) || (isAdmin && (!empSubmitted || empEditing));
+  const refreshAll = (id) => { if (staff) { refreshDetail(id); loadList(); } else { loadMine(); } };
   const saveConfirm = async () => {
     const items = Object.entries(confirmItems).map(([key, v]) => ({ key, received: v.received, notRequired: v.notRequired }));
     const d = await api(`/assets/${detail.Id}/employee-confirm`, 'PUT', { items });
-    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) (staff ? openDetail(detail.Id) : loadMine());
+    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) refreshAll(detail.Id);
   };
   const submitConfirm = async () => {
     await saveConfirm();
     const d = await api(`/assets/${detail.Id}/submit`, 'POST');
-    setMsg(d.success ? 'Submitted. The list is now locked.' : (d.error || 'Failed.')); if (d.success) (staff ? openDetail(detail.Id) : loadMine());
+    setMsg(d.success ? 'Submitted.' : (d.error || 'Failed.')); if (d.success) refreshAll(detail.Id);
   };
   const saveIT = async () => {
     const items = Object.entries(itItems).map(([key, v]) => ({ key, given: v.given, notGiven: v.notGiven }));
     const d = await api(`/assets/${detail.Id}/it-confirm`, 'PUT', { items });
-    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) openDetail(detail.Id);
+    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) refreshAll(detail.Id);
   };
   const submitIT = async () => {
     await saveIT();
     const d = await api(`/assets/${detail.Id}/it-submit`, 'POST');
-    setMsg(d.success ? 'Handover submitted.' : (d.error || 'Failed.')); if (d.success) openDetail(detail.Id);
+    setMsg(d.success ? 'Handover submitted — now pending the employee’s approval.' : (d.error || 'Failed.')); if (d.success) refreshAll(detail.Id);
   };
 
   return (
