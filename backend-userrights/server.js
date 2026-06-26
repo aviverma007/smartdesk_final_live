@@ -14,7 +14,8 @@
  * gate sensitive actions on them. This is lightweight, not hardened auth — fine
  * for an internal portal, but do not expose this service to the public internet.
  */
-require('dotenv').config();
+// Load .env from this folder no matter where `npm start` is run from.
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const sql = require('mssql');
@@ -29,7 +30,7 @@ app.use(express.json({ limit: '1mb' }));
 const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || '2023-DT1',
+  server: process.env.DB_SERVER || 'localhost',
   database: process.env.DB_DATABASE || 'SmartDeskApp',
   port: parseInt(process.env.DB_PORT || '1433', 10),
   options: { trustServerCertificate: true, enableArithAbort: true, encrypt: false },
@@ -528,11 +529,24 @@ app.post('/api/set-password', async (req, res) => {
 // ── Boot ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5093;
 (async () => {
+  const envPath = require('path').join(__dirname, '.env');
+  if (!process.env.DB_USER || !process.env.DB_PASSWORD) {
+    console.warn('\n⚠  .env not loaded (DB_USER/DB_PASSWORD are empty).');
+    console.warn(`   Expected file: ${envPath}`);
+    console.warn('   Create it from .env.example and set DB_USER / DB_PASSWORD.');
+    console.warn('   Tip: in Notepad use "Save as type: All Files" so it is not saved as .env.txt\n');
+  }
   try {
     await getPool();
     await migrate();
   } catch (err) {
-    console.error('   ! DB connection/migration failed (fill in .env): ', err.message);
+    console.error(`\n   ! DB connection/migration failed: ${err.message}`);
+    if (/getaddrinfo|ENOTFOUND/i.test(err.message))
+      console.error(`     The server name "${dbConfig.server}" could not be resolved. ` +
+        `If the backend runs on the SQL Server machine use DB_SERVER=localhost, otherwise use its IP (e.g. 192.168.66.33).`);
+    if (/Login failed/i.test(err.message))
+      console.error('     Wrong DB_USER/DB_PASSWORD, or mixed-mode auth is off on the server.');
+    console.error('');
   }
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ SmartDesk User Rights & Assets API`);
