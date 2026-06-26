@@ -425,13 +425,15 @@ app.put('/api/assets/:id/it-confirm', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// IT submits the handover
+// IT submits the handover -> sends it (back) to the employee to confirm receipt
 app.post('/api/assets/:id/it-submit', async (req, res) => {
   if (!can(req, 'it')) return deny(res);
   try {
     const p = await getPool();
     await p.request().input('Id', sql.Int, req.params.id)
-      .query(`UPDATE dbo.AssetRequests SET ITSubmittedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+      .query(`UPDATE dbo.AssetRequests
+              SET ITSubmittedAt=GETDATE(), Status='employee_review', SubmittedAt=NULL, UpdatedAt=GETDATE()
+              WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
