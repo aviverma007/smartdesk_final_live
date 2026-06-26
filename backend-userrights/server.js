@@ -147,6 +147,11 @@ CREATE TABLE dbo.AppUsers (
   UpdatedAt    DATETIME NOT NULL DEFAULT(GETDATE())
 );
   `);
+  await p.request().batch(`
+IF COL_LENGTH('dbo.AssetItems','Given') IS NULL ALTER TABLE dbo.AssetItems ADD [Given] BIT NOT NULL DEFAULT(0);
+IF COL_LENGTH('dbo.AssetItems','NotGiven') IS NULL ALTER TABLE dbo.AssetItems ADD NotGiven BIT NOT NULL DEFAULT(0);
+IF COL_LENGTH('dbo.AssetRequests','ITSubmittedAt') IS NULL ALTER TABLE dbo.AssetRequests ADD ITSubmittedAt DATETIME NULL;
+  `);
   console.log('   ✓ Tables ready');
 }
 
@@ -396,6 +401,37 @@ app.post('/api/assets/:id/submit', async (req, res) => {
     const p = await getPool();
     await p.request().input('Id', sql.Int, req.params.id)
       .query(`UPDATE dbo.AssetRequests SET Status='submitted', SubmittedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// IT marks each item Given / Not given
+app.put('/api/assets/:id/it-confirm', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try {
+    const p = await getPool();
+    const updates = Array.isArray((req.body || {}).items) ? req.body.items : [];
+    for (const it of updates) {
+      await p.request()
+        .input('RequestId', sql.Int, req.params.id)
+        .input('ItemKey', sql.NVarChar, it.key)
+        .input('Given', sql.Bit, it.given ? 1 : 0)
+        .input('NotGiven', sql.Bit, it.notGiven ? 1 : 0)
+        .query(`UPDATE dbo.AssetItems SET [Given]=@Given, NotGiven=@NotGiven WHERE RequestId=@RequestId AND ItemKey=@ItemKey`);
+    }
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.AssetRequests SET UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// IT submits the handover
+app.post('/api/assets/:id/it-submit', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.AssetRequests SET ITSubmittedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

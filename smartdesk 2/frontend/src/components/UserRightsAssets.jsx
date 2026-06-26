@@ -149,18 +149,31 @@ const AssetsView = ({ onBack }) => {
     const d = await api('/assets', 'POST', { empId: empId.trim(), email: email.trim(), items: picked });
     if (d.success) { setMsg('Asset request created.'); setEmpId(''); setEmail(''); setPicked([]); loadList(); } else setMsg(d.error || 'Could not create.');
   };
-  const openDetail = async (id) => { const d = await api(`/assets/${id}`); if (d.success) setDetail(d.record); };
+  const openDetail = async (id) => {
+    if (detail?.Id === id) { setDetail(null); return; } // clicking View again hides it
+    const d = await api(`/assets/${id}`); if (d.success) setDetail(d.record);
+  };
   const sendCreds = async (id) => { const d = await api(`/assets/${id}/send-credentials`, 'POST'); setMsg(d.success ? (d.emailed ? 'Set-password link emailed.' : `Link (SMTP off): ${d.link}`) : (d.error || 'Failed.')); loadList(); };
 
-  // employee confirm
+  // employee confirm (Received / Not required)
   const [confirmItems, setConfirmItems] = useState({});
+  // IT confirm (Given / Not given)
+  const [itItems, setItItems] = useState({});
   useEffect(() => {
-    if (detail?.items) { const m = {}; detail.items.forEach(i => m[i.ItemKey] = { received: !!i.Received, notRequired: !!i.NotRequired }); setConfirmItems(m); }
+    if (detail?.items) {
+      const m = {}, n = {};
+      detail.items.forEach(i => {
+        m[i.ItemKey] = { received: !!i.Received, notRequired: !!i.NotRequired };
+        n[i.ItemKey] = { given: !!i.Given, notGiven: !!i.NotGiven };
+      });
+      setConfirmItems(m); setItItems(n);
+    }
   }, [detail]);
-  // Who may tick the checklist right now:
-  //  • employee: before they submit
-  //  • HR/IT: only AFTER the employee has submitted (to correct it)
-  const canEdit = (!staff && detail?.Status !== 'submitted') || (staff && detail?.Status === 'submitted');
+  const isItRole = isIt || isAdmin;
+  // employee may tick Received/Not-required before they submit
+  const canEdit = (!staff && detail?.Status !== 'submitted');
+  // IT may always tick Given/Not-given
+  const canEditIT = isItRole;
   const saveConfirm = async () => {
     const items = Object.entries(confirmItems).map(([key, v]) => ({ key, received: v.received, notRequired: v.notRequired }));
     const d = await api(`/assets/${detail.Id}/employee-confirm`, 'PUT', { items });
@@ -170,6 +183,16 @@ const AssetsView = ({ onBack }) => {
     await saveConfirm();
     const d = await api(`/assets/${detail.Id}/submit`, 'POST');
     setMsg(d.success ? 'Submitted. The list is now locked.' : (d.error || 'Failed.')); if (d.success) (staff ? openDetail(detail.Id) : loadMine());
+  };
+  const saveIT = async () => {
+    const items = Object.entries(itItems).map(([key, v]) => ({ key, given: v.given, notGiven: v.notGiven }));
+    const d = await api(`/assets/${detail.Id}/it-confirm`, 'PUT', { items });
+    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) openDetail(detail.Id);
+  };
+  const submitIT = async () => {
+    await saveIT();
+    const d = await api(`/assets/${detail.Id}/it-submit`, 'POST');
+    setMsg(d.success ? 'Handover submitted.' : (d.error || 'Failed.')); if (d.success) openDetail(detail.Id);
   };
 
   return (
@@ -219,31 +242,65 @@ const AssetsView = ({ onBack }) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={h2}>Assets for {detail.EmpId}</h2><Pill status={detail.Status} />
           </div>
-          {staff && detail.Status !== 'submitted' && (
-            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>Read-only — waiting for the employee to confirm receipt. You can edit once they submit.</p>
+          {isItRole && (
+            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>Mark what you handed over, then Submit. The employee separately confirms what they received.</p>
           )}
           {!staff && detail.Status === 'submitted' && (
             <p style={{ fontSize: '.84rem', color: 'var(--accent-orange)' }}>Submitted and locked. Contact HR/IT for changes.</p>
           )}
+          {isHr && !isItRole && (
+            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>Read-only — IT records the handover and the employee confirms receipt.</p>
+          )}
+
           <div style={{ marginTop: 12 }}>
             {detail.items?.filter(i => i.Requested || staff).map(i => (
               <div key={i.ItemKey} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{i.ItemLabel}{i.Requested ? '' : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (not requested)</span>}</div>
-                <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                  <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
-                    onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: e.target.checked, notRequired: false } }))} /> Received
-                </label>
-                <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
-                  <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
-                    onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: false, notRequired: e.target.checked } }))} /> Not required
-                </label>
+
+                {/* IT side: Given / Not given (editable for IT) */}
+                {isItRole && (<>
+                  <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
+                    <input type="checkbox" disabled={!i.Requested} checked={!!itItems[i.ItemKey]?.given}
+                      onChange={e => setItItems(s => ({ ...s, [i.ItemKey]: { given: e.target.checked, notGiven: false } }))} /> Given
+                  </label>
+                  <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
+                    <input type="checkbox" disabled={!i.Requested} checked={!!itItems[i.ItemKey]?.notGiven}
+                      onChange={e => setItItems(s => ({ ...s, [i.ItemKey]: { given: false, notGiven: e.target.checked } }))} /> Not given
+                  </label>
+                </>)}
+
+                {/* Employee side: Received / Not required (editable for employee before submit) */}
+                {!staff && (<>
+                  <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
+                    <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.received}
+                      onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: e.target.checked, notRequired: false } }))} /> Received
+                  </label>
+                  <label style={{ fontSize: '.84rem', color: 'var(--text-muted)' }}>
+                    <input type="checkbox" disabled={!canEdit || !i.Requested} checked={!!confirmItems[i.ItemKey]?.notRequired}
+                      onChange={e => setConfirmItems(s => ({ ...s, [i.ItemKey]: { received: false, notRequired: e.target.checked } }))} /> Not required
+                  </label>
+                </>)}
+
+                {/* HR read-only summary of both sides */}
+                {isHr && !isItRole && (
+                  <div style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}>
+                    IT: {i.Given ? 'Given' : i.NotGiven ? 'Not given' : '—'} · Emp: {i.Received ? 'Received' : i.NotRequired ? 'Not required' : '—'}
+                  </div>
+                )}
               </div>
             ))}
           </div>
-          {canEdit && (
+
+          {isItRole && (
+            <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
+              <button style={ghostBtn} onClick={saveIT}>Save</button>
+              <button style={primaryBtn} onClick={submitIT}>Submit</button>
+            </div>
+          )}
+          {canEdit && !staff && (
             <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
               <button style={ghostBtn} onClick={saveConfirm}>Save</button>
-              {!staff && <button style={primaryBtn} onClick={submitConfirm}>Submit</button>}
+              <button style={primaryBtn} onClick={submitConfirm}>Submit</button>
             </div>
           )}
           {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
