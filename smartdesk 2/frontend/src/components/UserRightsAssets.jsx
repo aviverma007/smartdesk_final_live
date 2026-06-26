@@ -23,7 +23,8 @@ const STATUS_META = {
   credentials_sent: { label: 'Credentials Sent', color: 'var(--accent-sky)' },
   employee_review: { label: 'With Employee', color: 'var(--accent-sky)' },
   submitted: { label: 'Submitted', color: 'var(--accent-green)' },
-  pending_manager: { label: 'Awaiting Manager', color: 'var(--accent-orange)' },
+  pending_manager: { label: 'Pending', color: 'var(--accent-orange)' },
+  approved: { label: 'Approved', color: 'var(--accent-green)' },
   manager_approved: { label: 'Manager Approved', color: 'var(--accent-sky)' },
   it_given: { label: 'IT — Given', color: 'var(--accent-teal)' },
 };
@@ -236,7 +237,7 @@ const AssetsView = ({ onBack }) => {
               </div>
               <Pill status={r.Status} />
               <button style={{ ...ghostBtn, marginLeft: 10 }} onClick={() => openDetail(r.Id)}>View</button>
-              {isIt || isHr || isAdmin ? <button style={{ ...primaryBtn, marginLeft: 8 }} onClick={() => sendCreds(r.Id)}>Send welcome link</button> : null}
+              {(isHr || isAdmin) ? <button style={{ ...primaryBtn, marginLeft: 8 }} onClick={() => sendCreds(r.Id)}>Send welcome link</button> : null}
             </div>
           ))}
         </div>
@@ -337,7 +338,8 @@ const AssetsView = ({ onBack }) => {
 const AccessView = ({ onBack }) => {
   const api = useApi();
   const { isHr, isIt, isManager, isAdmin, isEmployee } = useAuth();
-  const canCreate = isHr || isIt || isEmployee || isAdmin;
+  const canCreate = isEmployee || isAdmin;       // only the employee fills the form
+  const canApprove = isIt || isAdmin;            // only IT approves + adds remarks
   const blank = { requestType: 'new', requesterName: '', company: '', department: '', empId: '', email: '', workLocation: '', language: 'EN-English', scopeOfWork: '', applications: [], details: '' };
   const [form, setForm] = useState(blank);
   const [list, setList] = useState([]);
@@ -350,15 +352,13 @@ const AccessView = ({ onBack }) => {
 
   const create = async () => {
     const d = await api('/access', 'POST', form);
-    if (d.success) { setForm(blank); setMsg('Request submitted — awaiting manager approval.'); load(); } else setMsg(d.error || 'Could not submit.');
+    if (d.success) { setForm(blank); setMsg('Request submitted — awaiting IT approval.'); load(); } else setMsg(d.error || 'Could not submit.');
   };
-  const approve = async (id) => { const d = await api(`/access/${id}/manager-approve`, 'POST', { note: notes[id] || '' }); setMsg(d.success ? 'Approved.' : (d.error || 'Failed.')); load(); };
-  const given = async (id) => { const d = await api(`/access/${id}/it-given`, 'POST'); setMsg(d.success ? 'Marked as given.' : (d.error || 'Failed.')); load(); };
-  const submit = async (id) => { const d = await api(`/access/${id}/submit`, 'POST'); setMsg(d.success ? 'Submitted.' : (d.error || 'Failed.')); load(); };
+  const approve = async (id) => { const d = await api(`/access/${id}/it-approve`, 'POST', { remarks: notes[id] || '' }); setMsg(d.success ? 'Approved.' : (d.error || 'Failed.')); load(); };
 
   return (
     <div>
-      <BackBar onBack={onBack} title="Application & Rights Allocation" subtitle="Request access. Manager approves, then IT provisions." />
+      <BackBar onBack={onBack} title="Application & Rights Allocation" subtitle={canCreate ? 'Fill the form to request application access. IT will review and approve.' : (canApprove ? 'Review requests, add remarks, and approve.' : 'View application & rights requests.')} />
 
       {canCreate && (
         <div style={card}>
@@ -398,6 +398,7 @@ const AccessView = ({ onBack }) => {
         {list.length === 0 && <Empty text="No requests yet." />}
         {list.map(r => {
           let apps = []; try { apps = JSON.parse(r.Applications || '[]'); } catch {}
+          const approved = r.Status === 'approved';
           return (
             <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -407,17 +408,14 @@ const AccessView = ({ onBack }) => {
                 </div>
                 <Pill status={r.Status} />
               </div>
-              {r.ManagerNote && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>Manager note: {r.ManagerNote}</div>}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                {(isManager || isAdmin) && r.Status === 'pending_manager' && (
-                  <>
-                    <input placeholder="Optional note" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
-                    <button style={primaryBtn} onClick={() => approve(r.Id)}>Approve</button>
-                  </>
-                )}
-                {(isIt || isAdmin) && r.Status === 'manager_approved' && <button style={primaryBtn} onClick={() => given(r.Id)}>Mark given</button>}
-                {(isIt || isAdmin) && r.Status === 'it_given' && <button style={primaryBtn} onClick={() => submit(r.Id)}>Submit</button>}
-              </div>
+              {r.ManagerNote && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>IT remarks: {r.ManagerNote}</div>}
+              {/* IT: add remarks + approve (only while not yet approved) */}
+              {canApprove && !approved && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
+                  <button style={primaryBtn} onClick={() => approve(r.Id)}>Approve</button>
+                </div>
+              )}
             </div>
           );
         })}

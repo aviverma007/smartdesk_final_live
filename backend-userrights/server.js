@@ -359,7 +359,7 @@ app.get('/api/assets/by-emp/:empId', async (req, res) => {
 
 // HR/IT: send credentials (set-password link) to the employee email
 app.post('/api/assets/:id/send-credentials', async (req, res) => {
-  if (!can(req, 'hr', 'it')) return deny(res);
+  if (!can(req, 'hr')) return deny(res);
   try {
     const p = await getPool();
     const r = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.AssetRequests WHERE Id=@Id`);
@@ -438,7 +438,7 @@ app.post('/api/assets/:id/it-submit', async (req, res) => {
 
 /* ═══════════════════════ 3) APPLICATION & RIGHTS ═══════════════════════════ */
 app.post('/api/access', async (req, res) => {
-  if (!can(req, 'hr', 'it', 'employee')) return deny(res);
+  if (!can(req, 'employee')) return deny(res);
   try {
     const b = req.body || {};
     const p = await getPool();
@@ -464,9 +464,15 @@ app.post('/api/access', async (req, res) => {
 });
 
 app.get('/api/access', async (req, res) => {
-  if (!can(req, 'hr', 'it', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'it', 'manager', 'employee')) return deny(res);
   try { const p = await getPool();
-    const rows = await p.request().query(`SELECT * FROM dbo.AccessRequests ORDER BY CreatedAt DESC`);
+    let rows;
+    if (role(req) === 'employee') {
+      rows = await p.request().input('me', sql.NVarChar, actor(req))
+        .query(`SELECT * FROM dbo.AccessRequests WHERE CreatedBy=@me ORDER BY CreatedAt DESC`);
+    } else {
+      rows = await p.request().query(`SELECT * FROM dbo.AccessRequests ORDER BY CreatedAt DESC`);
+    }
     res.json({ success: true, records: rows.recordset });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -479,38 +485,16 @@ app.get('/api/access/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// Manager: add optional note + approve (pending_manager -> manager_approved)
-app.post('/api/access/:id/manager-approve', async (req, res) => {
-  if (!can(req, 'manager')) return deny(res);
+// IT: approve with remarks (employee request -> approved)
+app.post('/api/access/:id/it-approve', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
   try { const p = await getPool();
     await p.request()
       .input('Id', sql.Int, req.params.id)
-      .input('Note', sql.NVarChar, (req.body || {}).note || null)
+      .input('Note', sql.NVarChar, (req.body || {}).remarks || null)
       .input('By', sql.NVarChar, actor(req))
-      .query(`UPDATE dbo.AccessRequests SET Status='manager_approved', ManagerNote=@Note,
-              ManagerApprovedBy=@By, ManagerApprovedAt=GETDATE(), UpdatedAt=GETDATE()
-              WHERE Id=@Id AND Status='pending_manager'`);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-// IT: mark given (manager_approved -> it_given)
-app.post('/api/access/:id/it-given', async (req, res) => {
-  if (!can(req, 'it')) return deny(res);
-  try { const p = await getPool();
-    await p.request().input('Id', sql.Int, req.params.id).input('By', sql.NVarChar, actor(req))
-      .query(`UPDATE dbo.AccessRequests SET Status='it_given', ITGivenBy=@By, ITGivenAt=GETDATE(), UpdatedAt=GETDATE()
-              WHERE Id=@Id AND Status='manager_approved'`);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-// IT: final submit (it_given -> submitted)
-app.post('/api/access/:id/submit', async (req, res) => {
-  if (!can(req, 'it')) return deny(res);
-  try { const p = await getPool();
-    await p.request().input('Id', sql.Int, req.params.id)
-      .query(`UPDATE dbo.AccessRequests SET Status='submitted', UpdatedAt=GETDATE() WHERE Id=@Id AND Status='it_given'`);
+      .query(`UPDATE dbo.AccessRequests SET Status='approved', ManagerNote=@Note,
+              ITGivenBy=@By, ITGivenAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
