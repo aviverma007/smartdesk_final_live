@@ -501,6 +501,20 @@ app.post('/api/access/:id/it-approve', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// IT: reject with remarks (employee request -> rejected)
+app.post('/api/access/:id/it-reject', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try { const p = await getPool();
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('Note', sql.NVarChar, (req.body || {}).remarks || null)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.AccessRequests SET Status='rejected', ManagerNote=@Note,
+              ITGivenBy=@By, ITGivenAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 /* ═══════════════════════ APP-USER LOGIN ════════════════════════════════════ */
 // Verifies a password that an employee set via the set-password link.
 // Accepts either Employee ID or email as the identifier.

@@ -26,6 +26,7 @@ const STATUS_META = {
   submitted: { label: 'Submitted', color: 'var(--accent-green)' },
   pending_manager: { label: 'Pending', color: 'var(--accent-orange)' },
   approved: { label: 'Approved', color: 'var(--accent-green)' },
+  rejected: { label: 'Rejected', color: '#dc2626' },
   manager_approved: { label: 'Manager Approved', color: 'var(--accent-sky)' },
   it_given: { label: 'IT — Given', color: 'var(--accent-teal)' },
 };
@@ -419,7 +420,10 @@ const AccessView = ({ onBack }) => {
     const d = await api('/access', 'POST', form);
     if (d.success) { setForm(blank); setMsg('Request submitted — awaiting IT approval.'); load(); } else setMsg(d.error || 'Could not submit.');
   };
-  const approve = async (id) => { const d = await api(`/access/${id}/it-approve`, 'POST', { remarks: notes[id] || '' }); setMsg(d.success ? 'Approved.' : (d.error || 'Failed.')); load(); };
+  const decide = async (id, action) => {
+    const d = await api(`/access/${id}/it-${action}`, 'POST', { remarks: notes[id] || '' });
+    setMsg(d.success ? (action === 'approve' ? 'Approved.' : 'Rejected.') : (d.error || 'Failed.')); load();
+  };
 
   return (
     <div>
@@ -475,6 +479,8 @@ const AccessView = ({ onBack }) => {
           return shown.map(r => {
           let apps = []; try { apps = JSON.parse(r.Applications || '[]'); } catch {}
           const approved = r.Status === 'approved';
+          const rejected = r.Status === 'rejected';
+          const decided = approved || rejected;
           return (
             <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -490,33 +496,40 @@ const AccessView = ({ onBack }) => {
               </div>
 
               {viewing === r.Id && (
-                <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 18px', fontSize: '.84rem' }}>
-                    <ViewField l="Request type" v={r.RequestType} />
-                    <ViewField l="Requester name" v={r.RequesterName} />
-                    <ViewField l="Company" v={r.Company} />
-                    <ViewField l="Department" v={r.Department} />
-                    <ViewField l="Employee ID" v={r.EmpId} />
-                    <ViewField l="Email" v={r.Email} />
-                    <ViewField l="Work location" v={r.WorkLocation} />
-                    <ViewField l="Language" v={r.Language} />
+                <div style={{ marginTop: 12, padding: 16, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', gap: 18, marginBottom: 12 }}>
+                    {REQUEST_TYPES.map(t => (
+                      <label key={t.key} style={{ fontSize: '.86rem', color: r.RequestType === t.key ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        <input type="radio" checked={r.RequestType === t.key} readOnly disabled style={{ marginRight: 6 }} />{t.label}
+                      </label>
+                    ))}
                   </div>
-                  <div style={{ marginTop: 10, fontSize: '.84rem' }}>
-                    <ViewField l="Applications" v={apps.join(', ')} />
-                    <ViewField l="Scope of work & function" v={r.ScopeOfWork} />
-                    <ViewField l="Description of required authorization" v={r.Details} />
-                    {r.ManagerNote && <ViewField l="IT remarks" v={r.ManagerNote} />}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <Field l="Requester name"><input style={input} value={r.RequesterName || ''} disabled /></Field>
+                    <Field l="Company"><input style={input} value={r.Company || ''} disabled /></Field>
+                    <Field l="Department"><input style={input} value={r.Department || ''} disabled /></Field>
+                    <Field l="Employee ID"><input style={input} value={r.EmpId || ''} disabled /></Field>
+                    <Field l="Email"><input style={input} value={r.Email || ''} disabled /></Field>
+                    <Field l="Work location"><input style={input} value={r.WorkLocation || ''} disabled /></Field>
                   </div>
-                  <p style={{ fontSize: '.74rem', color: 'var(--text-muted)', marginTop: 10, marginBottom: 0 }}>Read-only view.</p>
+                  <div style={label}>Applications</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+                    {APPLICATIONS.map(a => <span key={a} style={chip(apps.includes(a))}>{a}</span>)}
+                  </div>
+                  <Field l="Scope of work & function"><textarea style={{ ...input, minHeight: 60 }} value={r.ScopeOfWork || ''} disabled /></Field>
+                  <Field l="Description of required authorization"><textarea style={{ ...input, minHeight: 60 }} value={r.Details || ''} disabled /></Field>
+                  {r.ManagerNote && <Field l="IT remarks"><input style={input} value={r.ManagerNote} disabled /></Field>}
+                  <p style={{ fontSize: '.74rem', color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Read-only view.</p>
                 </div>
               )}
 
               {r.ManagerNote && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>IT remarks: {r.ManagerNote}</div>}
-              {/* IT: add remarks + approve (only while not yet approved) */}
-              {canApprove && !approved && (
+              {/* IT: remarks + approve/reject (only while not yet decided) */}
+              {canApprove && !decided && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                   <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
-                  <button style={primaryBtn} onClick={() => approve(r.Id)}>Approve</button>
+                  <button style={primaryBtn} onClick={() => decide(r.Id, 'approve')}>Approve</button>
+                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => decide(r.Id, 'reject')}>Reject</button>
                 </div>
               )}
             </div>
