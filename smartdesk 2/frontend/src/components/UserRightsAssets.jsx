@@ -540,9 +540,11 @@ const AccessView = ({ onBack }) => {
 
       <div style={card}>
         <h2 style={h2}>Requests</h2>
-        <FilterBar search={acSearch} setSearch={setAcSearch} filter={acFilter} setFilter={setAcFilter}
-          placeholder="Search by name, ID, email or app…"
-          options={[{ key: 'all', label: 'All' }, { key: 'pending', label: 'Pending' }, { key: 'approved', label: 'Approved' }]} />
+        {(isIt || isHr || isAdmin) && (
+          <FilterBar search={acSearch} setSearch={setAcSearch} filter={acFilter} setFilter={setAcFilter}
+            placeholder="Search by name, ID, email or app…"
+            options={[{ key: 'all', label: 'All' }, { key: 'pending', label: 'Pending' }, { key: 'approved', label: 'Approved' }]} />
+        )}
         {(() => {
           const shown = list.filter(r => {
             const s = acSearch.trim().toLowerCase();
