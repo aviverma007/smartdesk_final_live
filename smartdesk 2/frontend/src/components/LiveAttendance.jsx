@@ -3,7 +3,7 @@ import { employeeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // Dynamically use whatever host the app is running on — works on any machine
-const API_HOST = `http://${window.location.hostname}:5082`;
+const API_HOST = `http://${window.location.hostname}:5092`;
 const API = `${API_HOST}/api/attendance`;
 
 const G = {

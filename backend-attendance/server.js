@@ -130,10 +130,10 @@ app.get('/api/attendance/departments', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5082;
+const PORT = process.env.PORT || 5092;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ SmartDesk Attendance API`);
-  console.log(`   Local:   http://localhost:${PORT}/api/health  (backend port 5082)`);
+  console.log(`   Local:   http://localhost:${PORT}/api/health  (backend port 5092)`);
   console.log(`   Network: http://192.168.66.107:${PORT}/api/health`);
   console.log(`   SQL: ${config.server} → ${config.database} as ${config.user}\n`);
 });
