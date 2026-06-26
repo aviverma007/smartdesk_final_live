@@ -130,7 +130,8 @@ const OnboardingView = ({ onBack }) => {
 const AssetsView = ({ onBack }) => {
   const api = useApi();
   const { isHr, isIt, isAdmin, user } = useAuth();
-  const staff = isHr || isIt || isAdmin;
+  const staff = isHr || isIt || isAdmin;     // can view all requests + send link
+  const canCreate = isHr || isAdmin;          // only HR creates requests
   const [empId, setEmpId] = useState('');
   const [email, setEmail] = useState('');
   const [picked, setPicked] = useState([]);
@@ -170,9 +171,9 @@ const AssetsView = ({ onBack }) => {
 
   return (
     <div>
-      <BackBar onBack={onBack} title="Asset Management" subtitle={staff ? 'Request assets for an employee, then send their welcome link.' : 'Confirm the assets you received.'} />
+      <BackBar onBack={onBack} title="Asset Management" subtitle={canCreate ? 'Request assets for an employee, then send their welcome link.' : (staff ? 'Review asset requests and send welcome links.' : 'Confirm the assets you received.')} />
 
-      {staff && (
+      {canCreate && (
         <div style={card}>
           <h2 style={h2}>New asset request</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
