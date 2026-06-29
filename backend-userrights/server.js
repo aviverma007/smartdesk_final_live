@@ -156,14 +156,35 @@ IF OBJECT_ID('dbo.AssetSelfRequests','U') IS NULL
 CREATE TABLE dbo.AssetSelfRequests (
   Id INT IDENTITY(1,1) PRIMARY KEY,
   EmpId      NVARCHAR(40) NOT NULL,
-  Items      NVARCHAR(MAX) NULL,   -- JSON array of {key,label}
+  Items      NVARCHAR(MAX) NULL,
   Reason     NVARCHAR(MAX) NULL,
-  Status     NVARCHAR(30) NOT NULL DEFAULT('pending'), -- pending | approved | rejected
+  Status     NVARCHAR(30) NOT NULL DEFAULT('pending'),
   ITRemarks  NVARCHAR(MAX) NULL,
   DecidedBy  NVARCHAR(80) NULL,
   DecidedAt  DATETIME NULL,
   CreatedBy  NVARCHAR(80) NULL,
   CreatedAt  DATETIME NOT NULL DEFAULT(GETDATE())
+);
+
+-- HOD approval flow on AccessRequests
+IF COL_LENGTH('dbo.AccessRequests','HodId') IS NULL ALTER TABLE dbo.AccessRequests ADD HodId NVARCHAR(40) NULL;
+IF COL_LENGTH('dbo.AccessRequests','HodApprovedBy') IS NULL ALTER TABLE dbo.AccessRequests ADD HodApprovedBy NVARCHAR(80) NULL;
+IF COL_LENGTH('dbo.AccessRequests','HodApprovedAt') IS NULL ALTER TABLE dbo.AccessRequests ADD HodApprovedAt DATETIME NULL;
+IF COL_LENGTH('dbo.AccessRequests','ItGiven') IS NULL ALTER TABLE dbo.AccessRequests ADD ItGiven BIT NULL;
+IF COL_LENGTH('dbo.AccessRequests','EmployeeAccepted') IS NULL ALTER TABLE dbo.AccessRequests ADD EmployeeAccepted BIT NULL;
+
+-- Admin rights matrix (admin-only assignment of rights to any employee)
+IF OBJECT_ID('dbo.RightsMatrix','U') IS NULL
+CREATE TABLE dbo.RightsMatrix (
+  EmpId     NVARCHAR(40) PRIMARY KEY,
+  Name      NVARCHAR(200) NULL,
+  Rights    NVARCHAR(MAX) NULL,  -- JSON array of granted application/right keys
+  CanView   BIT NOT NULL DEFAULT(0),
+  CanChange BIT NOT NULL DEFAULT(0),
+  CanDownload BIT NOT NULL DEFAULT(0),
+  CanApprove  BIT NOT NULL DEFAULT(0),
+  UpdatedBy NVARCHAR(80) NULL,
+  UpdatedAt DATETIME NOT NULL DEFAULT(GETDATE())
 );
   `);
   console.log('   ✓ Tables ready');
@@ -525,11 +546,12 @@ app.post('/api/access', async (req, res) => {
       .input('ScopeOfWork', sql.NVarChar, b.scopeOfWork || null)
       .input('Applications', sql.NVarChar, JSON.stringify(b.applications || []))
       .input('Details', sql.NVarChar, b.details || null)
+      .input('HodId', sql.NVarChar, b.hodId || null)
       .input('CreatedBy', sql.NVarChar, actor(req))
       .query(`INSERT INTO dbo.AccessRequests
-              (RequestType,RequesterName,Company,Department,EmpId,Email,WorkLocation,Language,ScopeOfWork,Applications,Details,CreatedBy)
+              (RequestType,RequesterName,Company,Department,EmpId,Email,WorkLocation,Language,ScopeOfWork,Applications,Details,HodId,Status,CreatedBy)
               OUTPUT INSERTED.* VALUES
-              (@RequestType,@RequesterName,@Company,@Department,@EmpId,@Email,@WorkLocation,@Language,@ScopeOfWork,@Applications,@Details,@CreatedBy)`);
+              (@RequestType,@RequesterName,@Company,@Department,@EmpId,@Email,@WorkLocation,@Language,@ScopeOfWork,@Applications,@Details,@HodId,'pending_hod',@CreatedBy)`);
     res.json({ success: true, record: r.recordset[0] });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -539,8 +561,9 @@ app.get('/api/access', async (req, res) => {
   try { const p = await getPool();
     let rows;
     if (role(req) === 'employee') {
+      // an employee sees requests they created OR ones where they are the HOD approver
       rows = await p.request().input('me', sql.NVarChar, actor(req))
-        .query(`SELECT * FROM dbo.AccessRequests WHERE CreatedBy=@me ORDER BY CreatedAt DESC`);
+        .query(`SELECT * FROM dbo.AccessRequests WHERE CreatedBy=@me OR HodId=@me ORDER BY CreatedAt DESC`);
     } else {
       rows = await p.request().query(`SELECT * FROM dbo.AccessRequests ORDER BY CreatedAt DESC`);
     }
@@ -556,30 +579,85 @@ app.get('/api/access/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// IT: approve with remarks (employee request -> approved)
-app.post('/api/access/:id/it-approve', async (req, res) => {
-  if (!can(req, 'it')) return deny(res);
-  try { const p = await getPool();
+// HOD approves/rejects — actor must be the request's HodId (or admin). HOD cannot give rights.
+app.post('/api/access/:id/hod-decide', async (req, res) => {
+  try {
+    const p = await getPool();
+    const r = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.AccessRequests WHERE Id=@Id`);
+    const row = r.recordset[0];
+    if (!row) return res.status(404).json({ success: false, error: 'Not found.' });
+    if (role(req) !== 'admin' && String(row.HodId || '') !== actor(req))
+      return res.status(403).json({ success: false, error: 'Only the selected HOD can approve this request.' });
+    const approve = (req.body || {}).action !== 'reject';
     await p.request()
       .input('Id', sql.Int, req.params.id)
-      .input('Note', sql.NVarChar, (req.body || {}).remarks || null)
+      .input('Status', sql.NVarChar, approve ? 'hod_approved' : 'rejected')
       .input('By', sql.NVarChar, actor(req))
-      .query(`UPDATE dbo.AccessRequests SET Status='approved', ManagerNote=@Note,
-              ITGivenBy=@By, ITGivenAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+      .query(`UPDATE dbo.AccessRequests SET Status=@Status, HodApprovedBy=@By, HodApprovedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// IT: reject with remarks (employee request -> rejected)
-app.post('/api/access/:id/it-reject', async (req, res) => {
+// IT marks given / not given (+remarks) after HOD approval, then again on Edit
+app.post('/api/access/:id/it-decide', async (req, res) => {
   if (!can(req, 'it')) return deny(res);
-  try { const p = await getPool();
+  try {
+    const given = !!(req.body || {}).given;
+    const p = await getPool();
     await p.request()
       .input('Id', sql.Int, req.params.id)
+      .input('Given', sql.Bit, given ? 1 : 0)
       .input('Note', sql.NVarChar, (req.body || {}).remarks || null)
       .input('By', sql.NVarChar, actor(req))
-      .query(`UPDATE dbo.AccessRequests SET Status='rejected', ManagerNote=@Note,
-              ITGivenBy=@By, ITGivenAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+      .query(`UPDATE dbo.AccessRequests SET Status='it_given', ItGiven=@Given, ManagerNote=@Note,
+              ITGivenBy=@By, ITGivenAt=GETDATE(), EmployeeAccepted=NULL, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Requester accepts the IT decision -> completed
+app.post('/api/access/:id/employee-accept', async (req, res) => {
+  try {
+    const p = await getPool();
+    const r = await p.request().input('Id', sql.Int, req.params.id).query(`SELECT CreatedBy FROM dbo.AccessRequests WHERE Id=@Id`);
+    const row = r.recordset[0];
+    if (!row) return res.status(404).json({ success: false, error: 'Not found.' });
+    if (role(req) !== 'admin' && String(row.CreatedBy || '') !== actor(req))
+      return res.status(403).json({ success: false, error: 'Only the requester can accept.' });
+    const accepted = (req.body || {}).accepted !== false;
+    await p.request().input('Id', sql.Int, req.params.id).input('Acc', sql.Bit, accepted ? 1 : 0)
+      .query(`UPDATE dbo.AccessRequests SET Status='completed', EmployeeAccepted=@Acc, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ ADMIN RIGHTS MATRIX ═══════════════════════════════ */
+app.get('/api/rights-matrix', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only (can() with no extra roles => admin)
+  try { const p = await getPool();
+    const rows = await p.request().query(`SELECT * FROM dbo.RightsMatrix ORDER BY EmpId`);
+    res.json({ success: true, records: rows.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.put('/api/rights-matrix/:empId', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only
+  try {
+    const b = req.body || {};
+    const p = await getPool();
+    await p.request()
+      .input('EmpId', sql.NVarChar, req.params.empId)
+      .input('Name', sql.NVarChar, b.name || null)
+      .input('Rights', sql.NVarChar, JSON.stringify(b.rights || []))
+      .input('V', sql.Bit, b.canView ? 1 : 0)
+      .input('C', sql.Bit, b.canChange ? 1 : 0)
+      .input('D', sql.Bit, b.canDownload ? 1 : 0)
+      .input('A', sql.Bit, b.canApprove ? 1 : 0)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`MERGE dbo.RightsMatrix AS t USING (SELECT @EmpId AS EmpId) AS s ON t.EmpId=s.EmpId
+              WHEN MATCHED THEN UPDATE SET Name=@Name, Rights=@Rights, CanView=@V, CanChange=@C, CanDownload=@D, CanApprove=@A, UpdatedBy=@By, UpdatedAt=GETDATE()
+              WHEN NOT MATCHED THEN INSERT (EmpId,Name,Rights,CanView,CanChange,CanDownload,CanApprove,UpdatedBy)
+              VALUES (@EmpId,@Name,@Rights,@V,@C,@D,@A,@By);`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

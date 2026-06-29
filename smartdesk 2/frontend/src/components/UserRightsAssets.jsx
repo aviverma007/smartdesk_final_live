@@ -26,6 +26,10 @@ const STATUS_META = {
   employee_review: { label: 'Pending', color: 'var(--accent-orange)' },
   submitted: { label: 'Submitted', color: 'var(--accent-green)' },
   pending_manager: { label: 'Pending', color: 'var(--accent-orange)' },
+  pending_hod: { label: 'Pending HOD', color: 'var(--accent-orange)' },
+  hod_approved: { label: 'HOD Approved', color: 'var(--accent-sky)' },
+  it_given: { label: 'IT Decided', color: 'var(--accent-teal)' },
+  completed: { label: 'Completed', color: 'var(--accent-green)' },
   approved: { label: 'Approved', color: 'var(--accent-green)' },
   rejected: { label: 'Rejected', color: '#dc2626' },
   manager_approved: { label: 'Manager Approved', color: 'var(--accent-sky)' },
@@ -477,10 +481,11 @@ const AssetRequestsSection = () => {
 /* ═══════════════════════════ 3) ACCESS / RIGHTS ════════════════════════════ */
 const AccessView = ({ onBack }) => {
   const api = useApi();
-  const { isHr, isIt, isManager, isAdmin, isEmployee } = useAuth();
+  const { isHr, isIt, isManager, isAdmin, isEmployee, user } = useAuth();
+  const me = user?.empId || '';
   const canCreate = isEmployee || isAdmin;       // only the employee fills the form
-  const canApprove = isIt || isAdmin;            // only IT approves + adds remarks
-  const blank = { requestType: 'new', requesterName: '', company: '', department: '', empId: '', email: '', workLocation: '', language: 'EN-English', scopeOfWork: '', applications: [], details: '' };
+  const canApprove = isIt || isAdmin;            // IT provisions (given/not) + edits
+  const blank = { requestType: 'new', requesterName: '', company: '', department: '', empId: '', email: '', workLocation: '', language: 'EN-English', scopeOfWork: '', applications: [], details: '', hodId: '' };
   const [form, setForm] = useState(blank);
   const [list, setList] = useState([]);
   const [notes, setNotes] = useState({});
@@ -495,13 +500,13 @@ const AccessView = ({ onBack }) => {
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
+    if (!form.hodId.trim()) return setMsg('Enter your HOD’s Employee ID for approval.');
     const d = await api('/access', 'POST', form);
-    if (d.success) { setForm(blank); setShowForm(false); setMsg('Request submitted — awaiting IT approval.'); load(); } else setMsg(d.error || 'Could not submit.');
+    if (d.success) { setForm(blank); setShowForm(false); setMsg('Request submitted — awaiting HOD approval.'); load(); } else setMsg(d.error || 'Could not submit.');
   };
-  const decide = async (id, action) => {
-    const d = await api(`/access/${id}/it-${action}`, 'POST', { remarks: notes[id] || '' });
-    setMsg(d.success ? (action === 'approve' ? 'Approved.' : 'Rejected.') : (d.error || 'Failed.')); load();
-  };
+  const hodDecide = async (id, action) => { const d = await api(`/access/${id}/hod-decide`, 'POST', { action }); setMsg(d.success ? (action === 'reject' ? 'Rejected.' : 'Approved.') : (d.error || 'Failed.')); load(); };
+  const itDecide = async (id, given) => { const d = await api(`/access/${id}/it-decide`, 'POST', { given, remarks: notes[id] || '' }); setMsg(d.success ? (given ? 'Marked as given.' : 'Marked as not given.') : (d.error || 'Failed.')); load(); };
+  const employeeAccept = async (id, accepted) => { const d = await api(`/access/${id}/employee-accept`, 'POST', { accepted }); setMsg(d.success ? 'Recorded.' : (d.error || 'Failed.')); load(); };
   const [editRights, setEditRights] = useState(null); // request id being edited
   const [rightsDraft, setRightsDraft] = useState([]);
   const startEditRights = (r) => { let a = []; try { a = JSON.parse(r.Applications || '[]'); } catch {} setRightsDraft(a); setEditRights(r.Id); };
@@ -536,6 +541,7 @@ const AccessView = ({ onBack }) => {
             <Field l="Employee ID"><input style={input} value={form.empId} onChange={e => set('empId', e.target.value)} /></Field>
             <Field l="Email"><input style={input} value={form.email} onChange={e => set('email', e.target.value)} /></Field>
             <Field l="Work location"><input style={input} value={form.workLocation} onChange={e => set('workLocation', e.target.value)} /></Field>
+            <Field l="HOD Employee ID * (approver)"><input style={input} value={form.hodId} onChange={e => set('hodId', e.target.value)} placeholder="Your HOD’s Employee ID" /></Field>
           </div>
           <div style={label}>Applications</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
@@ -567,21 +573,21 @@ const AccessView = ({ onBack }) => {
             const s = acSearch.trim().toLowerCase();
             const hay = `${r.RequesterName || ''} ${r.EmpId || ''} ${r.Email || ''} ${r.Applications || ''}`.toLowerCase();
             const matchSearch = !s || hay.includes(s);
-            const matchFilter = acFilter === 'all' || (acFilter === 'approved' ? r.Status === 'approved' : r.Status !== 'approved');
+            const done = r.Status === 'completed' || r.Status === 'rejected';
+            const matchFilter = acFilter === 'all' || (acFilter === 'approved' ? done : !done);
             return matchSearch && matchFilter;
           });
           if (shown.length === 0) return <Empty text="No matching requests." />;
           return shown.map(r => {
           let apps = []; try { apps = JSON.parse(r.Applications || '[]'); } catch {}
-          const approved = r.Status === 'approved';
-          const rejected = r.Status === 'rejected';
-          const decided = approved || rejected;
+          const isMyRequest = String(r.CreatedBy || '') === me;
+          const isMyHodTask = String(r.HodId || '') === me && !isMyRequest;
           return (
             <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.RequesterName || r.EmpId || `Request #${r.Id}`} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}>· {r.RequestType}</span></div>
-                  <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{apps.join(', ') || '—'}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.RequesterName || r.EmpId || `Request #${r.Id}`} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}>· {r.RequestType}</span>{isMyHodTask && <span style={{ color: 'var(--accent)', fontSize: '.78rem' }}> · to approve (HOD)</span>}</div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{apps.join(', ') || '—'}{r.HodId ? ` · HOD: ${r.HodId}` : ''}</div>
                 </div>
                 <Pill status={r.Status} />
                 <button style={{ ...ghostBtn, marginLeft: 8, padding: '6px 12px', fontSize: '.8rem' }}
@@ -606,6 +612,7 @@ const AccessView = ({ onBack }) => {
                     <Field l="Employee ID"><input style={input} value={r.EmpId || ''} disabled /></Field>
                     <Field l="Email"><input style={input} value={r.Email || ''} disabled /></Field>
                     <Field l="Work location"><input style={input} value={r.WorkLocation || ''} disabled /></Field>
+                    <Field l="HOD Employee ID"><input style={input} value={r.HodId || ''} disabled /></Field>
                   </div>
                   <div style={label}>Applications</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
@@ -619,19 +626,47 @@ const AccessView = ({ onBack }) => {
               )}
 
               {r.ManagerNote && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>IT remarks: {r.ManagerNote}</div>}
-              {/* IT: remarks + approve/reject (only while not yet decided) */}
-              {canApprove && !decided && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
-                  <button style={primaryBtn} onClick={() => decide(r.Id, 'approve')}>Approve</button>
-                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => decide(r.Id, 'reject')}>Reject</button>
+              {r.Status === 'it_given' && <div style={{ fontSize: '.82rem', color: r.ItGiven ? 'var(--accent-green)' : '#dc2626', marginTop: 6 }}>IT decision: {r.ItGiven ? 'Given' : 'Not given'}</div>}
+              {r.Status === 'completed' && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 6 }}>Completed — IT: {r.ItGiven ? 'Given' : 'Not given'}, employee {r.EmployeeAccepted ? 'accepted' : 'noted'}.</div>}
+
+              {/* Stage 1 — HOD approves/rejects (cannot give rights) */}
+              {(isMyHodTask || isAdmin) && r.Status === 'pending_hod' && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button style={primaryBtn} onClick={() => hodDecide(r.Id, 'approve')}>Approve (HOD)</button>
+                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => hodDecide(r.Id, 'reject')}>Reject</button>
                 </div>
               )}
 
-              {canApprove && approved && editRights !== r.Id && (
+              {/* Stage 2 — IT marks given / not given after HOD approval */}
+              {canApprove && r.Status === 'hod_approved' && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 180 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
+                  <button style={primaryBtn} onClick={() => itDecide(r.Id, true)}>Given</button>
+                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => itDecide(r.Id, false)}>Not given</button>
+                </div>
+              )}
+
+              {/* Stage 3 — requester accepts the IT decision */}
+              {isMyRequest && r.Status === 'it_given' && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button style={primaryBtn} onClick={() => employeeAccept(r.Id, true)}>Accept</button>
+                </div>
+              )}
+
+              {/* IT Edit — re-decide given/not after it_given or completed */}
+              {canApprove && (r.Status === 'it_given' || r.Status === 'completed') && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 160 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
+                  <button style={ghostBtn} onClick={() => itDecide(r.Id, true)}>Edit → Given</button>
+                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => itDecide(r.Id, false)}>Edit → Not given</button>
+                </div>
+              )}
+
+              {/* IT can edit the granted applications once HOD-approved */}
+              {canApprove && (r.Status === 'hod_approved' || r.Status === 'it_given' || r.Status === 'completed') && editRights !== r.Id && (
                 <button style={{ ...ghostBtn, marginTop: 10, padding: '6px 12px', fontSize: '.8rem', alignSelf: 'flex-start' }} onClick={() => startEditRights(r)}>Edit rights</button>
               )}
-              {canApprove && approved && editRights === r.Id && (
+              {canApprove && editRights === r.Id && (
                 <div style={{ marginTop: 10 }}>
                   <div style={label}>Edit granted applications</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
@@ -779,12 +814,110 @@ const OverviewView = ({ onBack }) => {
   );
 };
 
+/* ═══════════════════ ADMIN APPROVAL / RIGHTS MATRIX (admin only) ════════════ */
+const RIGHTS_CATALOGUE = [...APPLICATIONS]; // assignable application rights
+const MatrixView = ({ onBack }) => {
+  const api = useApi();
+  const [records, setRecords] = useState([]);
+  const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState(null); // empId being edited (or '__new')
+  const [draft, setDraft] = useState({ empId: '', name: '', rights: [], canView: false, canChange: false, canDownload: false, canApprove: false });
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(async () => { const d = await api('/rights-matrix'); if (d.success) setRecords(d.records); else setMsg(d.error || 'Could not load.'); }, [api]);
+  useEffect(() => { load(); }, [load]);
+
+  const parseRights = (r) => { try { return JSON.parse(r || '[]'); } catch { return []; } };
+  const startEdit = (rec) => {
+    if (rec) setDraft({ empId: rec.EmpId, name: rec.Name || '', rights: parseRights(rec.Rights), canView: !!rec.CanView, canChange: !!rec.CanChange, canDownload: !!rec.CanDownload, canApprove: !!rec.CanApprove });
+    else setDraft({ empId: '', name: '', rights: [], canView: false, canChange: false, canDownload: false, canApprove: false });
+    setEditing(rec ? rec.EmpId : '__new'); setMsg('');
+  };
+  const toggleRight = (a) => setDraft(d => ({ ...d, rights: d.rights.includes(a) ? d.rights.filter(x => x !== a) : [...d.rights, a] }));
+  const save = async () => {
+    if (!draft.empId.trim()) return setMsg('Employee ID is required.');
+    const d = await api(`/rights-matrix/${encodeURIComponent(draft.empId.trim())}`, 'PUT', draft);
+    setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) { setEditing(null); load(); }
+  };
+  const download = () => {
+    const data = records.map(r => ({ 'User ID': r.EmpId, 'Name': r.Name || '', 'Rights': parseRights(r.Rights).join(', '),
+      View: r.CanView ? 'Yes' : 'No', Change: r.CanChange ? 'Yes' : 'No', Download: r.CanDownload ? 'Yes' : 'No', Approve: r.CanApprove ? 'Yes' : 'No' }));
+    if (data.length === 0) { setMsg('Nothing to export.'); return; }
+    const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rights Matrix'); XLSX.writeFile(wb, 'rights_matrix.xlsx');
+  };
+  const filtered = records.filter(r => { const s = search.trim().toLowerCase(); return !s || String(r.EmpId).toLowerCase().includes(s) || (r.Name || '').toLowerCase().includes(s); });
+  const cap = (on) => ({ fontSize: '.8rem', color: on ? 'var(--accent-green)' : 'var(--text-muted)', fontWeight: on ? 700 : 400 });
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Approval & Rights Matrix" subtitle="Admin-only. Assign or change any rights for any employee, and export." />
+      <div style={card}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+          <input placeholder="Search by User ID or name…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...input, marginBottom: 0, maxWidth: 280 }} />
+          <button style={primaryBtn} onClick={() => startEdit(null)}>+ Assign rights</button>
+          <button style={ghostBtn} onClick={download}>Download Excel</button>
+        </div>
+
+        {editing && (
+          <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', marginBottom: 16 }}>
+            <h2 style={h2}>{editing === '__new' ? 'Assign rights' : `Edit rights — ${draft.empId}`}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
+              <Field l="Employee ID *"><input style={input} value={draft.empId} disabled={editing !== '__new'} onChange={e => setDraft(d => ({ ...d, empId: e.target.value }))} /></Field>
+              <Field l="Name"><input style={input} value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} /></Field>
+            </div>
+            <div style={label}>Application rights</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+              {RIGHTS_CATALOGUE.map(a => (
+                <label key={a} style={chip(draft.rights.includes(a))}>
+                  <input type="checkbox" checked={draft.rights.includes(a)} onChange={() => toggleRight(a)} style={{ marginRight: 7 }} />{a}
+                </label>
+              ))}
+            </div>
+            <div style={label}>Capabilities</div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+              {[['canView', 'View'], ['canChange', 'Change'], ['canDownload', 'Download'], ['canApprove', 'Approve']].map(([k, l]) => (
+                <label key={k} style={{ fontSize: '.86rem', color: 'var(--text-primary)' }}>
+                  <input type="checkbox" checked={draft[k]} onChange={e => setDraft(d => ({ ...d, [k]: e.target.checked }))} style={{ marginRight: 6 }} />{l}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button style={primaryBtn} onClick={save}>Save</button>
+              <button style={ghostBtn} onClick={() => setEditing(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {filtered.length === 0 && <Empty text="No rights assigned yet." />}
+        {filtered.map(r => (
+          <div key={r.EmpId} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.EmpId}{r.Name ? ` · ${r.Name}` : ''}</div>
+                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{parseRights(r.Rights).join(', ') || 'No application rights'}</div>
+              </div>
+              <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => startEdit(r)}>Change</button>
+            </div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
+              <span style={cap(r.CanView)}>View</span><span style={cap(r.CanChange)}>Change</span>
+              <span style={cap(r.CanDownload)}>Download</span><span style={cap(r.CanApprove)}>Approve</span>
+            </div>
+          </div>
+        ))}
+        {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+      </div>
+    </div>
+  );
+};
+
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
   { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
   { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['hr', 'it', 'admin', 'employee'] },
   { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['hr', 'it', 'manager', 'admin', 'employee'] },
   { id: 'overview', title: 'Employee Overview', desc: 'Search employees, view assets & rights, export to Excel.', grad: 'linear-gradient(135deg,#07212b,#0e7490)', roles: ['hr', 'it', 'admin'] },
+  { id: 'matrix', title: 'Approval & Rights Matrix', desc: 'Admin-only. Assign or change any rights for anyone.', grad: 'linear-gradient(135deg,#2a0a0a,#b91c1c)', roles: ['admin'] },
 ];
 
 const UserRightsAssets = () => {
@@ -808,6 +941,7 @@ const UserRightsAssets = () => {
   if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
   if (view === 'overview') return <>{banner}<OverviewView onBack={() => setView('home')} /></>;
+  if (view === 'matrix') return <>{banner}<MatrixView onBack={() => setView('home')} /></>;
 
   return (
     <div>
