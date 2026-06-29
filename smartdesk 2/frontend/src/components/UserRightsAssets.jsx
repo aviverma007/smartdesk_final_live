@@ -494,6 +494,24 @@ const AccessView = ({ onBack }) => {
   const [acFilter, setAcFilter] = useState('all'); // all | pending | approved
   const [showForm, setShowForm] = useState(false);
   const [msg, setMsg] = useState('');
+  const [directory, setDirectory] = useState([]);
+  const [hodQuery, setHodQuery] = useState('');
+  const [showHod, setShowHod] = useState(false);
+  useEffect(() => {
+    if (!canCreate) return;
+    (async () => {
+      try {
+        const data = await employeeAPI.getAll();
+        let onb = [];
+        try { const r = await fetch(`${URA_API}/onboarding/directory`); const j = await r.json(); if (j.success) onb = j.records.map(o => ({ id: o.EmpId, name: o.FullName, department: o.Department || '' })); } catch (_) {}
+        const ex = new Set(data.map(e => String(e.id)));
+        setDirectory([...data, ...onb.filter(o => !ex.has(String(o.id)))]);
+      } catch (_) { setDirectory([]); }
+    })();
+  }, [canCreate]);
+  const hodMatches = hodQuery.trim()
+    ? directory.filter(e => { const s = hodQuery.trim().toLowerCase(); return String(e.id).toLowerCase().includes(s) || (e.name || '').toLowerCase().includes(s); }).slice(0, 8)
+    : [];
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleApp = (a) => setForm(f => ({ ...f, applications: f.applications.includes(a) ? f.applications.filter(x => x !== a) : [...f.applications, a] }));
   const load = useCallback(async () => { const d = await api('/access'); if (d.success) setList(d.records); }, [api]);
@@ -502,7 +520,7 @@ const AccessView = ({ onBack }) => {
   const create = async () => {
     if (!form.hodId.trim()) return setMsg('Enter your HOD’s Employee ID for approval.');
     const d = await api('/access', 'POST', form);
-    if (d.success) { setForm(blank); setShowForm(false); setMsg('Request submitted — awaiting HOD approval.'); load(); } else setMsg(d.error || 'Could not submit.');
+    if (d.success) { setForm(blank); setHodQuery(''); setShowForm(false); setMsg('Request submitted — awaiting HOD approval.'); load(); } else setMsg(d.error || 'Could not submit.');
   };
   const hodDecide = async (id, action) => { const d = await api(`/access/${id}/hod-decide`, 'POST', { action }); setMsg(d.success ? (action === 'reject' ? 'Rejected.' : 'Approved.') : (d.error || 'Failed.')); load(); };
   const itDecide = async (id, given) => { const d = await api(`/access/${id}/it-decide`, 'POST', { given, remarks: notes[id] || '' }); setMsg(d.success ? (given ? 'Marked as given.' : 'Marked as not given.') : (d.error || 'Failed.')); load(); };
@@ -521,7 +539,7 @@ const AccessView = ({ onBack }) => {
       <BackBar onBack={onBack} title="Application & Rights Allocation" subtitle={canCreate ? 'Fill the form to request application access. IT will review and approve.' : (canApprove ? 'Review requests, add remarks, and approve.' : 'View application & rights requests.')} />
 
       {canCreate && list.length > 0 && !showForm && (
-        <button style={{ ...primaryBtn, marginBottom: 16 }} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New form</button>
+        <button style={{ ...primaryBtn, marginBottom: 16 }} onClick={() => { setForm(blank); setHodQuery(''); setMsg(''); setShowForm(true); }}>+ New form</button>
       )}
 
       {canCreate && (list.length === 0 || showForm) && (
@@ -541,7 +559,24 @@ const AccessView = ({ onBack }) => {
             <Field l="Employee ID"><input style={input} value={form.empId} onChange={e => set('empId', e.target.value)} /></Field>
             <Field l="Email"><input style={input} value={form.email} onChange={e => set('email', e.target.value)} /></Field>
             <Field l="Work location"><input style={input} value={form.workLocation} onChange={e => set('workLocation', e.target.value)} /></Field>
-            <Field l="HOD Employee ID * (approver)"><input style={input} value={form.hodId} onChange={e => set('hodId', e.target.value)} placeholder="Your HOD’s Employee ID" /></Field>
+            <Field l="HOD Employee ID * (approver)">
+              <div style={{ position: 'relative' }}>
+                <input style={input} placeholder="Search HOD by name or ID…" value={hodQuery}
+                  onChange={e => { setHodQuery(e.target.value); set('hodId', e.target.value); setShowHod(true); }}
+                  onFocus={() => setShowHod(true)} onBlur={() => setTimeout(() => setShowHod(false), 150)} />
+                {showHod && hodMatches.length > 0 && (
+                  <div style={{ position: 'absolute', zIndex: 20, left: 0, right: 0, top: 44, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 9, maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.18)' }}>
+                    {hodMatches.map(e => (
+                      <div key={e.id} onMouseDown={() => { set('hodId', String(e.id)); setHodQuery(`${e.name || ''} (${e.id})`); setShowHod(false); }}
+                        style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '.86rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{e.name || '(no name)'}</span>
+                        <span style={{ color: 'var(--text-muted)' }}> · {e.id}{e.department ? ` · ${e.department}` : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Field>
           </div>
           <div style={label}>Applications</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
@@ -937,14 +972,47 @@ const BUTTONS = [
 ];
 
 const UserRightsAssets = () => {
-  const { user } = useAuth();
+  const { user, isHr, isIt, isAdmin, isEmployee } = useAuth();
   const api = useApi();
   const r = user?.role || '';
+  const me = user?.empId || '';
   const [view, setView] = useState('home');
   const [offline, setOffline] = useState(false);
+  const [pending, setPending] = useState({});
   const visible = BUTTONS.filter(b => b.roles.includes(r));
 
   useEffect(() => { api('/health').then(d => setOffline(!d.success)); }, [api]);
+
+  // Pending items awaiting THIS user's action, per module (for the badges)
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const counts = {};
+      try {
+        const d = await api('/access');
+        if (d.success) {
+          const rows = d.records;
+          if (isIt || isAdmin) counts.access = rows.filter(x => x.Status === 'hod_approved').length;
+          else if (isEmployee) counts.access = rows.filter(x => (String(x.HodId) === me && x.Status === 'pending_hod') || (String(x.CreatedBy) === me && x.Status === 'it_given')).length;
+        }
+      } catch (_) {}
+      try {
+        if (isIt || isAdmin) {
+          let n = 0;
+          const sr = await api('/asset-requests'); if (sr.success) n += sr.records.filter(x => x.Status === 'pending').length;
+          const al = await api('/assets'); if (al.success) n += al.records.filter(x => x.Status === 'credentials_sent' && !x.ITSubmittedAt).length;
+          counts.assets = n;
+        } else if (isEmployee) {
+          const mine = await api(`/assets/by-emp/${encodeURIComponent(me)}`);
+          if (mine.success && mine.record && ['credentials_sent', 'employee_review'].includes(mine.record.Status)) counts.assets = 1;
+        }
+      } catch (_) {}
+      if (!cancel) setPending(counts);
+    })();
+    return () => { cancel = true; };
+  }, [api, isIt, isAdmin, isEmployee, me, view]);
+
+  const totalPending = Object.values(pending).reduce((a, b) => a + (b || 0), 0);
 
   const banner = offline ? (
     <div style={{ background: 'color-mix(in srgb, var(--accent-orange) 12%, transparent)', border: '1px solid var(--accent-orange)',
@@ -966,13 +1034,23 @@ const UserRightsAssets = () => {
         <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '.68rem', fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 5 }}>HR · IT · Manager</p>
         <h1 style={{ ...h2, fontSize: '1.6rem' }}>User Rights & Assets</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '.9rem', margin: 0 }}>Onboarding, asset allocation, and application access — each with two levels of approval.</p>
+        {totalPending > 0 && (
+          <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb, var(--accent-orange) 12%, transparent)',
+            border: '1px solid var(--accent-orange)', color: 'var(--accent-orange)', borderRadius: 999, padding: '6px 14px', fontSize: '.84rem', fontWeight: 700 }}>
+            🔔 You have {totalPending} item{totalPending > 1 ? 's' : ''} awaiting your action
+          </div>
+        )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 16 }}>
         {visible.map(b => (
-          <div key={b.id} onClick={() => setView(b.id)} style={{ background: b.grad, borderRadius: 14, padding: 22, cursor: 'pointer', color: '#fff',
+          <div key={b.id} onClick={() => setView(b.id)} style={{ position: 'relative', background: b.grad, borderRadius: 14, padding: 22, cursor: 'pointer', color: '#fff',
             minHeight: 130, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 6px 22px rgba(0,0,0,0.28)' }}>
+            {pending[b.id] > 0 && (
+              <span style={{ position: 'absolute', top: 12, right: 12, background: '#dc2626', color: '#fff', borderRadius: 999, minWidth: 24, height: 24,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.76rem', fontWeight: 800, padding: '0 7px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>{pending[b.id]}</span>
+            )}
             <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: '1.15rem' }}>{b.title}</div>
-            <div style={{ fontSize: '.84rem', opacity: .85, marginTop: 8 }}>{b.desc}</div>
+            <div style={{ fontSize: '.84rem', opacity: .85, marginTop: 8 }}>{b.desc}{pending[b.id] > 0 ? ` · ${pending[b.id]} pending` : ''}</div>
           </div>
         ))}
         {visible.length === 0 && <Empty text="Your role has no actions here. Sign in as HR, IT, or Manager." />}
