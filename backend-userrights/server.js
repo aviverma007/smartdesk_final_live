@@ -696,25 +696,33 @@ app.put('/api/access/:id/rights', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// HR/IT/admin: per-employee summary of assets + application rights (for the overview/export)
+// HR/IT/admin: per-employee summary of details + assets + application rights
 app.get('/api/employees-summary', async (req, res) => {
   if (!can(req, 'hr', 'it')) return deny(res);
   try {
     const p = await getPool();
     const [reqs, items, selfs, access, onb] = await Promise.all([
-      p.request().query(`SELECT Id, EmpId FROM dbo.AssetRequests`),
+      p.request().query(`SELECT Id, EmpId, Email FROM dbo.AssetRequests`),
       p.request().query(`SELECT RequestId, ItemLabel, Requested, [Given] FROM dbo.AssetItems`),
       p.request().query(`SELECT EmpId, Items FROM dbo.AssetSelfRequests WHERE Status='approved'`),
-      p.request().query(`SELECT EmpId, RequesterName, Applications FROM dbo.AccessRequests WHERE Status='approved'`),
-      p.request().query(`SELECT EmpId, FullName FROM dbo.Onboarding WHERE EmpId IS NOT NULL AND Status='onboarded'`),
+      p.request().query(`SELECT EmpId, RequesterName, Applications, Email, Company, Department, WorkLocation FROM dbo.AccessRequests WHERE Status='completed' OR Status='it_given'`),
+      p.request().query(`SELECT EmpId, FullName, Department, Profile, ManagerName, JoiningDate, Phone, Gender, PastCompany FROM dbo.Onboarding WHERE EmpId IS NOT NULL AND Status='onboarded'`),
     ]);
     const itemsByReq = {};
     items.recordset.forEach(i => { (itemsByReq[i.RequestId] = itemsByReq[i.RequestId] || []).push(i); });
-    const map = {}; // empId -> { empId, name, assets:Set, rights:Set }
-    const ensure = (id) => (map[id] = map[id] || { empId: id, name: '', assets: new Set(), rights: new Set() });
-    onb.recordset.forEach(o => { ensure(o.EmpId).name = o.FullName || ''; });
+    const map = {};
+    const ensure = (id) => (map[id] = map[id] || { empId: id, name: '', email: '', department: '', designation: '', manager: '', joiningDate: '', phone: '', gender: '', company: '', location: '', assets: new Set(), rights: new Set() });
+    const setIf = (e, k, v) => { if (v && !e[k]) e[k] = v; };
+
+    onb.recordset.forEach(o => {
+      const e = ensure(o.EmpId);
+      setIf(e, 'name', o.FullName); setIf(e, 'department', o.Department); setIf(e, 'designation', o.Profile);
+      setIf(e, 'manager', o.ManagerName); setIf(e, 'phone', o.Phone); setIf(e, 'gender', o.Gender);
+      setIf(e, 'company', o.PastCompany);
+      if (o.JoiningDate && !e.joiningDate) e.joiningDate = new Date(o.JoiningDate).toISOString().slice(0, 10);
+    });
     reqs.recordset.forEach(r => {
-      const e = ensure(r.EmpId);
+      const e = ensure(r.EmpId); setIf(e, 'email', r.Email);
       (itemsByReq[r.Id] || []).forEach(it => { if (it.Given || it.Requested) e.assets.add(it.ItemLabel); });
     });
     selfs.recordset.forEach(s => {
@@ -723,11 +731,15 @@ app.get('/api/employees-summary', async (req, res) => {
     });
     access.recordset.forEach(a => {
       const e = ensure(a.EmpId);
-      if (!e.name && a.RequesterName) e.name = a.RequesterName;
+      setIf(e, 'name', a.RequesterName); setIf(e, 'email', a.Email); setIf(e, 'department', a.Department);
+      setIf(e, 'company', a.Company); setIf(e, 'location', a.WorkLocation);
       try { JSON.parse(a.Applications || '[]').forEach(app => e.rights.add(app)); } catch (_) {}
     });
-    const records = Object.values(map).map(e => ({ empId: e.empId, name: e.name, assets: [...e.assets], rights: [...e.rights] }))
-      .sort((a, b) => String(a.empId).localeCompare(String(b.empId)));
+    const records = Object.values(map).map(e => ({
+      empId: e.empId, name: e.name, email: e.email, department: e.department, designation: e.designation,
+      manager: e.manager, joiningDate: e.joiningDate, phone: e.phone, gender: e.gender, company: e.company, location: e.location,
+      assets: [...e.assets], rights: [...e.rights],
+    })).sort((a, b) => String(a.empId).localeCompare(String(b.empId)));
     res.json({ success: true, records });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

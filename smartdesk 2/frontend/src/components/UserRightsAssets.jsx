@@ -751,9 +751,13 @@ const OverviewView = ({ onBack }) => {
 
   const exportRows = (rows, filename) => {
     if (rows.length === 0) { setMsg('Nothing to export.'); return; }
-    const data = rows.map(r => ({ 'User ID': r.empId, 'Name': r.name, 'Assets': r.assets.join(', '), 'Application Rights': r.rights.join(', ') }));
+    const data = rows.map(r => ({
+      'User ID': r.empId, 'Name': r.name, 'Email': r.email, 'Department': r.department, 'Designation': r.designation,
+      'Manager': r.manager, 'Joining Date': r.joiningDate, 'Phone': r.phone, 'Gender': r.gender, 'Company': r.company,
+      'Location': r.location, 'Assets': r.assets.join(', '), 'Application Rights': r.rights.join(', '),
+    }));
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 40 }];
+    ws['!cols'] = [12, 22, 26, 18, 18, 18, 14, 16, 10, 18, 16, 40, 40].map(w => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Employees');
     XLSX.writeFile(wb, filename);
@@ -790,17 +794,29 @@ const OverviewView = ({ onBack }) => {
                 <th style={{ ...th, width: 36 }}><input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} /></th>
                 <th style={th}>User ID</th>
                 <th style={th}>Name</th>
+                <th style={th}>Email</th>
+                <th style={th}>Department</th>
+                <th style={th}>Designation</th>
+                <th style={th}>Manager</th>
+                <th style={th}>Joining Date</th>
+                <th style={th}>Phone</th>
                 {mode !== 'rights' && <th style={th}>Assets</th>}
                 {mode !== 'assets' && <th style={th}>Application Rights</th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td style={td} colSpan={5}><Empty text="No matching employees." /></td></tr>}
+              {filtered.length === 0 && <tr><td style={td} colSpan={11}><Empty text="No matching employees." /></td></tr>}
               {filtered.map(r => (
                 <tr key={r.empId}>
                   <td style={td}><input type="checkbox" checked={selected.has(r.empId)} onChange={() => toggleSel(r.empId)} /></td>
                   <td style={{ ...td, fontWeight: 700 }}>{r.empId}</td>
                   <td style={td}>{r.name || '—'}</td>
+                  <td style={td}>{r.email || '—'}</td>
+                  <td style={td}>{r.department || '—'}</td>
+                  <td style={td}>{r.designation || '—'}</td>
+                  <td style={td}>{r.manager || '—'}</td>
+                  <td style={td}>{r.joiningDate || '—'}</td>
+                  <td style={td}>{r.phone || '—'}</td>
                   {mode !== 'rights' && <td style={td}>{r.assets.join(', ') || '—'}</td>}
                   {mode !== 'assets' && <td style={td}>{r.rights.join(', ') || '—'}</td>}
                 </tr>
