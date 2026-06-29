@@ -186,6 +186,31 @@ CREATE TABLE dbo.RightsMatrix (
   UpdatedBy NVARCHAR(80) NULL,
   UpdatedAt DATETIME NOT NULL DEFAULT(GETDATE())
 );
+IF COL_LENGTH('dbo.RightsMatrix','Profile') IS NULL ALTER TABLE dbo.RightsMatrix ADD Profile NVARCHAR(40) NULL;
+
+-- Directory of employees managed in-app (add / soft-delete) + audit log
+IF OBJECT_ID('dbo.DirectoryEmployees','U') IS NULL
+CREATE TABLE dbo.DirectoryEmployees (
+  EmpId       NVARCHAR(40) PRIMARY KEY,
+  Name        NVARCHAR(200) NULL,
+  Department  NVARCHAR(120) NULL,
+  Designation NVARCHAR(120) NULL,
+  Email       NVARCHAR(200) NULL,
+  Status      NVARCHAR(20) NOT NULL DEFAULT('active'), -- active | deleted
+  CreatedBy   NVARCHAR(80) NULL,
+  CreatedAt   DATETIME NOT NULL DEFAULT(GETDATE()),
+  DeletedBy   NVARCHAR(80) NULL,
+  DeletedAt   DATETIME NULL
+);
+IF OBJECT_ID('dbo.DirectoryLog','U') IS NULL
+CREATE TABLE dbo.DirectoryLog (
+  Id      INT IDENTITY(1,1) PRIMARY KEY,
+  Action  NVARCHAR(20) NOT NULL,  -- add | delete
+  EmpId   NVARCHAR(40) NULL,
+  Name    NVARCHAR(200) NULL,
+  ActedBy NVARCHAR(80) NULL,
+  ActedAt DATETIME NOT NULL DEFAULT(GETDATE())
+);
   `);
   console.log('   ✓ Tables ready');
 }
@@ -289,7 +314,17 @@ app.get('/api/onboarding/directory', async (req, res) => {
     const q = await p.request().query(
       `SELECT EmpId, FullName, Department, ManagerName, Profile, JoiningDate, Phone
        FROM dbo.Onboarding WHERE Status='onboarded' AND EmpId IS NOT NULL ORDER BY FullName`);
-    res.json({ success: true, records: q.recordset });
+    // managed directory: active adds appear, deleted ones are filtered out
+    let added = [], deleted = [];
+    try {
+      const dir = await p.request().query(`SELECT EmpId, Name, Department, Designation, Status FROM dbo.DirectoryEmployees`);
+      added = dir.recordset.filter(d => d.Status === 'active').map(d => ({ EmpId: d.EmpId, FullName: d.Name, Department: d.Department, ManagerName: null, Profile: d.Designation, JoiningDate: null, Phone: null }));
+      deleted = dir.recordset.filter(d => d.Status === 'deleted').map(d => String(d.EmpId));
+    } catch (_) {}
+    const have = new Set(q.recordset.map(r => String(r.EmpId)));
+    const merged = [...q.recordset, ...added.filter(a => !have.has(String(a.EmpId)))]
+      .filter(r => !deleted.includes(String(r.EmpId)));
+    res.json({ success: true, records: merged, deleted });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
@@ -650,17 +685,72 @@ app.put('/api/rights-matrix/:empId', async (req, res) => {
     await p.request()
       .input('EmpId', sql.NVarChar, req.params.empId)
       .input('Name', sql.NVarChar, b.name || null)
-      .input('Rights', sql.NVarChar, JSON.stringify(b.rights || []))
-      .input('V', sql.Bit, b.canView ? 1 : 0)
-      .input('C', sql.Bit, b.canChange ? 1 : 0)
-      .input('D', sql.Bit, b.canDownload ? 1 : 0)
-      .input('A', sql.Bit, b.canApprove ? 1 : 0)
+      .input('Profile', sql.NVarChar, b.profile || 'CUSTOM')
+      .input('Rights', sql.NVarChar, JSON.stringify(b.modules || {}))
       .input('By', sql.NVarChar, actor(req))
       .query(`MERGE dbo.RightsMatrix AS t USING (SELECT @EmpId AS EmpId) AS s ON t.EmpId=s.EmpId
-              WHEN MATCHED THEN UPDATE SET Name=@Name, Rights=@Rights, CanView=@V, CanChange=@C, CanDownload=@D, CanApprove=@A, UpdatedBy=@By, UpdatedAt=GETDATE()
-              WHEN NOT MATCHED THEN INSERT (EmpId,Name,Rights,CanView,CanChange,CanDownload,CanApprove,UpdatedBy)
-              VALUES (@EmpId,@Name,@Rights,@V,@C,@D,@A,@By);`);
+              WHEN MATCHED THEN UPDATE SET Name=@Name, Profile=@Profile, Rights=@Rights, UpdatedBy=@By, UpdatedAt=GETDATE()
+              WHEN NOT MATCHED THEN INSERT (EmpId,Name,Profile,Rights,UpdatedBy)
+              VALUES (@EmpId,@Name,@Profile,@Rights,@By);`);
     res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ DIRECTORY MANAGEMENT + LOG ════════════════════════ */
+// Add an employee to the directory (admin)
+app.post('/api/directory', async (req, res) => {
+  if (!can(req)) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.empId) return res.status(400).json({ success: false, error: 'Employee ID is required.' });
+    const p = await getPool();
+    await p.request()
+      .input('EmpId', sql.NVarChar, String(b.empId).trim())
+      .input('Name', sql.NVarChar, b.name || null)
+      .input('Department', sql.NVarChar, b.department || null)
+      .input('Designation', sql.NVarChar, b.designation || null)
+      .input('Email', sql.NVarChar, b.email || null)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`MERGE dbo.DirectoryEmployees AS t USING (SELECT @EmpId AS EmpId) AS s ON t.EmpId=s.EmpId
+              WHEN MATCHED THEN UPDATE SET Name=@Name, Department=@Department, Designation=@Designation, Email=@Email, Status='active', DeletedBy=NULL, DeletedAt=NULL
+              WHEN NOT MATCHED THEN INSERT (EmpId,Name,Department,Designation,Email,CreatedBy) VALUES (@EmpId,@Name,@Department,@Designation,@Email,@By);`);
+    await p.request().input('A', sql.NVarChar, 'add').input('E', sql.NVarChar, String(b.empId).trim()).input('N', sql.NVarChar, b.name || null).input('By', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.DirectoryLog (Action,EmpId,Name,ActedBy) VALUES (@A,@E,@N,@By)`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Soft-delete an employee from the directory (admin) — kept for the log
+app.delete('/api/directory/:empId', async (req, res) => {
+  if (!can(req)) return deny(res);
+  try {
+    const p = await getPool();
+    const r = await p.request().input('E', sql.NVarChar, req.params.empId).query(`SELECT Name FROM dbo.DirectoryEmployees WHERE EmpId=@E`);
+    await p.request().input('E', sql.NVarChar, req.params.empId).input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.DirectoryEmployees SET Status='deleted', DeletedBy=@By, DeletedAt=GETDATE() WHERE EmpId=@E`);
+    await p.request().input('A', sql.NVarChar, 'delete').input('E', sql.NVarChar, req.params.empId).input('N', sql.NVarChar, (r.recordset[0] || {}).Name || null).input('By', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.DirectoryLog (Action,EmpId,Name,ActedBy) VALUES (@A,@E,@N,@By)`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// List managed directory (current + deleted)
+app.get('/api/directory', async (req, res) => {
+  if (!can(req, 'hr', 'it')) return deny(res);
+  try {
+    const p = await getPool();
+    const rows = await p.request().query(`SELECT * FROM dbo.DirectoryEmployees ORDER BY Status, EmpId`);
+    res.json({ success: true, records: rows.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Audit log of directory changes (admin)
+app.get('/api/directory/log', async (req, res) => {
+  if (!can(req)) return deny(res);
+  try {
+    const p = await getPool();
+    const rows = await p.request().query(`SELECT TOP 500 * FROM dbo.DirectoryLog ORDER BY ActedAt DESC`);
+    res.json({ success: true, records: rows.recordset });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

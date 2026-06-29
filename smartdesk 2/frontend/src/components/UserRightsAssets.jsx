@@ -693,15 +693,6 @@ const AccessView = ({ onBack }) => {
                 </div>
               )}
 
-              {/* IT Edit — re-decide given/not after it_given or completed */}
-              {canApprove && (r.Status === 'it_given' || r.Status === 'completed') && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input placeholder="Remarks (optional)" style={{ ...input, marginBottom: 0, flex: 1, minWidth: 160 }} value={notes[r.Id] || ''} onChange={e => setNotes(s => ({ ...s, [r.Id]: e.target.value }))} />
-                  <button style={ghostBtn} onClick={() => itDecide(r.Id, true)}>Edit → Given</button>
-                  <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => itDecide(r.Id, false)}>Edit → Not given</button>
-                </div>
-              )}
-
               {/* IT can edit the granted applications once HOD-approved */}
               {canApprove && (r.Status === 'hod_approved' || r.Status === 'it_given' || r.Status === 'completed') && editRights !== r.Id && (
                 <button style={{ ...ghostBtn, marginTop: 10, padding: '6px 12px', fontSize: '.8rem', alignSelf: 'flex-start' }} onClick={() => startEditRights(r)}>Edit rights</button>
@@ -871,43 +862,78 @@ const OverviewView = ({ onBack }) => {
 };
 
 /* ═══════════════════ ADMIN APPROVAL / RIGHTS MATRIX (admin only) ════════════ */
-const RIGHTS_CATALOGUE = [...APPLICATIONS]; // assignable application rights
+const RIGHT_MODULES = [
+  { key: 'onboarding', label: 'Onboarding', caps: ['view', 'approve', 'edit'] },
+  { key: 'assets', label: 'Asset Management', caps: ['view', 'approve', 'edit'] },
+  { key: 'access', label: 'Application & Rights', caps: ['view', 'approve', 'edit'] },
+  { key: 'overview', label: 'Employee Overview', caps: ['view', 'edit'] },
+  { key: 'directory', label: 'Employee Directory', caps: ['view', 'add', 'delete'] },
+  { key: 'matrix', label: 'Rights Matrix', caps: ['view', 'edit'] },
+];
+const CAP_LABEL = { view: 'View', approve: 'Approve', edit: 'Edit', add: 'Add', delete: 'Delete' };
+// Predefined profiles — selecting one pre-fills the grid; extra rights are then toggled per box.
+const PROFILES = {
+  HR: { onboarding: ['view', 'approve', 'edit'], assets: ['view', 'edit'], overview: ['view'], directory: ['view', 'add', 'delete'] },
+  IT: { assets: ['view', 'approve', 'edit'], access: ['view', 'approve', 'edit'], overview: ['view'] },
+  HOD: { access: ['view', 'approve'] },
+  USER: { assets: ['view'], access: ['view'] },
+};
+const emptyModules = () => RIGHT_MODULES.reduce((o, m) => { o[m.key] = {}; m.caps.forEach(c => o[m.key][c] = false); return o; }, {});
+const applyProfile = (name) => {
+  const mods = emptyModules();
+  const preset = PROFILES[name] || {};
+  Object.entries(preset).forEach(([mod, caps]) => caps.forEach(c => { if (mods[mod]) mods[mod][c] = true; }));
+  return mods;
+};
+const summariseRights = (mods) => {
+  const parts = [];
+  RIGHT_MODULES.forEach(m => {
+    const on = (m.caps || []).filter(c => mods?.[m.key]?.[c]);
+    if (on.length) parts.push(`${m.label} (${on.map(c => CAP_LABEL[c]).join('/')})`);
+  });
+  return parts.join('  ·  ');
+};
+
 const MatrixView = ({ onBack }) => {
   const api = useApi();
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState('');
-  const [editing, setEditing] = useState(null); // empId being edited (or '__new')
-  const [draft, setDraft] = useState({ empId: '', name: '', rights: [], canView: false, canChange: false, canDownload: false, canApprove: false });
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState({ empId: '', name: '', profile: 'CUSTOM', modules: emptyModules() });
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => { const d = await api('/rights-matrix'); if (d.success) setRecords(d.records); else setMsg(d.error || 'Could not load.'); }, [api]);
   useEffect(() => { load(); }, [load]);
 
-  const parseRights = (r) => { try { return JSON.parse(r || '[]'); } catch { return []; } };
+  const parseMods = (r) => { try { return { ...emptyModules(), ...JSON.parse(r || '{}') }; } catch { return emptyModules(); } };
   const startEdit = (rec) => {
-    if (rec) setDraft({ empId: rec.EmpId, name: rec.Name || '', rights: parseRights(rec.Rights), canView: !!rec.CanView, canChange: !!rec.CanChange, canDownload: !!rec.CanDownload, canApprove: !!rec.CanApprove });
-    else setDraft({ empId: '', name: '', rights: [], canView: false, canChange: false, canDownload: false, canApprove: false });
+    if (rec) setDraft({ empId: rec.EmpId, name: rec.Name || '', profile: rec.Profile || 'CUSTOM', modules: parseMods(rec.Rights) });
+    else setDraft({ empId: '', name: '', profile: 'CUSTOM', modules: emptyModules() });
     setEditing(rec ? rec.EmpId : '__new'); setMsg('');
   };
-  const toggleRight = (a) => setDraft(d => ({ ...d, rights: d.rights.includes(a) ? d.rights.filter(x => x !== a) : [...d.rights, a] }));
+  const pickProfile = (name) => setDraft(d => ({ ...d, profile: name, modules: name === 'CUSTOM' ? d.modules : applyProfile(name) }));
+  const toggleCap = (mod, cap) => setDraft(d => ({ ...d, profile: 'CUSTOM', modules: { ...d.modules, [mod]: { ...d.modules[mod], [cap]: !d.modules[mod]?.[cap] } } }));
   const save = async () => {
     if (!draft.empId.trim()) return setMsg('Employee ID is required.');
-    const d = await api(`/rights-matrix/${encodeURIComponent(draft.empId.trim())}`, 'PUT', draft);
+    const d = await api(`/rights-matrix/${encodeURIComponent(draft.empId.trim())}`, 'PUT', { name: draft.name, profile: draft.profile, modules: draft.modules });
     setMsg(d.success ? 'Saved.' : (d.error || 'Failed.')); if (d.success) { setEditing(null); load(); }
   };
   const download = () => {
-    const data = records.map(r => ({ 'User ID': r.EmpId, 'Name': r.Name || '', 'Rights': parseRights(r.Rights).join(', '),
-      View: r.CanView ? 'Yes' : 'No', Change: r.CanChange ? 'Yes' : 'No', Download: r.CanDownload ? 'Yes' : 'No', Approve: r.CanApprove ? 'Yes' : 'No' }));
+    const data = records.map(r => {
+      const mods = parseMods(r.Rights); const row = { 'User ID': r.EmpId, 'Name': r.Name || '', 'Profile': r.Profile || 'CUSTOM' };
+      RIGHT_MODULES.forEach(m => { row[m.label] = (m.caps || []).filter(c => mods?.[m.key]?.[c]).map(c => CAP_LABEL[c]).join(' / ') || '—'; });
+      return row;
+    });
     if (data.length === 0) { setMsg('Nothing to export.'); return; }
     const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Rights Matrix'); XLSX.writeFile(wb, 'rights_matrix.xlsx');
   };
   const filtered = records.filter(r => { const s = search.trim().toLowerCase(); return !s || String(r.EmpId).toLowerCase().includes(s) || (r.Name || '').toLowerCase().includes(s); });
-  const cap = (on) => ({ fontSize: '.8rem', color: on ? 'var(--accent-green)' : 'var(--text-muted)', fontWeight: on ? 700 : 400 });
+  const profileColor = { HR: 'var(--accent)', IT: 'var(--accent-teal)', HOD: 'var(--accent-orange)', USER: 'var(--accent-green)', CUSTOM: 'var(--text-muted)' };
 
   return (
     <div>
-      <BackBar onBack={onBack} title="Approval & Rights Matrix" subtitle="Admin-only. Assign or change any rights for any employee, and export." />
+      <BackBar onBack={onBack} title="Approval & Rights Matrix" subtitle="Admin-only. Assign a profile (HR / HOD / IT / User) or tick exactly which buttons a person can view, approve or edit." />
       <div style={card}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
           <input placeholder="Search by User ID or name…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...input, marginBottom: 0, maxWidth: 280 }} />
@@ -916,26 +942,30 @@ const MatrixView = ({ onBack }) => {
         </div>
 
         {editing && (
-          <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', marginBottom: 16 }}>
+          <div style={{ padding: 16, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', marginBottom: 16 }}>
             <h2 style={h2}>{editing === '__new' ? 'Assign rights' : `Edit rights — ${draft.empId}`}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
               <Field l="Employee ID *"><input style={input} value={draft.empId} disabled={editing !== '__new'} onChange={e => setDraft(d => ({ ...d, empId: e.target.value }))} /></Field>
               <Field l="Name"><input style={input} value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} /></Field>
             </div>
-            <div style={label}>Application rights</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-              {RIGHTS_CATALOGUE.map(a => (
-                <label key={a} style={chip(draft.rights.includes(a))}>
-                  <input type="checkbox" checked={draft.rights.includes(a)} onChange={() => toggleRight(a)} style={{ marginRight: 7 }} />{a}
-                </label>
+            <div style={label}>Profile (pre-fills the rights below)</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+              {['HR', 'IT', 'HOD', 'USER', 'CUSTOM'].map(pf => (
+                <button key={pf} onClick={() => pickProfile(pf)} style={{ padding: '7px 16px', borderRadius: 20, cursor: 'pointer', fontSize: '.82rem', fontWeight: 700,
+                  border: `1px solid ${draft.profile === pf ? 'var(--accent)' : 'var(--border)'}`, background: draft.profile === pf ? 'var(--accent)' : 'transparent', color: draft.profile === pf ? '#fff' : 'var(--text-primary)' }}>{pf}</button>
               ))}
             </div>
-            <div style={label}>Capabilities</div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
-              {[['canView', 'View'], ['canChange', 'Change'], ['canDownload', 'Download'], ['canApprove', 'Approve']].map(([k, l]) => (
-                <label key={k} style={{ fontSize: '.86rem', color: 'var(--text-primary)' }}>
-                  <input type="checkbox" checked={draft[k]} onChange={e => setDraft(d => ({ ...d, [k]: e.target.checked }))} style={{ marginRight: 6 }} />{l}
-                </label>
+            <div style={label}>Rights per button (tick extra rights to customise)</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              {RIGHT_MODULES.map(m => (
+                <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)', fontSize: '.88rem' }}>{m.label}</div>
+                  {m.caps.map(c => (
+                    <label key={c} style={{ fontSize: '.82rem', color: 'var(--text-muted)', minWidth: 78 }}>
+                      <input type="checkbox" checked={!!draft.modules[m.key]?.[c]} onChange={() => toggleCap(m.key, c)} style={{ marginRight: 6 }} />{CAP_LABEL[c]}
+                    </label>
+                  ))}
+                </div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -946,21 +976,121 @@ const MatrixView = ({ onBack }) => {
         )}
 
         {filtered.length === 0 && <Empty text="No rights assigned yet." />}
-        {filtered.map(r => (
-          <div key={r.EmpId} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.EmpId}{r.Name ? ` · ${r.Name}` : ''}</div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{parseRights(r.Rights).join(', ') || 'No application rights'}</div>
+        {filtered.map(r => {
+          const mods = parseMods(r.Rights);
+          return (
+            <div key={r.EmpId} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.EmpId}{r.Name ? ` · ${r.Name}` : ''}
+                    <span style={{ marginLeft: 8, fontSize: '.72rem', fontWeight: 700, padding: '2px 9px', borderRadius: 12, color: '#fff', background: profileColor[r.Profile] || 'var(--text-muted)' }}>{r.Profile || 'CUSTOM'}</span>
+                  </div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 3 }}>{summariseRights(mods) || 'No rights granted'}</div>
+                </div>
+                <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => startEdit(r)}>Change</button>
               </div>
-              <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => startEdit(r)}>Change</button>
             </div>
-            <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
-              <span style={cap(r.CanView)}>View</span><span style={cap(r.CanChange)}>Change</span>
-              <span style={cap(r.CanDownload)}>Download</span><span style={cap(r.CanApprove)}>Approve</span>
+          );
+        })}
+        {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════ DIRECTORY MANAGEMENT + AUDIT LOG (admin) ═══════════════════ */
+const DirectoryView = ({ onBack }) => {
+  const api = useApi();
+  const [list, setList] = useState([]);
+  const [log, setLog] = useState([]);
+  const [showLog, setShowLog] = useState(false);
+  const [draft, setDraft] = useState({ empId: '', name: '', department: '', designation: '', email: '' });
+  const [showAdd, setShowAdd] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(async () => {
+    const d = await api('/directory'); if (d.success) setList(d.records);
+    const l = await api('/directory/log'); if (l.success) setLog(l.records);
+  }, [api]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async () => {
+    if (!draft.empId.trim()) return setMsg('Employee ID is required.');
+    const d = await api('/directory', 'POST', draft);
+    setMsg(d.success ? 'Employee added to the directory.' : (d.error || 'Failed.'));
+    if (d.success) { setDraft({ empId: '', name: '', department: '', designation: '', email: '' }); setShowAdd(false); load(); }
+  };
+  const remove = async (empId) => {
+    const d = await api(`/directory/${encodeURIComponent(empId)}`, 'DELETE');
+    setMsg(d.success ? 'Employee removed (kept in the log).' : (d.error || 'Failed.')); if (d.success) load();
+  };
+
+  const active = list.filter(r => r.Status === 'active');
+  const deleted = list.filter(r => r.Status === 'deleted');
+  const fmt = (d) => d ? new Date(d).toLocaleString() : '';
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Directory Management" subtitle="Admin-only. Add or remove employees from the directory — every change is logged." />
+      <div style={card}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          <button style={primaryBtn} onClick={() => { setShowAdd(s => !s); setMsg(''); }}>{showAdd ? 'Close' : '+ Add employee'}</button>
+          <button style={ghostBtn} onClick={() => setShowLog(s => !s)}>{showLog ? 'Hide user log' : 'User log'}</button>
+        </div>
+
+        {showAdd && (
+          <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', marginBottom: 16 }}>
+            <h2 style={h2}>Add employee</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
+              <Field l="Employee ID *"><input style={input} value={draft.empId} onChange={e => setDraft(d => ({ ...d, empId: e.target.value }))} /></Field>
+              <Field l="Name"><input style={input} value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} /></Field>
+              <Field l="Department"><input style={input} value={draft.department} onChange={e => setDraft(d => ({ ...d, department: e.target.value }))} /></Field>
+              <Field l="Designation"><input style={input} value={draft.designation} onChange={e => setDraft(d => ({ ...d, designation: e.target.value }))} /></Field>
+              <Field l="Email"><input style={input} value={draft.email} onChange={e => setDraft(d => ({ ...d, email: e.target.value }))} /></Field>
             </div>
+            <button style={primaryBtn} onClick={add}>Add to directory</button>
+          </div>
+        )}
+
+        {showLog && (
+          <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', marginBottom: 16 }}>
+            <h2 style={h2}>User log</h2>
+            {log.length === 0 && <Empty text="No directory changes yet." />}
+            {log.map(e => (
+              <div key={e.Id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '.84rem' }}>
+                <span style={{ fontWeight: 700, color: e.Action === 'delete' ? '#dc2626' : 'var(--accent-green)', minWidth: 64, textTransform: 'capitalize' }}>{e.Action}</span>
+                <span style={{ flex: 1, color: 'var(--text-primary)' }}>{e.Name || ''} <span style={{ color: 'var(--text-muted)' }}>· {e.EmpId}</span></span>
+                <span style={{ color: 'var(--text-muted)' }}>by {e.ActedBy || '—'} · {fmt(e.ActedAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <h2 style={h2}>Current employees ({active.length})</h2>
+        {active.length === 0 && <Empty text="No employees added through this screen yet." />}
+        {active.map(r => (
+          <div key={r.EmpId} style={rowStyle}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.Name || '(no name)'} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}>· {r.EmpId}</span></div>
+              <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[r.Department, r.Designation, r.Email].filter(Boolean).join(' · ') || '—'}</div>
+            </div>
+            <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '6px 12px', fontSize: '.8rem' }} onClick={() => remove(r.EmpId)}>Delete</button>
           </div>
         ))}
+
+        {deleted.length > 0 && (
+          <>
+            <h2 style={{ ...h2, marginTop: 18 }}>Deleted employees ({deleted.length})</h2>
+            {deleted.map(r => (
+              <div key={r.EmpId} style={{ ...rowStyle, opacity: 0.7 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', textDecoration: 'line-through' }}>{r.Name || '(no name)'} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}>· {r.EmpId}</span></div>
+                  <div style={{ fontSize: '.78rem', color: '#dc2626' }}>Deleted by {r.DeletedBy || '—'} · {fmt(r.DeletedAt)}</div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
         {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
       </div>
     </div>
@@ -974,6 +1104,7 @@ const BUTTONS = [
   { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['hr', 'it', 'manager', 'admin', 'employee'] },
   { id: 'overview', title: 'Employee Overview', desc: 'Search employees, view assets & rights, export to Excel.', grad: 'linear-gradient(135deg,#07212b,#0e7490)', roles: ['hr', 'it', 'admin'] },
   { id: 'matrix', title: 'Approval & Rights Matrix', desc: 'Admin-only. Assign or change any rights for anyone.', grad: 'linear-gradient(135deg,#2a0a0a,#b91c1c)', roles: ['admin'] },
+  { id: 'directory', title: 'Directory Management', desc: 'Admin-only. Add or remove employees, with a full change log.', grad: 'linear-gradient(135deg,#0a2540,#1d4ed8)', roles: ['admin'] },
 ];
 
 const UserRightsAssets = () => {
@@ -1031,6 +1162,7 @@ const UserRightsAssets = () => {
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
   if (view === 'overview') return <>{banner}<OverviewView onBack={() => setView('home')} /></>;
   if (view === 'matrix') return <>{banner}<MatrixView onBack={() => setView('home')} /></>;
+  if (view === 'directory') return <>{banner}<DirectoryView onBack={() => setView('home')} /></>;
 
   return (
     <div>
