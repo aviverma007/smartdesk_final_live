@@ -510,7 +510,11 @@ const AccessView = ({ onBack }) => {
     })();
   }, [canCreate]);
   const hodMatches = hodQuery.trim()
-    ? directory.filter(e => { const s = hodQuery.trim().toLowerCase(); return String(e.id).toLowerCase().includes(s) || (e.name || '').toLowerCase().includes(s); }).slice(0, 8)
+    ? directory.filter(e => {
+        if (String(e.id) === String(me)) return false; // can't pick yourself as HOD
+        const s = hodQuery.trim().toLowerCase();
+        return String(e.id).toLowerCase().includes(s) || (e.name || '').toLowerCase().includes(s);
+      }).slice(0, 8)
     : [];
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleApp = (a) => setForm(f => ({ ...f, applications: f.applications.includes(a) ? f.applications.filter(x => x !== a) : [...f.applications, a] }));
@@ -519,6 +523,7 @@ const AccessView = ({ onBack }) => {
 
   const create = async () => {
     if (!form.hodId.trim()) return setMsg('Enter your HOD’s Employee ID for approval.');
+    if (String(form.hodId).trim() === String(me)) return setMsg('You can’t select yourself as your HOD.');
     const d = await api('/access', 'POST', form);
     if (d.success) { setForm(blank); setHodQuery(''); setShowForm(false); setMsg('Request submitted — awaiting HOD approval.'); load(); } else setMsg(d.error || 'Could not submit.');
   };

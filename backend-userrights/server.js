@@ -533,6 +533,8 @@ app.post('/api/access', async (req, res) => {
   if (!can(req, 'employee')) return deny(res);
   try {
     const b = req.body || {};
+    if (b.hodId && String(b.hodId).trim() === String(actor(req)))
+      return res.status(400).json({ success: false, error: 'You cannot select yourself as your HOD.' });
     const p = await getPool();
     const r = await p.request()
       .input('RequestType', sql.NVarChar, b.requestType || 'new')
