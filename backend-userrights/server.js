@@ -604,6 +604,56 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// IT: edit the applications granted on a request (after approval)
+app.put('/api/access/:id/rights', async (req, res) => {
+  if (!can(req, 'it')) return deny(res);
+  try {
+    const apps = Array.isArray((req.body || {}).applications) ? req.body.applications : [];
+    const p = await getPool();
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('Apps', sql.NVarChar, JSON.stringify(apps))
+      .query(`UPDATE dbo.AccessRequests SET Applications=@Apps, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// HR/IT/admin: per-employee summary of assets + application rights (for the overview/export)
+app.get('/api/employees-summary', async (req, res) => {
+  if (!can(req, 'hr', 'it')) return deny(res);
+  try {
+    const p = await getPool();
+    const [reqs, items, selfs, access, onb] = await Promise.all([
+      p.request().query(`SELECT Id, EmpId FROM dbo.AssetRequests`),
+      p.request().query(`SELECT RequestId, ItemLabel, Requested, [Given] FROM dbo.AssetItems`),
+      p.request().query(`SELECT EmpId, Items FROM dbo.AssetSelfRequests WHERE Status='approved'`),
+      p.request().query(`SELECT EmpId, RequesterName, Applications FROM dbo.AccessRequests WHERE Status='approved'`),
+      p.request().query(`SELECT EmpId, FullName FROM dbo.Onboarding WHERE EmpId IS NOT NULL AND Status='onboarded'`),
+    ]);
+    const itemsByReq = {};
+    items.recordset.forEach(i => { (itemsByReq[i.RequestId] = itemsByReq[i.RequestId] || []).push(i); });
+    const map = {}; // empId -> { empId, name, assets:Set, rights:Set }
+    const ensure = (id) => (map[id] = map[id] || { empId: id, name: '', assets: new Set(), rights: new Set() });
+    onb.recordset.forEach(o => { ensure(o.EmpId).name = o.FullName || ''; });
+    reqs.recordset.forEach(r => {
+      const e = ensure(r.EmpId);
+      (itemsByReq[r.Id] || []).forEach(it => { if (it.Given || it.Requested) e.assets.add(it.ItemLabel); });
+    });
+    selfs.recordset.forEach(s => {
+      const e = ensure(s.EmpId);
+      try { JSON.parse(s.Items || '[]').forEach(it => e.assets.add(it.label || it.key)); } catch (_) {}
+    });
+    access.recordset.forEach(a => {
+      const e = ensure(a.EmpId);
+      if (!e.name && a.RequesterName) e.name = a.RequesterName;
+      try { JSON.parse(a.Applications || '[]').forEach(app => e.rights.add(app)); } catch (_) {}
+    });
+    const records = Object.values(map).map(e => ({ empId: e.empId, name: e.name, assets: [...e.assets], rights: [...e.rights] }))
+      .sort((a, b) => String(a.empId).localeCompare(String(b.empId)));
+    res.json({ success: true, records });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 /* ═══════════════════════ SET-PASSWORD LINK ═════════════════════════════════ */
 app.get('/api/set-password/validate', async (req, res) => {
   try {

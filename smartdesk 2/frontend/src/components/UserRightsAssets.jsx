@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, URA_API } from '../context/AuthContext';
 import { employeeAPI } from '../services/api';
+import * as XLSX from 'xlsx';
 
 /* ── Static config (mirrors backend) ─────────────────────────────────────── */
 const ASSET_CATALOGUE = [
@@ -501,6 +502,14 @@ const AccessView = ({ onBack }) => {
     const d = await api(`/access/${id}/it-${action}`, 'POST', { remarks: notes[id] || '' });
     setMsg(d.success ? (action === 'approve' ? 'Approved.' : 'Rejected.') : (d.error || 'Failed.')); load();
   };
+  const [editRights, setEditRights] = useState(null); // request id being edited
+  const [rightsDraft, setRightsDraft] = useState([]);
+  const startEditRights = (r) => { let a = []; try { a = JSON.parse(r.Applications || '[]'); } catch {} setRightsDraft(a); setEditRights(r.Id); };
+  const toggleDraft = (app) => setRightsDraft(d => d.includes(app) ? d.filter(x => x !== app) : [...d, app]);
+  const saveRights = async (id) => {
+    const d = await api(`/access/${id}/rights`, 'PUT', { applications: rightsDraft });
+    setMsg(d.success ? 'Rights updated.' : (d.error || 'Failed.')); if (d.success) { setEditRights(null); load(); }
+  };
 
   return (
     <div>
@@ -618,6 +627,26 @@ const AccessView = ({ onBack }) => {
                   <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => decide(r.Id, 'reject')}>Reject</button>
                 </div>
               )}
+
+              {canApprove && approved && editRights !== r.Id && (
+                <button style={{ ...ghostBtn, marginTop: 10, padding: '6px 12px', fontSize: '.8rem', alignSelf: 'flex-start' }} onClick={() => startEditRights(r)}>Edit rights</button>
+              )}
+              {canApprove && approved && editRights === r.Id && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={label}>Edit granted applications</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                    {APPLICATIONS.map(a => (
+                      <label key={a} style={chip(rightsDraft.includes(a))}>
+                        <input type="checkbox" checked={rightsDraft.includes(a)} onChange={() => toggleDraft(a)} style={{ marginRight: 7 }} />{a}
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button style={primaryBtn} onClick={() => saveRights(r.Id)}>Save rights</button>
+                    <button style={ghostBtn} onClick={() => setEditRights(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         });
@@ -662,11 +691,100 @@ const BackBar = ({ onBack, title, subtitle }) => (
   </div>
 );
 
+/* ═══════════════════ EMPLOYEE OVERVIEW + EXCEL EXPORT (HR/IT) ═══════════════ */
+const OverviewView = ({ onBack }) => {
+  const api = useApi();
+  const [records, setRecords] = useState([]);
+  const [search, setSearch] = useState('');
+  const [mode, setMode] = useState('combined'); // combined | assets | rights
+  const [selected, setSelected] = useState(new Set());
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => { (async () => { const d = await api('/employees-summary'); if (d.success) setRecords(d.records); else setMsg(d.error || 'Could not load.'); })(); }, [api]);
+
+  const filtered = records.filter(r => {
+    const s = search.trim().toLowerCase();
+    return !s || String(r.empId).toLowerCase().includes(s) || (r.name || '').toLowerCase().includes(s);
+  });
+  const toggleSel = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allFilteredSelected = filtered.length > 0 && filtered.every(r => selected.has(r.empId));
+  const toggleAll = () => setSelected(s => {
+    const n = new Set(s);
+    if (allFilteredSelected) filtered.forEach(r => n.delete(r.empId)); else filtered.forEach(r => n.add(r.empId));
+    return n;
+  });
+
+  const exportRows = (rows, filename) => {
+    if (rows.length === 0) { setMsg('Nothing to export.'); return; }
+    const data = rows.map(r => ({ 'User ID': r.empId, 'Name': r.name, 'Assets': r.assets.join(', '), 'Application Rights': r.rights.join(', ') }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 40 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+    XLSX.writeFile(wb, filename);
+  };
+  const selRows = records.filter(r => selected.has(r.empId));
+
+  const th = { textAlign: 'left', padding: '10px 12px', fontSize: '.76rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' };
+  const td = { padding: '10px 12px', fontSize: '.86rem', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', verticalAlign: 'top' };
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Employee Overview" subtitle="Search employees, review their assets and application rights, and export to Excel." />
+      <div style={card}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+          <input placeholder="Search by User ID or name…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...input, marginBottom: 0, maxWidth: 300 }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[{ k: 'combined', l: 'Combined' }, { k: 'assets', l: 'View all assets' }, { k: 'rights', l: 'Application rights' }].map(o => (
+              <button key={o.k} onClick={() => setMode(o.k)} style={{ padding: '7px 14px', borderRadius: 20, cursor: 'pointer', fontSize: '.82rem',
+                border: `1px solid ${mode === o.k ? 'var(--accent)' : 'var(--border)'}`, background: mode === o.k ? 'var(--accent)' : 'transparent', color: mode === o.k ? '#fff' : 'var(--text-primary)' }}>{o.l}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          <button style={primaryBtn} onClick={() => exportRows(records, 'employees_all.xlsx')}>Download all</button>
+          <button style={ghostBtn} onClick={() => exportRows(filtered, 'employees_filtered.xlsx')}>Download filtered</button>
+          <button style={ghostBtn} onClick={() => exportRows(selRows, 'employees_selected.xlsx')}>Download selected ({selected.size})</button>
+        </div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ ...th, width: 36 }}><input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} /></th>
+                <th style={th}>User ID</th>
+                <th style={th}>Name</th>
+                {mode !== 'rights' && <th style={th}>Assets</th>}
+                {mode !== 'assets' && <th style={th}>Application Rights</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && <tr><td style={td} colSpan={5}><Empty text="No matching employees." /></td></tr>}
+              {filtered.map(r => (
+                <tr key={r.empId}>
+                  <td style={td}><input type="checkbox" checked={selected.has(r.empId)} onChange={() => toggleSel(r.empId)} /></td>
+                  <td style={{ ...td, fontWeight: 700 }}>{r.empId}</td>
+                  <td style={td}>{r.name || '—'}</td>
+                  {mode !== 'rights' && <td style={td}>{r.assets.join(', ') || '—'}</td>}
+                  {mode !== 'assets' && <td style={td}>{r.rights.join(', ') || '—'}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {msg && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+      </div>
+    </div>
+  );
+};
+
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
   { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
   { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['hr', 'it', 'admin', 'employee'] },
   { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['hr', 'it', 'manager', 'admin', 'employee'] },
+  { id: 'overview', title: 'Employee Overview', desc: 'Search employees, view assets & rights, export to Excel.', grad: 'linear-gradient(135deg,#07212b,#0e7490)', roles: ['hr', 'it', 'admin'] },
 ];
 
 const UserRightsAssets = () => {
@@ -689,6 +807,7 @@ const UserRightsAssets = () => {
   if (view === 'onboarding') return <><div style={{ padding: '0 0 0' }}>{banner}</div><OnboardingView onBack={() => setView('home')} /></>;
   if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
+  if (view === 'overview') return <>{banner}<OverviewView onBack={() => setView('home')} /></>;
 
   return (
     <div>
