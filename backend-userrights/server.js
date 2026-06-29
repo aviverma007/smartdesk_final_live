@@ -682,7 +682,7 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// IT: edit the applications granted on a request (after approval)
+// IT edits the granted applications -> sends the request back to the HOD for re-approval
 app.put('/api/access/:id/rights', async (req, res) => {
   if (!can(req, 'it')) return deny(res);
   try {
@@ -691,7 +691,11 @@ app.put('/api/access/:id/rights', async (req, res) => {
     await p.request()
       .input('Id', sql.Int, req.params.id)
       .input('Apps', sql.NVarChar, JSON.stringify(apps))
-      .query(`UPDATE dbo.AccessRequests SET Applications=@Apps, UpdatedAt=GETDATE() WHERE Id=@Id`);
+      .query(`UPDATE dbo.AccessRequests
+              SET Applications=@Apps, Status='pending_hod',
+                  HodApprovedBy=NULL, HodApprovedAt=NULL, ItGiven=NULL, EmployeeAccepted=NULL,
+                  UpdatedAt=GETDATE()
+              WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

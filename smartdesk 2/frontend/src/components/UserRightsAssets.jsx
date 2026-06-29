@@ -531,7 +531,7 @@ const AccessView = ({ onBack }) => {
   const toggleDraft = (app) => setRightsDraft(d => d.includes(app) ? d.filter(x => x !== app) : [...d, app]);
   const saveRights = async (id) => {
     const d = await api(`/access/${id}/rights`, 'PUT', { applications: rightsDraft });
-    setMsg(d.success ? 'Rights updated.' : (d.error || 'Failed.')); if (d.success) { setEditRights(null); load(); }
+    setMsg(d.success ? 'Rights updated — sent back to the HOD for re-approval.' : (d.error || 'Failed.')); if (d.success) { setEditRights(null); load(); }
   };
 
   return (
