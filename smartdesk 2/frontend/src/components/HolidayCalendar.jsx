@@ -83,12 +83,12 @@ const HolidayCalendar = () => {
   const cs = {
     card: {
       background:"var(--bg-card)",
-      border:"1px solid rgba(0,212,255,0.24)",
+      border:"1px solid var(--border)",
       borderRadius:16,
       backdropFilter:"blur(14px)",
       position:"relative",
       overflow:"hidden",
-      boxShadow:"0 18px 50px rgba(0,0,0,.28)"
+      boxShadow:"var(--shadow-card)"
     },
     topLine: {
       position:"absolute",
@@ -155,7 +155,7 @@ const HolidayCalendar = () => {
             alignItems:"center",
             justifyContent:"space-between",
             padding:"14px 18px",
-            borderBottom:"1px solid rgba(0,212,255,0.12)",
+            borderBottom:"1px solid var(--border)",
             background:"linear-gradient(135deg, rgba(0,212,255,0.10), rgba(123,47,255,0.08))",
           }}>
             <button onClick={() => navigate("prev")} style={navBtn}>
@@ -221,7 +221,7 @@ const HolidayCalendar = () => {
                           ? "1px solid rgba(0,212,255,.75)"
                           : isSelected
                             ? "1px solid rgba(0,212,255,.55)"
-                            : "1px solid rgba(0,212,255,0.12)",
+                            : "1px solid var(--border)",
                       color: hol ? tc.color : isWeekend ? "var(--text-muted)" : "var(--text-primary)",
                       boxShadow: isToday ? "0 0 22px rgba(0,212,255,.34)" : "none"
                     }}
@@ -254,7 +254,7 @@ const HolidayCalendar = () => {
                         marginTop:8,
                         padding:"4px 6px",
                         borderRadius:999,
-                        background:"rgba(0,0,0,.22)",
+                        background:"rgba(16,93,169,0.10)",
                         border:`1px solid ${tc.border}`,
                         color:tc.color,
                         fontSize:".56rem",

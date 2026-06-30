@@ -38,14 +38,13 @@ const Policies = () => {
   const handlePolicyClick = link => window.open(encodeURI(link), '_blank', 'noopener,noreferrer');
 
   const cs = {
-    card: { background:'var(--bg-card)', border:'1px solid rgba(0,212,255,0.2)', borderRadius:8, backdropFilter:'blur(12px)', marginBottom:12, position:'relative', overflow:'hidden' },
+    card: { background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8, marginBottom:12, position:'relative', overflow:'hidden', boxShadow:'var(--shadow-card)' },
   };
 
   return (
     <div style={{ padding:'0 0 24px' }}>
       {/* Header */}
       <div style={{ marginBottom:16 }}>
-        <div className="section-title" style={{ marginBottom:6 }}>// COMPLIANCE ARCHIVE</div>
         <h2 style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:'1.2rem', color:'var(--text-primary)', margin:0 }}>
           COMPANY <span className="neon-text">POLICIES</span>
         </h2>
@@ -55,7 +54,7 @@ const Policies = () => {
       {/* Hero banner */}
       <div style={{
         background:'linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,102,255,0.05), rgba(123,47,255,0.08))',
-        border:'1px solid rgba(0,212,255,0.2)', borderRadius:8,
+        border:'1px solid var(--border)', borderRadius:8, boxShadow:'var(--shadow-card)',
         padding:'20px 24px', marginBottom:20,
         display:'flex', alignItems:'center', gap:16,
         position:'relative', overflow:'hidden',
@@ -78,7 +77,7 @@ const Policies = () => {
         const color = SECTION_COLORS[section] || '#00d4ff';
         const isExpanded = expanded[section];
         return (
-          <div key={section} style={{ ...cs.card, border:`1px solid ${isExpanded ? color+'40' : 'rgba(0,212,255,0.2)'}`, transition:'border-color .3s' }}>
+          <div key={section} style={{ ...cs.card, border:`1px solid ${isExpanded ? color+'66' : 'var(--border)'}`, transition:'border-color .3s' }}>
             <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:`linear-gradient(90deg,transparent,${color},transparent)`, opacity:.4 }} />
             {/* Section header */}
             <div
@@ -107,11 +106,11 @@ const Policies = () => {
                   <div key={i} style={{
                     display:'flex', alignItems:'center', gap:12,
                     padding:'10px 12px', borderRadius:6, marginBottom:6,
-                    background:'var(--bg-elevated)', border:'1px solid rgba(0,212,255,0.1)',
+                    background:'var(--bg-elevated)', border:'1px solid var(--border)',
                     cursor:'pointer', transition:'all .2s',
                   }}
                     onMouseEnter={e=>{ e.currentTarget.style.borderColor=color+'50'; e.currentTarget.style.background='var(--bg-hover)'; }}
-                    onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(0,212,255,0.1)'; e.currentTarget.style.background='var(--bg-elevated)'; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--bg-elevated)'; }}
                     onClick={() => handlePolicyClick(p.link)}
                   >
                     <div style={{ width:32, height:32, borderRadius:5, background:`${color}10`, border:`1px solid ${color}25`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
