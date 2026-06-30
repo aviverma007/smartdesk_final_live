@@ -7,7 +7,7 @@ const API_HOST = `http://${window.location.hostname}:5092`;
 const API = `${API_HOST}/api/attendance`;
 
 const G = {
-  card: { background:'#ffffff', border:'1px solid rgba(16,93,169,0.18)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'0 2px 16px rgba(16,93,169,0.10)' },
+  card: { background:'var(--bg-card)', border:'1px solid rgba(16,93,169,0.18)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'0 2px 16px rgba(16,93,169,0.10)' },
   topLine: (c='#105da9') => ({ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${c},transparent)` }),
   label: { fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'rgba(150,180,220,0.75)', textTransform:'uppercase', letterSpacing:'.1em', fontWeight:600 },
   val: (c) => ({ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.9rem', color:c, lineHeight:1, textShadow:`0 0 20px ${c}60` }),
@@ -275,20 +275,20 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           {/* From date */}
-          <div style={{ display:'flex', alignItems:'center', gap:6, background:'#f0f7ff', border:'1px solid rgba(16,93,169,0.25)', borderRadius:8, padding:'6px 10px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-elevated)', border:'1px solid rgba(16,93,169,0.25)', borderRadius:8, padding:'6px 10px' }}>
             <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem', color:'#105da9' }}>FROM</label>
             <input type="date" value={fromDate} max={toDate}
               onChange={e => { setFromDate(e.target.value); if(e.target.value > toDate) setToDate(e.target.value); }}
-              style={{ background:'transparent', border:'none', outline:'none', color:'#0f172a', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
+              style={{ background:'transparent', border:'none', outline:'none', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
           {/* Arrow */}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(16,93,169,0.6)" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           {/* To date */}
-          <div style={{ display:'flex', alignItems:'center', gap:6, background:'#f0f7ff', border:'1px solid rgba(16,93,169,0.25)', borderRadius:8, padding:'6px 10px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-elevated)', border:'1px solid rgba(16,93,169,0.25)', borderRadius:8, padding:'6px 10px' }}>
             <label style={{ ...G.label, whiteSpace:'nowrap', fontSize:'.65rem', color:'#105da9' }}>TO</label>
             <input type="date" value={toDate} min={fromDate} max={today}
               onChange={e => setToDate(e.target.value)}
-              style={{ background:'transparent', border:'none', outline:'none', color:'#0f172a', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
+              style={{ background:'transparent', border:'none', outline:'none', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem' }}/>
           </div>
           {isRange && (
             <div style={{ padding:'5px 10px', borderRadius:6, background:'rgba(14,165,233,0.1)', border:'1px solid rgba(14,165,233,0.25)', fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#105da9', fontWeight:600, whiteSpace:'nowrap' }}>
@@ -329,7 +329,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
         <>
           {/* ── LIVE TICKER — admin only ── */}
           {liveData && !myEmpCode && (
-            <div style={{ background:'#fff', border:'1px solid rgba(16,93,169,0.2)', borderRadius:12, padding:'10px 18px', marginBottom:18, display:'flex', alignItems:'center', gap:24, flexWrap:'wrap', boxShadow:'0 2px 10px rgba(16,93,169,0.08)', position:'relative', overflow:'hidden' }}>
+            <div style={{ background:'var(--bg-card)', border:'1px solid rgba(16,93,169,0.2)', borderRadius:12, padding:'10px 18px', marginBottom:18, display:'flex', alignItems:'center', gap:24, flexWrap:'wrap', boxShadow:'0 2px 10px rgba(16,93,169,0.08)', position:'relative', overflow:'hidden' }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,transparent,#105da9,transparent)' }}/>
               <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                 <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 6px #22c55e', animation:'dotPulse 1.5s ease-in-out infinite' }}/>
@@ -338,10 +338,10 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
               {[
                 { label:'Currently In', val:liveData.presentCount, color:'#16a34a' },
                 { label:'Total Punches', val:liveData.totalPunches, color:'#105da9' },
-                { label:'Last Punch', val:liveData.lastCheckIn ? fmtTime(liveData.lastCheckIn) : '—', color:'#374151' },
+                { label:'Last Punch', val:liveData.lastCheckIn ? fmtTime(liveData.lastCheckIn) : '—', color:'var(--text-primary)' },
               ].map(({label,val,color})=>(
                 <div key={label} style={{ display:'flex', gap:6, alignItems:'baseline' }}>
-                  <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'#64748b' }}>{label}:</span>
+                  <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.72rem', color:'var(--text-secondary)' }}>{label}:</span>
                   <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.85rem', color }}>{val}</span>
                 </div>
               ))}
@@ -434,19 +434,19 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
             <div style={G.topLine()}/>
             {/* Table header + filters */}
             <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(14,165,233,0.12)', display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#0f172a' }}>
+              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'var(--text-primary)' }}>
               {myEmpCode ? `My Attendance — ${myEmpCode}` : 'Employee Attendance Records'}
             </div>
               {!myEmpCode && <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                 {/* Employee Code search */}
-                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(8,14,28,0.7)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'7px 12px', minWidth:200 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:7, background:'var(--bg-elevated)', border:'1px solid rgba(14,165,233,0.22)', borderRadius:8, padding:'7px 12px', minWidth:200 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(16,93,169,0.6)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
                     ref={searchRef}
                     value={empCodeSearch}
                     onChange={e=>setEmpCodeSearch(e.target.value)}
                     placeholder="Employee Code / Name..."
-                    style={{ background:'transparent', border:'none', outline:'none', color:'#0f172a', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', width:'100%' }}
+                    style={{ background:'transparent', border:'none', outline:'none', color:'var(--text-primary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.82rem', width:'100%' }}
                   />
                   {empCodeSearch && <span onClick={()=>setEmpCodeSearch('')} style={{ color:'rgba(16,93,169,0.6)', cursor:'pointer', fontSize:14, lineHeight:1 }}>✕</span>}
                 </div>
@@ -472,7 +472,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
             <div style={{ overflowX:'auto', maxHeight:420, overflowY:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', minWidth:700 }}>
                 <thead style={{ position:'sticky', top:0, zIndex:2 }}>
-                  <tr style={{ background:'rgba(8,14,28,0.9)', borderBottom:'1px solid rgba(14,165,233,0.18)' }}>
+                  <tr style={{ background:'var(--bg-elevated)', borderBottom:'1px solid rgba(14,165,233,0.18)' }}>
                     {['Employee Code','Employee Name','Department','Date','Punch In','Punch Out','Hours Worked','Punches'].map(h=>(
                       <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.67rem', color:'#105da9', letterSpacing:'.1em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
@@ -486,9 +486,9 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                     >
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color:'#105da9', fontWeight:700 }}>{emp.empCode}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'#0f172a', whiteSpace:'nowrap' }}>{emp.empName}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'#64748b' }}>{emp.department||'—'}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'#64748b' }}>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.82rem', color:'var(--text-primary)', whiteSpace:'nowrap' }}>{emp.empName}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)' }}>{emp.department||'—'}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', color:'var(--text-secondary)' }}>
                         <div>{emp.date||fromDate}</div>
                         <div style={{ fontSize:'.65rem', color:'#105da9', fontWeight:700, marginTop:2 }}>
                           {new Date((emp.date||fromDate)+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long'})}
