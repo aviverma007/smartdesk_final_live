@@ -82,7 +82,7 @@ const HolidayCalendar = () => {
 
   const cs = {
     card: {
-      background:"linear-gradient(145deg, rgba(6,20,45,0.95), rgba(15,20,48,0.92))",
+      background:"var(--bg-card)",
       border:"1px solid rgba(0,212,255,0.24)",
       borderRadius:16,
       backdropFilter:"blur(14px)",
@@ -117,7 +117,7 @@ const HolidayCalendar = () => {
         <div className="section-title" style={{ marginBottom:6 }}>// TEMPORAL SCHEDULE</div>
 
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-          <h2 style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:"1.2rem", color:"#e0f4ff", margin:0 }}>
+          <h2 style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:"1.2rem", color:"var(--text-primary)", margin:0 }}>
             HOLIDAY <span className="neon-text">CALENDAR</span> 2026
           </h2>
 
@@ -214,15 +214,15 @@ const HolidayCalendar = () => {
                         ? tc.bg
                         : isSelected
                           ? "rgba(0,212,255,.15)"
-                          : "rgba(255,255,255,.035)",
+                          : "var(--bg-elevated)",
                       border: hol
                         ? `1px solid ${tc.border}`
                         : isToday
                           ? "1px solid rgba(0,212,255,.75)"
                           : isSelected
                             ? "1px solid rgba(0,212,255,.55)"
-                            : "1px solid rgba(255,255,255,.07)",
-                      color: hol ? tc.color : isWeekend ? "rgba(224,244,255,.62)" : "#e0f4ff",
+                            : "1px solid rgba(0,212,255,0.12)",
+                      color: hol ? tc.color : isWeekend ? "var(--text-muted)" : "var(--text-primary)",
                       boxShadow: isToday ? "0 0 22px rgba(0,212,255,.34)" : "none"
                     }}
                   >
@@ -230,7 +230,7 @@ const HolidayCalendar = () => {
                       fontFamily:"'Plus Jakarta Sans', sans-serif",
                       fontSize:"1rem",
                       fontWeight:900,
-                      color: hol ? tc.color : "#e0f4ff"
+                      color: hol ? tc.color : "var(--text-primary)"
                     }}>
                       {day}
                     </div>
@@ -275,7 +275,7 @@ const HolidayCalendar = () => {
               {Object.entries(TYPE_COLORS).map(([type, c]) => (
                 <div key={type} style={{ display:"flex", alignItems:"center", gap:6 }}>
                   <div style={{ width:9, height:9, borderRadius:"50%", background:c.color, boxShadow:`0 0 8px ${c.color}` }} />
-                  <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".68rem", color:"rgba(224,244,255,.68)" }}>{type}</span>
+                  <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".68rem", color:"var(--text-muted)" }}>{type}</span>
                 </div>
               ))}
             </div>
@@ -292,10 +292,10 @@ const HolidayCalendar = () => {
             {selectedDay ? (
               selectedHoliday ? (
                 <div>
-                  <div style={{ fontFamily:"'Orbitron', monospace", fontSize:"1rem", fontWeight:800, color:"#e0f4ff", marginBottom:6 }}>
+                  <div style={{ fontFamily:"'Orbitron', monospace", fontSize:"1rem", fontWeight:800, color:"var(--text-primary)", marginBottom:6 }}>
                     {selectedHoliday.name}
                   </div>
-                  <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".78rem", color:"rgba(224,244,255,.68)", marginBottom:10 }}>
+                  <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".78rem", color:"var(--text-muted)", marginBottom:10 }}>
                     {selectedHoliday.day}
                   </div>
                   <div style={{
@@ -313,12 +313,12 @@ const HolidayCalendar = () => {
                   </div>
                 </div>
               ) : (
-                <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".82rem", color:"rgba(224,244,255,.62)" }}>
+                <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".82rem", color:"var(--text-muted)" }}>
                   No holiday on this date.
                 </div>
               )
             ) : (
-              <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".82rem", color:"rgba(224,244,255,.62)" }}>
+              <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".82rem", color:"var(--text-muted)" }}>
                 Click any date to view details.
               </div>
             )}
@@ -327,7 +327,7 @@ const HolidayCalendar = () => {
           <div style={{ ...cs.card, flex:1 }}>
             <div style={cs.topLine} />
             <div style={{ padding:"13px 16px", borderBottom:"1px solid rgba(0,212,255,0.1)" }}>
-              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:".68rem", fontWeight:800, color:"#e0f4ff", letterSpacing:".1em" }}>
+              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:".68rem", fontWeight:800, color:"var(--text-primary)", letterSpacing:".1em" }}>
                 {monthHolidays.length > 0 ? `${monthHolidays.length} HOLIDAY${monthHolidays.length > 1 ? "S" : ""} THIS MONTH` : "NO HOLIDAYS THIS MONTH"}
               </div>
             </div>
@@ -362,7 +362,7 @@ const HolidayCalendar = () => {
                     </div>
 
                     <div>
-                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".82rem", color:"#e0f4ff", fontWeight:700 }}>{h.name}</div>
+                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".82rem", color:"var(--text-primary)", fontWeight:700 }}>{h.name}</div>
                       <div style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:".58rem", color:c.color, letterSpacing:".08em" }}>{h.type.toUpperCase()}</div>
                     </div>
                   </div>
@@ -386,7 +386,7 @@ const HolidayCalendar = () => {
 
                 return (
                   <div key={h.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid rgba(0,212,255,0.06)" }}>
-                    <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".76rem", color:"rgba(224,244,255,.72)" }}>{h.name}</span>
+                    <span style={{ fontFamily:"'Exo 2', sans-serif", fontSize:".76rem", color:"var(--text-secondary)" }}>{h.name}</span>
                     <span style={{ fontFamily:"'Share Tech Mono', monospace", fontSize:".65rem", color:c.color, flexShrink:0, marginLeft:8 }}>
                       {hd.toLocaleDateString("en-US", { month:"short", day:"numeric" })}
                     </span>

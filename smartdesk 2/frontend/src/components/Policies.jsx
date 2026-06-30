@@ -38,7 +38,7 @@ const Policies = () => {
   const handlePolicyClick = link => window.open(encodeURI(link), '_blank', 'noopener,noreferrer');
 
   const cs = {
-    card: { background:'rgba(6,20,45,0.85)', border:'1px solid rgba(0,212,255,0.2)', borderRadius:8, backdropFilter:'blur(12px)', marginBottom:12, position:'relative', overflow:'hidden' },
+    card: { background:'var(--bg-card)', border:'1px solid rgba(0,212,255,0.2)', borderRadius:8, backdropFilter:'blur(12px)', marginBottom:12, position:'relative', overflow:'hidden' },
   };
 
   return (
@@ -46,7 +46,7 @@ const Policies = () => {
       {/* Header */}
       <div style={{ marginBottom:16 }}>
         <div className="section-title" style={{ marginBottom:6 }}>// COMPLIANCE ARCHIVE</div>
-        <h2 style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:'1.2rem', color:'#e0f4ff', margin:0 }}>
+        <h2 style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:'1.2rem', color:'var(--text-primary)', margin:0 }}>
           COMPANY <span className="neon-text">POLICIES</span>
         </h2>
         <div className="cyber-divider" style={{ marginTop:10 }} />
@@ -65,8 +65,8 @@ const Policies = () => {
           <FileText size={24} style={{ color:'#00d4ff' }} />
         </div>
         <div>
-          <div style={{ fontFamily:"'Orbitron', monospace", fontWeight:700, fontSize:'.85rem', color:'#e0f4ff', marginBottom:4 }}>CORPORATE POLICY CENTER</div>
-          <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.75rem', color:'rgba(122,184,212,0.7)' }}>Your comprehensive guide to company policies and procedures</div>
+          <div style={{ fontFamily:"'Orbitron', monospace", fontWeight:700, fontSize:'.85rem', color:'var(--text-primary)', marginBottom:4 }}>CORPORATE POLICY CENTER</div>
+          <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.75rem', color:'var(--text-muted)' }}>Your comprehensive guide to company policies and procedures</div>
         </div>
         <div style={{ marginLeft:'auto', fontFamily:"'Share Tech Mono', monospace", fontSize:'.6rem', color:'rgba(0,212,255,0.4)', letterSpacing:'.1em', textAlign:'right', flexShrink:0 }}>
           {Object.values(POLICY_DATA).reduce((a,b)=>a+b.length,0)} DOCUMENTS
@@ -88,10 +88,10 @@ const Policies = () => {
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 {isExpanded
                   ? <ChevronDown size={16} style={{ color }} />
-                  : <ChevronRight size={16} style={{ color:'rgba(122,184,212,0.5)' }} />
+                  : <ChevronRight size={16} style={{ color:'var(--text-muted)' }} />
                 }
                 <div style={{ width:3, height:20, background:color, borderRadius:2, boxShadow:`0 0 6px ${color}` }} />
-                <span style={{ fontFamily:"'Orbitron', monospace", fontWeight:700, fontSize:'.75rem', color: isExpanded ? color : 'rgba(122,184,212,0.8)', letterSpacing:'.1em', transition:'color .2s' }}>
+                <span style={{ fontFamily:"'Orbitron', monospace", fontWeight:700, fontSize:'.75rem', color: isExpanded ? color : 'var(--text-secondary)', letterSpacing:'.1em', transition:'color .2s' }}>
                   {section}
                 </span>
               </div>
@@ -107,21 +107,21 @@ const Policies = () => {
                   <div key={i} style={{
                     display:'flex', alignItems:'center', gap:12,
                     padding:'10px 12px', borderRadius:6, marginBottom:6,
-                    background:'rgba(0,10,25,0.5)', border:'1px solid rgba(0,212,255,0.1)',
+                    background:'var(--bg-elevated)', border:'1px solid rgba(0,212,255,0.1)',
                     cursor:'pointer', transition:'all .2s',
                   }}
-                    onMouseEnter={e=>{ e.currentTarget.style.borderColor=color+'50'; e.currentTarget.style.background='rgba(0,20,45,0.7)'; }}
-                    onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(0,212,255,0.1)'; e.currentTarget.style.background='rgba(0,10,25,0.5)'; }}
+                    onMouseEnter={e=>{ e.currentTarget.style.borderColor=color+'50'; e.currentTarget.style.background='var(--bg-hover)'; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(0,212,255,0.1)'; e.currentTarget.style.background='var(--bg-elevated)'; }}
                     onClick={() => handlePolicyClick(p.link)}
                   >
                     <div style={{ width:32, height:32, borderRadius:5, background:`${color}10`, border:`1px solid ${color}25`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                       <FileText size={14} style={{ color:`${color}80` }} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.75rem', fontWeight:600, color:'#e0f4ff', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.75rem', fontWeight:600, color:'var(--text-primary)', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {p.title}
                       </div>
-                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.65rem', color:'rgba(122,184,212,0.5)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      <div style={{ fontFamily:"'Exo 2', sans-serif", fontSize:'.65rem', color:'var(--text-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {p.description}
                       </div>
                     </div>
