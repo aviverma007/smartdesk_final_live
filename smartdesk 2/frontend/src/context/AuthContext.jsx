@@ -130,11 +130,18 @@ export const AuthProvider = ({ children }) => {
 
   const initializeAuth = () => {
     setShowLoading(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       const saved = localStorage.getItem('sd-user');
       if (saved) {
         try {
           const u = JSON.parse(saved);
+          // Re-verify a restored employee session: if the ID is no longer a real
+          // directory employee (e.g. it was created under old/insecure logic, or
+          // the person was removed), drop the session instead of trusting it.
+          if (u.role === 'employee') {
+            const ok = await isDirectoryEmployee(u.empId);
+            if (!ok) { localStorage.removeItem('sd-user'); setShowLoading(false); return; }
+          }
           setUser(u);
           setIsAuthenticated(true);
         } catch {}
