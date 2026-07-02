@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { employeeAPI } from '../services/api';
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -59,14 +60,46 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     }
 
-    // Employee: password = Smart@ + reverse(empId)
-    const expected = makePassword(id);
-    if (pw === expected) {
-      login({ name:`Employee ${id}`, role:'employee', empId:id, loginTime:new Date().toISOString() });
-      return { success:true };
-    }
+    // Employees are NOT handled here — they must be validated against the
+    // directory (see tryEmployeeLogin). This prevents made-up IDs logging in.
+    return { success:false, error:'Invalid Employee ID or Password', notFixedAccount:true };
+  };
 
-    return { success:false, error:'Invalid Employee ID or Password' };
+  // Is this Employee ID a real person in the directory?
+  // Sources: the Excel employee directory + onboarded/managed employees
+  // (the /onboarding/directory feed already excludes soft-deleted people).
+  const isDirectoryEmployee = async (id) => {
+    const want = String(id).trim();
+    let deleted = [], inManaged = false;
+    try {
+      const res = await fetch(`${URA_API}/onboarding/directory`);
+      const data = await res.json();
+      if (data.success) {
+        deleted = (data.deleted || []).map(x => String(x).trim());
+        if ((data.records || []).some(e => String(e.EmpId).trim() === want)) inManaged = true;
+      }
+    } catch (_) {}
+    if (deleted.includes(want)) return false; // explicitly removed from the directory
+    if (inManaged) return true;
+    try {
+      const list = await employeeAPI.getAll();
+      if (Array.isArray(list) && list.some(e => String(e.id).trim() === want)) return true;
+    } catch (_) {}
+    return false;
+  };
+
+  // Employee login: only for IDs that exist in the directory, with the
+  // formula password (Smart@ + reversed ID).
+  const tryEmployeeLogin = async (empId, password) => {
+    const id = String(empId).trim();
+    const pw = String(password).trim();
+    const exists = await isDirectoryEmployee(id);
+    if (!exists) return { success: false, error: 'No employee with this ID exists in the directory.' };
+    if (pw === makePassword(id)) {
+      login({ name: `Employee ${id}`, role: 'employee', empId: id, loginTime: new Date().toISOString() });
+      return { success: true };
+    }
+    return { success: false, error: 'Incorrect password for this Employee ID.' };
   };
 
   // Async fallback: log in with a password the employee set via the email link
@@ -118,7 +151,7 @@ export const AuthProvider = ({ children }) => {
   const isManager   = user?.role === 'manager';
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, tryAppLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard, isHr, isIt, isManager }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, tryEmployeeLogin, tryAppLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard, isHr, isIt, isManager }}>
       {children}
     </AuthContext.Provider>
   );
