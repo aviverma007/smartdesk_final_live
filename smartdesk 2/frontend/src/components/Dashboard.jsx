@@ -36,14 +36,6 @@ const DASHBOARDS = [
     url:'https://app.powerbi.com/view?r=eyJrIjoiZjBjYjk1MTItMjI4OS00Y2MzLTg1OGUtZWU1NjgzMTk3MDJlIiwidCI6IjcxMWY0MDY2LTA3YjctNDVhMS05ZTMyLTk3OGU4NjUyOGNhZCJ9',
   },
   {
-    id: 'sales', title: 'Sales Dashboard', subtitle: 'Revenue Analytics',
-    stat: '₹18.7Cr', delta: '+22%',
-    gradient: 'linear-gradient(135deg,#1a001a 0%,#701a75 40%,#c026d3 70%,#e879f9 100%)',
-    spotGrad: 'radial-gradient(ellipse at 40% 70%, rgba(232,121,249,0.5) 0%, transparent 60%)',
-    textColor: '#e879f9',
-    url:'https://app.powerbi.com/view?r=eyJrIjoiNjQyODljZDItYmVkNy00YTE0LWE0MGMtYTAxNDk4NGQ1YWE0IiwidCI6IjcxMWY0MDY2LTA3YjctNDVhMS05ZTMyLTk3OGU4NjUyOGNhZCJ9',
-  },
-  {
     id: 'assets', title: 'Asset Dashboard', subtitle: 'Asset Tracking',
     stat: '3,892', delta: '+5%',
     gradient: 'linear-gradient(135deg,#0a1a1a 0%,#134e4a 40%,#0d9488 70%,#2dd4bf 100%)',
@@ -60,20 +52,12 @@ const DASHBOARDS = [
     url:'https://app.powerbi.com/view?r=eyJrIjoiOWJlZmRlYWMtYTkwMC00NWY4LWIzNTEtYzcxNDg2Zjg2Mjg0IiwidCI6IjcxMWY0MDY2LTA3YjctNDVhMS05ZTMyLTk3OGU4NjUyOGNhZCJ9',
   },
   {
-    id: 'crm', title: 'Case Management', subtitle: 'CRM Analytics',
-    stat: '241', delta: '-8%',
-    gradient: 'linear-gradient(135deg,#0f0a20 0%,#312e81 40%,#4338ca 70%,#818cf8 100%)',
-    spotGrad: 'radial-gradient(ellipse at 50% 30%, rgba(129,140,248,0.5) 0%, transparent 60%)',
-    textColor: '#818cf8',
-    url:'https://app.powerbi.com/view?r=eyJrIjoiZjk0NjE0YTgtNDAyMy00ZWEwLThkMjYtNzFlYmVlMmY5ZmUxIiwidCI6IjcxMWY0MDY2LTA3YjctNDVhMS05ZTMyLTk3OGU4NjUyOGNhZCJ9',
-  },
-  {
-    id: 'attendance', title: 'Attendance', subtitle: 'Employee Presence',
-    stat: '91.2%', delta: '+1.8%',
-    gradient: 'linear-gradient(135deg,#001a10 0%,#064e3b 40%,#059669 70%,#34d399 100%)',
-    spotGrad: 'radial-gradient(ellipse at 70% 70%, rgba(52,211,153,0.5) 0%, transparent 60%)',
-    textColor: '#34d399',
-    url:'https://app.powerbi.com/view?r=eyJrIjoiM2ZjM2JlMTMtYmRjYi00MTViLTljOTQtM2UyODAwNDkyNTQxIiwidCI6IjcxMWY0MDY2LTA3YjctNDVhMS05ZTMyLTk3OGU4NjUyOGNhZCJ9',
+    id: 'swdsales', title: 'Sales · Demand & Collection · CRM Case Management', subtitle: 'SWD Sales Portal · swdsales.com:90',
+    stat: 'Open', delta: '',
+    gradient: 'linear-gradient(135deg,#1a001a 0%,#701a75 35%,#c026d3 68%,#e879f9 100%)',
+    spotGrad: 'radial-gradient(ellipse at 40% 70%, rgba(232,121,249,0.5) 0%, transparent 60%)',
+    textColor: '#e879f9',
+    url:'http://www.swdsales.com:90/',
   },
 ];
 
