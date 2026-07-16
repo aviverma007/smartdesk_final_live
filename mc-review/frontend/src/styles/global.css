@@ -1,0 +1,94 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  font-family: 'Segoe UI', 'DejaVu Sans', Arial, sans-serif;
+  background: #F5F6F8; color: #000; font-size: 13.5px;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; font-size: 12.5px; }
+
+.appbar {
+  background: #fff; border-bottom: 2px solid #1D5FA8; display: flex; align-items: center;
+  padding: 0 16px; height: 56px; gap: 16px; position: sticky; top: 0; z-index: 60;
+}
+.brand b { font-size: 14px; letter-spacing: .3px; }
+.brand span { display: block; font-size: 9px; color: #000; letter-spacing: 1.3px; }
+.tabs { display: flex; gap: 2px; height: 56px; }
+.tab {
+  font-size: 12.5px; padding: 0 13px; color: #000; display: flex; align-items: center;
+  border: none; background: none; border-bottom: 3px solid transparent;
+}
+.tab.active { font-weight: 700; border-bottom-color: #1D5FA8; }
+.tab:disabled { color: #999; cursor: not-allowed; }
+.spacer { flex: 1; }
+.rolebox { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.rolebox select { padding: 6px 7px; border: 1px solid #A9B0B9; border-radius: 3px; background: #fff; }
+
+.pagewrap { padding: 0 0 70px 0; }
+.surface { background: #fff; border: 1px solid #C4CAD2; margin: 12px 16px; padding: 12px 14px; }
+.subtabs { display: flex; gap: 2px; padding: 12px 16px 0 16px; align-items: flex-end; }
+.stab { font-size: 12px; padding: 8px 16px; background: #E9EBEE; color: #000; border: 1px solid #C4CAD2; border-bottom: none; }
+.stab.active { background: #fff; font-weight: 700; }
+.subtabs + .surface { margin-top: 0; border-top: none; }
+
+.field label { display: block; font-size: 9.5px; letter-spacing: .5px; margin-bottom: 3px; text-transform: uppercase; font-weight: 700; }
+.field label .req { color: #B3261E; }
+.inp { border: 1px solid #A9B0B9; border-radius: 3px; font-size: 12.5px; padding: 7px 9px; background: #fff; }
+.inp.err { border-color: #B3261E; background: #FFF6F5; }
+.btn { border-radius: 3px; font-size: 12.5px; padding: 8px 13px; font-weight: 700; border: 1px solid #2B3947; background: #fff; color: #2B3947; }
+.btn.primary { background: #2B3947; color: #fff; }
+.btn.ghost { font-weight: 400; }
+.btn.sm { font-size: 11px; padding: 5px 9px; }
+.btn.danger { border-color: #B3261E; color: #B3261E; }
+.btn:disabled { background: #F0F1F3; color: #9AA1AA; border-color: #C4CAD2; cursor: not-allowed; }
+.toolbar { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; flex-wrap: wrap; }
+
+.qentry { background: #FAFBFC; border: 1px dashed #A9B0B9; padding: 11px 12px; display: flex; align-items: flex-end; gap: 10px; margin-bottom: 11px; flex-wrap: wrap; }
+.modeb { font-size: 11.5px; color: #1D5FA8; text-decoration: underline; background: none; border: none; padding: 7px 0; }
+.staged { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; font-size: 10px; color: #000; }
+
+.tablewrap { overflow-x: auto; max-width: 100%; border: 1px solid #AEB4BC; }
+table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+th { background: #E9EBEE; border-right: 1px solid #AEB4BC; border-bottom: 1px solid #AEB4BC; font-size: 10px; padding: 7px; text-align: left; font-weight: 700; line-height: 1.3; }
+td { border-right: 1px solid #C7CCD3; border-bottom: 1px solid #C7CCD3; font-size: 11.5px; padding: 6px 7px; vertical-align: top; background: #fff; line-height: 1.4; }
+tr.band td { background: #F0F1F4; font-weight: 700; font-size: 11px; letter-spacing: .4px; padding: 5px 9px; }
+tr.rowdim td { background: #FBFCFD; }
+tr.rowlocked td { background: #F3F4F6; }
+.nfa { font-weight: 700; }
+.cbx { width: 15px; height: 15px; accent-color: #2B3947; cursor: pointer; }
+.sub { font-size: 10px; color: #000; margin-top: 3px; }
+.st { font-size: 10.3px; font-weight: 700; }
+.st.grey { color: #666; font-weight: 400; }
+.ok { color: #0B6B3A; } .hold { color: #9A6700; } .rej { color: #B3261E; } .pend { color: #444; font-style: italic; font-weight: 400; }
+.redstar { color: #B3261E; font-weight: 700; }
+.minibtn { display: inline-block; border: 1px solid #A9B0B9; border-radius: 3px; font-size: 10px; padding: 3px 8px; background: #fff; margin: 1px 2px 1px 0; }
+.minibtn:hover { background: #EFF1F4; }
+
+.viewbadge { border: 1.5px solid #1D5FA8; background: #EEF4FB; color: #000; font-size: 11.5px; padding: 7px 10px; font-weight: 700; border-radius: 3px; }
+.ordel { border: 1px solid #B3261E; color: #B3261E; background: #fff; font-size: 10px; padding: 2px 7px; border-radius: 3px; margin-left: 7px; cursor: pointer; }
+.ordel:hover { background: #B3261E; color: #fff; }
+.p1datebox { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; padding-bottom: 7px; }
+.endmark { text-align: center; font-size: 10.5px; font-weight: 700; letter-spacing: 1.5px; color: #000; background: #FAFBFC; padding: 9px 0 !important; }
+.pmvchip { color: #9A6700; font-weight: 700; }
+
+.decbtn { width: 36px; height: 27px; border-radius: 3px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; margin: 1px 3px 1px 0; padding: 0; color: #fff; font-size: 15px; }
+.decbtn.g { background: #0B6B3A; } .decbtn.y { background: #D99A06; } .decbtn.r { background: #B3261E; }
+.decbtn:hover { filter: brightness(1.12); }
+.decbtn.sel { outline: 2.5px solid #000; outline-offset: 1px; }
+.decbtn.dim { opacity: .30; }
+
+.toasts { position: fixed; bottom: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+.toast { background: #2B3947; color: #fff; font-size: 12px; padding: 10px 14px; border-radius: 4px; max-width: 380px; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
+.toast.error { background: #B3261E; }
+.toast.warn { background: #9A6700; }
+
+.mback { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 90; }
+.modal { background: #fff; border-radius: 6px; padding: 20px; max-width: 480px; width: 92%; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.modal h3 { margin-bottom: 10px; font-size: 15px; }
+.modal p { font-size: 12.5px; margin-bottom: 14px; line-height: 1.5; }
+.modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.empty { padding: 30px; text-align: center; color: #888; font-size: 12.5px; }
+.chip { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; background: #EEF4FB; color: #1D5FA8; font-weight: 700; margin-left: 6px; }
+.badge { display: inline-block; font-size: 9.5px; padding: 2px 6px; border-radius: 3px; font-weight: 700; }
+.badge.resub { background: #FDF6E3; color: #9A6700; border: 1px solid #E8D089; }

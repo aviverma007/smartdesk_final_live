@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MC Review Dashboard — Smart World Developers</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; }
+body { font-family:'Segoe UI','DejaVu Sans',Arial,sans-serif; background:#F5F6F8; color:#000; font-size:13.5px; overflow-y:scroll; }
+button { font-family:inherit; cursor:pointer; }
+input,select,textarea { font-family:inherit; font-size:12.5px; }
+
+/* App bar */
+.appbar { background:#fff; border-bottom:2px solid #1D5FA8; display:flex; align-items:center; padding:0 16px; height:56px; gap:16px; position:sticky; top:0; z-index:60; }
+.logoimg { height:30px; display:block; }
+.brand { border-left:1px solid #D3D7DC; padding-left:14px; }
+.brand b { font-size:14px; letter-spacing:.3px; }
+.brand span { display:block; font-size:9px; color:#000; letter-spacing:1.3px; }
+.tabs { display:flex; gap:2px; height:56px; }
+.tab { font-size:12.5px; padding:0 13px; color:#000; display:flex; align-items:center; border:none; background:none; border-bottom:3px solid transparent; }
+.tab.active { color:#000; font-weight:700; border-bottom-color:#1D5FA8; }
+.tab:disabled { color:#666; cursor:not-allowed; }
+.tab em { font-style:normal; font-size:8.5px; border:1px solid #C4CAD2; border-radius:3px; padding:0 3px; margin-left:5px; color:#000; }
+.spacer { flex:1; }
+.rolebox { font-size:12px; color:#000; display:flex; align-items:center; gap:6px; }
+.rolebox select { padding:6px 7px; border:1px solid #A9B0B9; border-radius:3px; background:#fff; }
+.protobanner { background:#EDEFF2; border-bottom:1px solid #D3D7DC; color:#000; font-size:10.5px; padding:5px 16px; display:flex; gap:14px; flex-wrap:wrap; }
+.protobanner b { color:#000; }
+
+.pagewrap { padding:0 0 70px 0; }
+.surface { background:#fff; border:1px solid #C4CAD2; margin:12px 16px; padding:12px 14px; }
+.subtabs { display:flex; gap:2px; padding:12px 16px 0 16px; align-items:flex-end; }
+.stab { font-size:12px; padding:8px 16px; background:#E9EBEE; color:#000; border:1px solid #C4CAD2; border-bottom:none; }
+.stab.active { background:#fff; color:#000; font-weight:700; }
+.subtabs + .surface { margin-top:0; border-top:none; }
+
+/* Controls */
+.field label { display:block; font-size:9.5px; color:#000; letter-spacing:.5px; margin-bottom:3px; text-transform:uppercase; font-weight:700; }
+.field label .req { color:#B3261E; }
+.inp { border:1px solid #A9B0B9; border-radius:3px; font-size:12.5px; padding:7px 9px; background:#fff; }
+.inp.err { border-color:#B3261E; background:#FFF6F5; }
+.calbtn { text-align:left; min-width:132px; font-weight:600; }
+.btn { border-radius:3px; font-size:12.5px; padding:8px 13px; font-weight:700; border:1px solid #2B3947; background:#fff; color:#2B3947; }
+.btn.primary { background:#2B3947; color:#fff; }
+.btn.ghost { font-weight:400; }
+.btn.sm { font-size:11px; padding:5px 9px; }
+.btn:disabled { background:#F0F1F3; color:#9AA1AA; border-color:#C4CAD2; cursor:not-allowed; }
+.toolbar { display:flex; align-items:center; gap:9px; margin-bottom:10px; flex-wrap:wrap; }
+.filterlbl { border:1px solid #C4CAD2; background:#F5F6F8; border-radius:3px; font-size:11px; padding:6px 9px; color:#000; display:inline-flex; align-items:center; gap:6px; }
+
+/* Quick entry */
+.qentry { background:#FAFBFC; border:1px dashed #A9B0B9; padding:11px 12px; display:flex; align-items:flex-end; gap:10px; margin-bottom:11px; flex-wrap:wrap; }
+.modeb { font-size:11.5px; color:#1D5FA8; text-decoration:underline; background:none; border:none; padding:7px 0; }
+.staged { display:flex; gap:5px; flex-wrap:wrap; align-items:center; font-size:10px; color:#000; }
+
+/* Tables */
+.tablewrap { overflow-x:auto; max-width:100%; border:1px solid #AEB4BC; }
+table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; }
+th { background:#E9EBEE; border-right:1px solid #AEB4BC; border-bottom:1px solid #AEB4BC; font-size:10px; color:#000; padding:7px 7px; text-align:left; vertical-align:middle; font-weight:700; line-height:1.3; }
+td { border-right:1px solid #C7CCD3; border-bottom:1px solid #C7CCD3; font-size:11.5px; padding:6px 7px; vertical-align:top; background:#fff; line-height:1.4; }
+tr.band td { background:#F0F1F4; font-weight:700; font-size:11px; letter-spacing:.4px; padding:5px 9px; }
+tr.rowdim td { background:#FBFCFD; color:#000; }
+tr.rowlocked td { background:#F3F4F6; color:#000; }
+tr.flash td { background:#FDF6E3 !important; transition:background 1.4s; }
+.edit { background:#FFF8DC !important; }
+.yellowcell { background:#FFF8DC !important; }
+.nfa { font-weight:700; }
+.cbx { width:15px; height:15px; accent-color:#2B3947; cursor:pointer; }
+.sub { font-size:10px; color:#000; margin-top:3px; }
+.sub a, a.lnk { color:#1D5FA8; text-decoration:underline; cursor:pointer; }
+.st { font-size:10.3px; font-weight:700; }
+.st.grey { color:#000; font-weight:400; }
+.ok { color:#0B6B3A; } .hold { color:#9A6700; } .rej { color:#B3261E; } .pend { color:#444; font-style:italic; font-weight:400; }
+.redstar { color:#B3261E; font-weight:700; }
+.minibtn { display:inline-block; border:1px solid #A9B0B9; border-radius:3px; font-size:10px; padding:3px 8px; color:#000; background:#fff; margin:1px 2px 1px 0; }
+.minibtn:hover { background:#EFF1F4; }
+
+/* Inline editable cells (Excel-style) */
+.cellinput { min-height:19px; outline:none; white-space:pre-wrap; word-break:break-word; }
+.cellinput[contenteditable="true"]:hover { box-shadow:inset 0 0 0 1px #B9BFC7; }
+.cellinput[contenteditable="true"]:focus { box-shadow:inset 0 0 0 2px #1D5FA8; background:#fff; }
+
+/* v1.2: view-only badge, order delete, calendar limits, tab-row date */
+.viewbadge { border:1.5px solid #1D5FA8; background:#EEF4FB; color:#000; font-size:11.5px; padding:7px 10px; font-weight:700; border-radius:3px; }
+.ordel { border:1px solid #B3261E; color:#B3261E; background:#fff; font-size:10px; padding:2px 7px; border-radius:3px; margin-left:7px; cursor:pointer; }
+.ordel:hover { background:#B3261E; color:#fff; }
+.calgrid button:disabled { color:#C7CCD3 !important; cursor:not-allowed; background:none !important; }
+.p1datebox { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; padding-bottom:7px; }
+/* v1.3: end-of-sheet marker (B1) + pending-move chip (B2) */
+.endmark { text-align:center; font-size:10.5px; font-weight:700; letter-spacing:1.5px; color:#000; background:#FAFBFC; padding:9px 0 !important; }
+.pmvchip { color:#9A6700; font-weight:700; }
+tr.rowdim td { background:#FBFCFD; }
+
+/* Decision buttons */
+.decbtn { width:36px; height:27px; border-radius:3px; border:1px solid transparent; display:inline-flex; align-items:center; justify-content:center; margin:1px 3px 1px 0; padding:0; }
+.decbtn.g { background:#0B6B3A; } .decbtn.y { background:#D99A06; } .decbtn.r { background:#B3261E; }
+.decbtn:hover { filter:brightness(1.12); }
+.decbtn.sel { outline:2.5px solid #000; outline-offset:1px; }
+.decbtn.dim { opacity:.30; }
+
+/* File chips */
+.fchips { display:flex; flex-wrap:wrap; gap:4px; }
+.fchip { display:inline-flex; align-items:center; gap:4px; border:1px solid #C4CAD2; background:#FAFBFC; border-radius:3px; padding:3px 6px 3px 4px; font-size:10px; color:#000; max-width:160px; cursor:pointer; }
+.fchip .ft { font-size:8px; font-weight:700; color:#fff; background:#000; border-radius:2px; padding:1px 3px; }
+.fchip .ft.pdf { background:#8A3B32; } .fchip .ft.xls { background:#2F6B45; } .fchip .ft.msg { background:#2F5A8A; } .fchip .ft.img { background:#7A5A9A; } .fchip .ft.fld { background:#9A6700; }
+.fchip .fn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fchip .fx { border:none; background:none; color:#444; font-weight:700; font-size:11px; padding:0 1px; }
+.fchip .fx:hover { color:#B3261E; }
+
+/* Editor */
+.editor-cell { background:#FAFBFC !important; padding:10px !important; }
+.editor-inner { border:1px solid #AEB4BC; border-left:3px solid #1D5FA8; background:#fff; padding:12px 14px; }
+.ed-head { display:flex; align-items:center; gap:10px; margin-bottom:9px; font-size:11.5px; color:#000; flex-wrap:wrap; }
+.prior { border:1px solid #C9A55A; background:#FFFDF5; color:#6E5504; font-size:10.5px; padding:4px 9px; }
+.fieldsrow { display:flex; gap:10px; flex-wrap:wrap; }
+.fcard { flex:1; min-width:260px; border:1px solid #C7CCD3; padding:9px 10px; }
+.fcard h5 { font-size:9.5px; text-transform:uppercase; letter-spacing:.5px; color:#000; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.pfn { font-size:10px; display:flex; align-items:center; gap:4px; text-transform:none; letter-spacing:0; color:#000; font-weight:400; white-space:nowrap; }
+.fval { width:100%; font-size:11.5px; border:1px solid #C7CCD3; padding:7px 8px; min-height:60px; background:#fff; color:#000; resize:vertical; }
+.fval[readonly] { background:#F7F8FA; color:#000; resize:none; }
+.fval.userv { background:#FFF8DC; }
+.resub-card { margin-top:10px; border:1px solid #C9A55A; padding:9px 10px; background:#FFFDF5; }
+.resub-card h5 { font-size:9.5px; text-transform:uppercase; letter-spacing:.5px; color:#6E5504; margin-bottom:4px; }
+.resub-card h5 em { color:#B3261E; font-style:normal; }
+.ed-actions { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+.audit-note { margin-left:auto; font-size:10px; color:#444; }
+
+/* Sheet head, banners */
+.sheethead { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+.lockstate { border:1px solid #C9A55A; background:#FFFDF5; color:#6E5504; font-size:11px; padding:7px 10px; }
+.lockstate.locked { border-color:#8F969E; background:#F5F6F8; color:#000; }
+.counter { font-size:12px; color:#000; }
+.saved { font-size:10.5px; color:#0B6B3A; }
+.idxtabs { display:flex; gap:2px; padding:12px 16px 0 16px; }
+.itab { font-size:12px; padding:8px 16px; background:#E9EBEE; color:#000; border:1px solid #C4CAD2; border-bottom:none; }
+.itab.active { background:#fff; color:#000; font-weight:700; }
+.itab:disabled { color:#666; cursor:not-allowed; }
+.idxtabs + .surface { margin-top:0; border-top:none; }
+.emptystate { padding:44px; text-align:center; color:#000; font-size:13px; }
+
+/* Calendar */
+#calHost { position:absolute; top:0; left:0; z-index:400; }
+.calpop { position:absolute; background:#fff; border:1px solid #8F969E; box-shadow:0 6px 18px rgba(0,0,0,.18); padding:10px; width:252px; }
+.calnav { display:flex; gap:5px; align-items:center; margin-bottom:8px; }
+.calnav button.arr { border:1px solid #A9B0B9; background:#fff; width:26px; height:26px; border-radius:3px; font-size:12px; }
+.calnav select { flex:1; padding:4px 4px; border:1px solid #A9B0B9; border-radius:3px; font-size:12px; }
+.calgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.calgrid .dow { font-size:9px; color:#000; text-align:center; font-weight:700; padding:2px 0; }
+.calgrid button { border:none; background:#fff; font-size:11.5px; padding:5px 0; border-radius:3px; }
+.calgrid button:hover { background:#E9EBEE; }
+.calgrid button.seld { background:#2B3947; color:#fff; font-weight:700; }
+.calgrid button.tdy { outline:1.5px solid #1D5FA8; }
+.calgrid button:disabled { color:#C4CAD2; background:#fff; cursor:default; }
+.calfoot { font-size:9.5px; color:#444; margin-top:7px; text-align:center; }
+
+/* Toast + modal */
+#toasts { position:fixed; bottom:18px; right:18px; z-index:500; display:flex; flex-direction:column; gap:7px; }
+.toast { background:#2B3947; color:#fff; font-size:12px; padding:10px 14px; border-radius:3px; max-width:400px; box-shadow:0 3px 10px rgba(0,0,0,.25); }
+.toast.warn { background:#8A5E0A; } .toast.err { background:#8A2A22; }
+.mback { position:fixed; inset:0; background:rgba(20,25,32,.45); z-index:150; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; }
+.modal { background:#fff; border:1px solid #8F969E; width:min(900px,96vw); padding:16px 18px; }
+.modal h3 { font-size:14px; margin-bottom:10px; border-bottom:1px solid #D3D7DC; padding-bottom:8px; }
+.modal .mrow { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:9px; }
+.modal .field { flex:1; min-width:170px; }
+.modal .inp, .modal textarea.inp { width:100%; }
+.mfoot { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; border-top:1px solid #D3D7DC; padding-top:10px; }
+.legendline { font-size:10.5px; color:#000; margin:8px 16px 0 16px; line-height:1.5; }
+.sw { display:inline-block; width:11px; height:11px; border-radius:2px; margin:0 4px -1px 6px; border:1px solid #C9A55A; background:#FFF8DC; }
+::-webkit-scrollbar { height:12px; width:12px; }
+::-webkit-scrollbar-thumb { background:#666; border:2px solid #F0F1F3; border-radius:6px; }
+::-webkit-scrollbar-track { background:#F0F1F3; }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <img class="logoimg" src="data:image/png;base64,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" alt="Smart World">
+  <div class="brand"><b>MC REVIEW DASHBOARD</b><span>CONTRACTS &amp; PROCUREMENT</span></div>
+  <div class="tabs" id="pageTabs"></div>
+  <div class="spacer"></div>
+  <div class="rolebox" id="dateBoxWrap"></div>
+  <div class="rolebox">Viewing as:
+    <select id="roleSel" onchange="App.setRole(this.value)">
+      <option value="user">Dhruv · User</option>
+      <option value="revMEP">R. Verma · Reviewer (MEP &amp; Procurement)</option>
+      <option value="revCIV">S. Anand · Reviewer (Civil &amp; Consultancy)</option>
+      <option value="admin">Akhilesh · Admin</option>
+    </select>
+  </div>
+  <button class="btn sm ghost" id="auditBtn" style="display:none" onclick="App.showAudit()">Audit trail</button>
+</div>
+<div class="protobanner"><b>PROTOTYPE BUILD v1.4</b><span>QMS API simulated in-memory (live API from 10-Jul per IT)</span><span>No persistence — data resets on reload</span><span>Role switcher stands in for login/AD-SSO (IT lane)</span><span>Try: fetch <b>14333</b> · re-fetch a presented NFA → lands on P2 deselected · re-fetch with a different Index/WT/date → stages a <b>pending move (submit to apply)</b> · Users: Page 2 is view-only</span></div>
+
+<div id="app" class="pagewrap"></div>
+<div id="calHost"></div>
+<div id="toasts"></div>
+<div id="modalHost"></div>
+<input type="file" id="fileInput" multiple style="display:none">
+
+<script>
+/* ============ REFERENCE DATA ============ */
+const LOGO = "data:image/png;base64,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";
+const WT = { A:'New Work', B:'Deviation in Payment Terms', C:'Qty Variation with Extra Items', D:'Qty Variation Only (At Existing Rates)', E:'Qty Variation with Change in Rates', F:'Addendum', G:'Amendment in Rates & Specs', H:'Emergent Approval', I:'Extra Items', J:'Base Rate Approval' };
+const IDX = { MEP:'MEP & Procurement', CIVIL:'Civil & Consultancy' };
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const TODAY = '05-Jul-2026';
+const YMIN=2026, YMAX=2035;
+function toDate(s){ if(!s) return null; const p=s.split('-'); return new Date(+p[2], MONTHS.indexOf(p[1]), +p[0]); }
+function fmt(dt){ return String(dt.getDate()).padStart(2,'0')+'-'+MONTHS[dt.getMonth()]+'-'+dt.getFullYear(); }
+function addDays(ds,n){ const d=toDate(ds); d.setDate(d.getDate()+n); return fmt(d); }
+const ts = s => toDate(s).getTime();
+const nowT = () => { const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+/* Simulated QMS database (read-only, one-way) */
+const QMS = {
+ '14315':{project:'Gems 89',location:'Sec 89',apprNote:'No',desc:'Supply of utilities items at Clubhouse for SW Gems 89 site',duration:'02 Months',vendor:'M/s Gunwant Electrical & Hardware Store',val:'0.76',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'Dispensers 6 nos @ ₹7,650 · ext. boards 3 @ ₹460 · dustbins 23 @ ₹590 · soap disp. 6 @ ₹550 (excl. GST 18%)',reason:'As requested by site',reasonability:'Rates finalised through competitive bidding',vendPQ:'3',pr:'10462',initDt:'24-06-26',pendWith:'MC',initiator:'Dhruv',files:[{n:'NFA_14315_v00.pdf',t:'pdf'},{n:'Quotation_Gunwant.pdf',t:'pdf'},{n:'Comparative_3bids.xlsx',t:'xls'}]},
+ '14306':{project:'One DXP 113',location:'113',apprNote:'No',desc:'Sale order of scrap — TMT reinforcement steel (2 months)',duration:'2 Months',vendor:'M/s Brown Traders',val:'19.82',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'Qty 50 MT @ ₹39,648/MT incl. GST 18%',reason:'—',reasonability:'Competitive bidding; rates reasonable vs market',vendPQ:'5',pr:'8140001162',initDt:'23-06-26',pendWith:'MC',initiator:'Manish',files:[{n:'NFA_14306_v00.pdf',t:'pdf'},{n:'Scrap_bids_5vendors.xlsx',t:'xls'}]},
+ '14331':{project:'Orchard 61',location:'61',apprNote:'No',desc:'Supply & installation of club upgradation landscape items',duration:'1 Month',vendor:'1. M/s Ascent Homes (₹1.21 L) · 2. M/s Vimal Probuild (₹2.61 L) · 3. M/s Oraa Enterprises (₹6.00 L)',val:'9.82',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'FRP planters @ ₹3,990–5,200 · artificial grass @ ₹527/sqft · bollards @ ₹18,400 · recessed lights @ ₹9,800–11,600 (excl. GST)',reason:'Club upgradation items per landscape scheme',reasonability:'Competitive bidding; credit / PI-linked payment terms per vendor',vendPQ:'3',pr:'13302',initDt:'26-06-26',pendWith:'MC',initiator:'Jai Tyagi',files:[{n:'NFA_14331_v00.pdf',t:'pdf'},{n:'Landscape_BOQ.xlsx',t:'xls'},{n:'Vendor_offers',t:'fld'}]},
+ '13594':{project:'Orchard 61',location:'61',apprNote:'No',desc:'Amendment-02 to Order 1566 — SITC of DG exhaust pipeline works (Ph-3)',duration:'As per initial order',vendor:'M/s Satkartar Electricals & Electronics Pvt. Ltd.',val:'39.82',lastAmd:'NA',amdVal:'31.99',variation:'−7.83',rate:'Qty amendment ↓ ₹7.95 L per final certified qty · extra item silencer insulation 320 kVA DG ₹0.12 L',reason:'Qty per actual certified quantity; extra item missing from initial BOQ',reasonability:'Initial qty amendment ₹0.18 L revised to ₹7.95 L per final certification; extra item negotiated ₹33,000 → ₹10,000 + GST',vendPQ:'1',pr:'10022',initDt:'25-06-26',pendWith:'MC',initiator:'Bhavdeep Pilania',files:[{n:'NFA_13594_v01.pdf',t:'pdf'},{n:'Amendment_annexure.xlsx',t:'xls'},{n:'Certified_qty_mail.msg',t:'msg'}]},
+ '14319':{project:'Orchard 61',location:'61',apprNote:'No',desc:'Amendment 01 to PO SRPL/Paver/2321 — supply of pavers',duration:'—',vendor:'M/s Shree Balaji Pavers',val:'23.99',lastAmd:'NA',amdVal:'24.76',variation:'0.77',rate:'Pavers 200×100×80 yellow M-30 · 120.96 sqm @ ₹540/sqm excl. GST',reason:'Additional item included in scope; vendor declined further discount',reasonability:'Benchmarked vs Gems base-rate approval 30-05-26 — quoted rates lower',vendPQ:'1',pr:'10539',initDt:'25-06-26',pendWith:'MC',initiator:'Manish',files:[{n:'NFA_14319_v00.pdf',t:'pdf'}]},
+ '14401':{project:'One DXP 113',location:'113',apprNote:'No',desc:'Base rates — Z-Black granite (18–20 mm)',duration:'1 month',vendor:'M/s Servesar Granite',val:'21.43 (excl. GST)',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'₹1,647/sqm (₹153/sqft) excl. GST · FOR site · unloading included · payment 100% advance',reason:'—',reasonability:'—',vendPQ:'1',pr:'—',initDt:'02-07-26',pendWith:'MC',initiator:'Manish',files:[{n:'Granite_rate_offer.pdf',t:'pdf'},{n:'Sample_photos',t:'img'}]},
+ '14402':{project:'One DXP 113',location:'113',apprNote:'No',desc:'Base rates — steel grey granite (20 mm+)',duration:'1 month',vendor:'M/s Servesar Granite',val:'4.03 (excl. GST)',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'₹125/sqft excl. GST · FOR site · unloading included · payment 100% advance',reason:'—',reasonability:'—',vendPQ:'1',pr:'—',initDt:'02-07-26',pendWith:'MC',initiator:'Manish',files:[{n:'Granite_rate_offer.pdf',t:'pdf'}]},
+ '14355':{project:'Sky Arc 69',location:'69',apprNote:'No',desc:'Supply of misc. consumables — details incomplete',duration:'1 Month',vendor:'M/s A-One Traders',val:'1.12',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'rate details awaited',reason:'—',reasonability:'—',vendPQ:'1',pr:'—',initDt:'03-07-26',pendWith:'L3',initiator:'Kunal Mehra',files:[{n:'NFA_14355_v00.pdf',t:'pdf'}]},
+ '14350':{project:'Orchard 61',location:'61',apprNote:'No',desc:'Boundary wall & RCC works — phase 2 stretch',duration:'3 Months',vendor:'M/s Jagrati Construction',val:'41.20',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'As per BOQ — L1 of 4 bids',reason:'Phase-2 site development',reasonability:'Competitive bidding; L1 lowest',vendPQ:'4',pr:'11208',initDt:'01-07-26',pendWith:'MC',initiator:'Dhruv',files:[{n:'NFA_14350_v00.pdf',t:'pdf'},{n:'RCC_BOQ.xlsx',t:'xls'}]},
+ '14352':{project:'The Edition',location:'Sec 66',apprNote:'No',desc:'Structural consultancy — peer review, Towers C & D',duration:'6 Months',vendor:'M/s StruCon Consultants LLP',val:'14.50',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'Lump-sum per tower @ ₹7.25 L excl. GST',reason:'Peer review mandated for high-rise',reasonability:'Negotiated from ₹8.4 L per tower',vendPQ:'2',pr:'11544',initDt:'30-06-26',pendWith:'MC',initiator:'Priya Nair',files:[{n:'NFA_14352_v00.pdf',t:'pdf'},{n:'Scope_note.pdf',t:'pdf'}]},
+ '14333':{project:'One DXP-2 113',location:'113',apprNote:'No',desc:'SITC of dust separation system works',duration:'3 Months',vendor:'M/s Oxy Green Landscape and Infra LLP',val:'11.88',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'As per BOQ',reason:'Dust control at batching zone',reasonability:'Reference rates via competitive bidding; Oxy Green is L1 — reasonable',vendPQ:'2',pr:'8140001160',initDt:'26-06-26',pendWith:'Yash Sharma',initiator:'Yash Sharma',files:[{n:'NFA_14333_v00.pdf',t:'pdf'},{n:'DustSys_BOQ.xlsx',t:'xls'},{n:'L1_L2_mail.msg',t:'msg'}]},
+ '14313':{project:'One DXP',location:'113',apprNote:'No',desc:'Sale order — shifting of 30 kVA DG set from Sales Gallery Sec-111 to Sky Arc Sec-69',duration:'15 days',vendor:'M/s Riverday Infrastructure Pvt. Ltd.',val:'2.06',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'Internal shifting',reason:'Internal shifting of DG set',reasonability:'—',vendPQ:'1',pr:'8140001174',initDt:'26-06-26',pendWith:'—',initiator:'Suraj Bhan Bhardwaj',files:[{n:'NFA_14313_v00.pdf',t:'pdf'}]},
+ '14344':{project:'Orchard 61',location:'61',apprNote:'No',desc:'Sale order of scrap — TMT reinforcement steel',duration:'2 Months',vendor:'M/s Brown Traders',val:'3.78',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'Scrap qty 10 MT @ ₹37,760/MT incl. GST 18%',reason:'Collection from multiple locations',reasonability:'Competitive bidding; rates reasonable',vendPQ:'3',pr:'10321',initDt:'29-06-26',pendWith:'—',initiator:'Yash Sharma',files:[{n:'NFA_14344_v00.pdf',t:'pdf'}]}
+};
+
+/* NFAs already in published PDFs (nfa -> [{date,o}]) */
+const registry = {
+ '13594':[{date:'01-May-2026',index:'MEP',o:'HOLD'}],
+ '14313':[{date:'29-Jun-2026',index:'MEP',o:'APPROVED'}],
+ '14344':[{date:'29-Jun-2026',index:'MEP',o:'APPROVED'}]
+};
+
+/* v1.4: fixed Page 1/2/3 format (Excel, 6 Jul) — QMS-side field additions + helpers */
+const RATEVALS=['Competitive bidding','Existing rate reference','Rate analysis','Existing Rate & Rate analysis'];
+(function(){ const X={
+  '14315':['0.80','Site','Competitive bidding'], '14306':['20.00','C&P Team','Competitive bidding'],
+  '14331':['10.00','Site','Competitive bidding'], '13594':['32.00','Site','Rate analysis'],
+  '14319':['25.00','Site','Existing rate reference'], '14401':['—','C&P Team','Rate analysis'],
+  '14402':['—','C&P Team','Rate analysis'], '14355':['—','Site',''],
+  '14350':['42.00','Site','Competitive bidding'], '14352':['15.00','C&P Team','Rate analysis'],
+  '14333':['12.00','Site','Competitive bidding'], '14313':['2.10','C&P Team',''],
+  '14344':['4.00','Site','Competitive bidding'] };
+  Object.keys(X).forEach(k=>{ QMS[k].prBudget=X[k][0]; QMS[k].initBy=X[k][1]; QMS[k].rateVal=X[k][2]; });
+})();
+/* Revised order value = (Last Amendment if numeric, else Original) + This variation; NA when no numeric variation */
+function revisedVal(f){ const num=s=>parseFloat(String(s==null?'':s).replace('−','-').replace(/[^0-9.\-]/g,'')); const v=num(f.variation); if(isNaN(v)) return 'NA'; const base=isNaN(num(f.lastAmd))?num(f.val):num(f.lastAmd); if(isNaN(base)) return 'NA'; return String(Math.round((base+v)*100)/100); }
+
+/* ============ STATE ============ */
+let eid = 100, seq = { EM:1, ordMEP:33, ordCIVIL:7 };
+const H = (nfa) => { const q=QMS[nfa]; return { prBudget:{pfn:true,qms:q.prBudget||'—',user:null}, reason:{pfn:true,qms:q.reason,user:null}, vendPQ:{pfn:true,qms:q.vendPQ,user:null}, remarks:{pfn:true,qms:'Value ₹'+q.val+' L. '+(q.reasonability==='—'?'':q.reasonability),user:null} }; };
+function mkEntry(nfa, index, wt, date, enteredBy, extra){
+  const q = QMS[nfa];
+  return Object.assign({ id:++eid, nfa, mode:'A', index, wt, date, f:{...q}, hyb:H(nfa), files:q.files.map(f=>({...f,src:'qms'})), resubReq:!!registry[nfa], resubComment:'', initBy:q.initBy||'', rateVal:q.rateVal||'', initiator:q.initiator, enteredBy, status:'draft', sel:false, mc:false, touch:{}, orders:[] }, extra||{});
+}
+/* B7: a re-pull replaces QMS-sourced files by filename and restores missing ones; user uploads are never touched */
+function applyQmsFiles(e,q){ let restored=0, replaced=0;
+  q.files.forEach(f=>{ const i=e.files.findIndex(x=>x.n===f.n);
+    if(i<0){ e.files.push({...f,src:'qms'}); restored++; }
+    else if(e.files[i].src==='qms'){ e.files[i]={...f,src:'qms'}; replaced++; } });
+  return {restored,replaced};
+}
+const state = {
+  role:'user', page:1, p1tab:'entries', p1date:TODAY, qeDate:TODAY,
+  idxSel:{2:'MEP',3:'MEP'}, dateSel:{2:TODAY,3:TODAY},
+  expanded:null, staged:[], qe:null, maxOrders:10, mbDate:TODAY, migTo:null, p1q:'', p4q:'',
+  entries:[], sheets:{}, published:[], retired:[], audit:[], searchQ:''
+};
+const sheetKey = (i,d)=>i+'|'+d;
+function sheet(i,d){ const k=sheetKey(i,d); if(!state.sheets[k]) state.sheets[k]={locked:false,version:0,snapRows:[],dec:{},mcC:{},lockedAt:'',decVer:0,savedAt:'',publishedRev:0}; return state.sheets[k]; }
+function audit(action, detail){ state.audit.unshift({at:TODAY+' '+nowT(), who:userName(), action, detail}); }
+function userName(){ return {user:'Dhruv', revMEP:'R. Verma', revCIV:'S. Anand', admin:'Akhilesh'}[state.role]; }
+function roleIdx(){ return state.role==='revMEP'?'MEP':state.role==='revCIV'?'CIVIL':null; }
+function isReviewerish(){ return state.role!=='user'; }
+
+/* ---- seed mid-flight story ---- */
+(function seed(){
+  let e;
+  e=mkEntry('14315','MEP','A',TODAY,'Dhruv'); e.status='submitted'; e.sel=true; state.entries.push(e);
+  e=mkEntry('14306','MEP','A',TODAY,'Dhruv'); e.status='submitted'; e.sel=true; state.entries.push(e);
+  e=mkEntry('13594','MEP','G',TODAY,'Dhruv'); e.hyb.reason.pfn=false; e.hyb.reason.user=e.hyb.reason.qms;
+    e.resubComment='Re-presented with final certified quantity and one extra item, as directed by MC on 01-05-2026.'; e.sel=true; state.entries.push(e);
+  e=mkEntry('14331','MEP','A',TODAY,'Jai Tyagi'); e.status='submitted'; state.entries.push(e);
+  e=mkEntry('14319','MEP','C',TODAY,'Manish'); e.status='submitted'; state.entries.push(e);
+  e=mkEntry('14401','MEP','J',TODAY,'Manish'); e.status='submitted'; state.entries.push(e);
+  e=mkEntry('14402','MEP','J',TODAY,'Manish'); e.status='submitted'; state.entries.push(e);
+  e=mkEntry('14355','MEP','A',TODAY,'Kunal Mehra'); e.status='submitted'; e.hyb.prBudget.pfn=false; e.hyb.prBudget.user='budget details awaited'; state.entries.push(e);
+  e=mkEntry('14350','CIVIL','A','09-Jul-2026','Dhruv'); state.entries.push(e);
+  e=mkEntry('14352','CIVIL','A',TODAY,'Priya Nair'); e.status='submitted'; state.entries.push(e);
+  const em={ id:++eid, nfa:'EM/07-26/001', mode:'B', index:'MEP', wt:'H', date:TODAY,
+    f:{project:'One DXP',location:'—',apprNote:'Yes — emergent',desc:'SITC — plumbing & fire-fighting works for EWS & school (LOI issued 20-06 on emergent approval)',duration:'12 Months',vendor:'M/s Gautam Techno',val:'233.20',lastAmd:'NA',amdVal:'NA',variation:'NA',rate:'Comparative BOQ (incl. GST): L1 Gautam Techno 233.20 · L2 Scenario India 235.38 · L3 United Engineer 250.03 · L4 Jagrati 250.39 · L5 Buddhiraja 267.95',reason:'LOI issued on emergent approval; put up for NFA regularisation',reasonability:'Competitive bidding; L1 lowest of 5 bids',vendPQ:'5',pr:'7865',initDt:'—',pendWith:'—',initiator:'Yash Sharma'},
+    hyb:{prBudget:{pfn:false,qms:'',user:'240.00 (comparative L1 233.20)'},reason:{pfn:false,qms:'',user:'LOI issued on emergent approval; put up for NFA regularisation'},vendPQ:{pfn:false,qms:'',user:'5'},remarks:{pfn:false,qms:'',user:'Emergent approval attached for reference. Comparative BOQ (incl. GST): L1 Gautam Techno 233.20 · L2 Scenario India 235.38 · L3 United Engineer 250.03 · L4 Jagrati 250.39 · L5 Buddhiraja 267.95'}},
+    files:[{n:'Emergent_approval_scan.pdf',t:'pdf',src:'upload'},{n:'LOI_GautamTechno.pdf',t:'pdf',src:'upload'}],
+    resubReq:false, resubComment:'', initBy:'Site', rateVal:'Competitive bidding', initiator:'Yash Sharma', enteredBy:'Dhruv', status:'draft', sel:true, mc:false, touch:{}, orders:[] };
+  state.entries.push(em);
+  state.published.push({id:1,index:'MEP',date:'01-May-2026',rev:1,by:'R. Verma',at:'01-May-2026 13:05',counts:{APPROVED:11,HOLD:1,REJECTED:0},undecided:[],snapV:1,rows:[pdfRowFromQMS('13594','G','HOLD','This negative quantity variation is to be rechecked.','')]});
+  state.published.push({id:2,index:'MEP',date:'29-Jun-2026',rev:1,by:'R. Verma',at:'29-Jun-2026 13:20',counts:{APPROVED:13,HOLD:2,REJECTED:0},undecided:[],snapV:1,rows:[pdfRowFromQMS('14313','A','APPROVED','',''),pdfRowFromQMS('14344','A','APPROVED','','')]});
+  e=mkEntry('14313','MEP','A','29-Jun-2026','Suraj Bhan Bhardwaj'); e.status='APPROVED'; e.mc=true; e.dec={s:'APPROVED'};
+  e.orders=[{no:'ORD/MEP/0626-0027',vendor:'M/s Riverday Infrastructure Pvt. Ltd.',type:'SO',by:'Suraj Bhan Bhardwaj',at:'30-Jun 11:04',ov:false}]; state.entries.push(e);
+  e=mkEntry('14344','MEP','A','29-Jun-2026','Yash Sharma'); e.status='APPROVED'; e.mc=true; e.dec={s:'APPROVED'}; state.entries.push(e);
+})();
+function pdfRowFromQMS(nfa, wt, dec, mcC, resub){ const q=QMS[nfa]; return {wt,nfa,project:q.project,loc:q.location,desc:q.desc,vendor:q.vendor,prBudget:q.prBudget||'—',val:q.val,lastAmd:q.lastAmd,variation:q.variation,revised:revisedVal(q),reason:q.reason,rateVal:q.rateVal||'',vendPQ:q.vendPQ,pr:q.pr,initDt:q.initDt,resub,initiator:q.initiator,mcComment:mcC,dec}; }
+
+/* ============ CALENDAR ============ */
+const Cal = {
+  o:null,
+  open(btn, val, cb){
+    const LIM={p1:{min:TODAY},qe:{min:TODAY},mb:{min:TODAY},s2:{min:TODAY},s3:{min:TODAY},mig:{min:TODAY,max:addDays(TODAY,10)}};
+    const lim=LIM[cb]||{};
+    const r=btn.getBoundingClientRect(); const dt=toDate(val)||toDate(TODAY);
+    /* keep the popup on-screen: clamp the 252px width inside the right edge; flip above the anchor when no room below */
+    const PW=252, PH=320, vw=document.documentElement.clientWidth, vh=window.innerHeight;
+    let px=r.left; if(px+PW+8>vw) px=Math.max(8, vw-PW-8);
+    let py=r.bottom+4; if(py+PH>vh && r.top-PH-4>0) py=r.top-PH-4;
+    Cal.o={cb, val, min:lim.min||null, max:lim.max||null, y:dt.getFullYear(), m:dt.getMonth(), left:px+window.scrollX, top:py+window.scrollY};
+    Cal.render();
+  },
+  close(){ Cal.o=null; document.getElementById('calHost').innerHTML=''; },
+  nav(d){ let m=Cal.o.m+d, y=Cal.o.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} if(y<YMIN){y=YMIN;m=0;} if(y>YMAX){y=YMAX;m=11;} Cal.o.m=m; Cal.o.y=y; Cal.render(); },
+  setM(m){ Cal.o.m=+m; Cal.render(); },
+  setY(y){ Cal.o.y=+y; Cal.render(); },
+  pick(ds){ const cb=Cal.o.cb; Cal.close(); App.calPick(cb, ds); },
+  render(){
+    const o=Cal.o; if(!o) return;
+    const first=new Date(o.y,o.m,1), off=first.getDay(), dim=new Date(o.y,o.m+1,0).getDate();
+    let grid=['S','M','T','W','T','F','S'].map(d=>'<span class="dow">'+d+'</span>').join('');
+    for(let i=0;i<off;i++) grid+='<span></span>';
+    for(let d=1;d<=dim;d++){
+      const ds=fmt(new Date(o.y,o.m,d));
+      const oob=(o.min&&ts(ds)<ts(o.min))||(o.max&&ts(ds)>ts(o.max));
+      grid+='<button '+(oob?'disabled':'')+' class="'+(ds===o.val?'seld':'')+(ds===TODAY?' tdy':'')+'" onclick="Cal.pick(\''+ds+'\')">'+d+'</button>';
+    }
+    document.getElementById('calHost').innerHTML =
+      '<div class="calpop" style="left:'+o.left+'px;top:'+o.top+'px">'+
+      '<div class="calnav"><button class="arr" onclick="Cal.nav(-1)">‹</button>'+
+      '<select onchange="Cal.setM(this.value)">'+MONTHS.map((m,i)=>'<option value="'+i+'"'+(i===o.m?' selected':'')+'>'+m+'</option>').join('')+'</select>'+
+      '<select onchange="Cal.setY(this.value)">'+Array.from({length:YMAX-YMIN+1},(_,i)=>YMIN+i).map(y=>'<option'+(y===o.y?' selected':'')+'>'+y+'</option>').join('')+'</select>'+
+      '<button class="arr" onclick="Cal.nav(1)">›</button></div>'+
+      '<div class="calgrid">'+grid+'</div>'+
+      '<div class="calfoot">'+(o.min||o.max?('Selectable: '+(o.min||'01-Jan-2026')+' → '+(o.max||'31-Dec-2035')):'Range: 01-Jan-2026 to 31-Dec-2035')+' · outlined = today</div></div>';
+  }
+};
+document.addEventListener('mousedown', e=>{ if(Cal.o && !e.target.closest('#calHost') && !e.target.closest('.calbtn')) Cal.close(); });
+/* delegated file-chip handling — filenames are never interpolated into inline JS (hostile-name safe) */
+document.addEventListener('click', ev=>{
+  const fx=ev.target.closest('.fchip .fx');
+  if(fx){ ev.stopPropagation(); App.removeFile(+fx.dataset.eid, +fx.dataset.i); return; }
+  const chip=ev.target.closest('.fchip[data-fn]');
+  if(chip) App.openFile(chip.dataset.fn, chip.dataset.ft);
+});
+function calBtn(val, cb, extra){ return '<button class="inp calbtn" '+(extra||'')+' onclick="Cal.open(this,\''+val+'\',\''+cb+'\')">'+val+' <span style="color:#000;font-size:10px">▾</span></button>'; }
+
+/* ============ UI PRIMS ============ */
+function toast(msg, kind){ const t=document.createElement('div'); t.className='toast'+(kind?' '+kind:''); t.innerHTML=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 4500); }
+function modal(html){ const h=document.getElementById('modalHost'); h.innerHTML='<div class="mback" onclick="if(event.target===this)App.closeModal()"><div class="modal">'+html+'</div></div>'; }
+function closeModal(){ document.getElementById('modalHost').innerHTML=''; }
+function ftClass(t){ return {pdf:'pdf',xls:'xls',msg:'msg',img:'img',fld:'fld'}[t]||''; }
+function ftLabel(t){ return {pdf:'PDF',xls:'XLS',msg:'MAIL',img:'IMG',fld:'FLD'}[t]||'FILE'; }
+function fileChips(files, opts){ opts=opts||{}; if(!files||!files.length) return '<span class="st grey">—</span>';
+  return '<div class="fchips">'+files.map((f,i)=>'<span class="fchip" data-fn="'+esc(f.n)+'" data-ft="'+esc(f.t)+'" title="'+esc(f.n)+'"><span class="ft '+ftClass(f.t)+'">'+ftLabel(f.t)+'</span><span class="fn">'+esc(f.n)+'</span>'+(opts.removable?'<button class="fx" title="Deselect file" data-eid="'+opts.eid+'" data-i="'+i+'">×</button>':'')+'</span>').join('')+'</div>'; }
+function openFile(name, t){
+  if(t==='pdf'||t==='img'){ const w=window.open('','_blank'); w.document.write('<title>'+esc(name)+'</title><body style="font-family:Arial;padding:40px;color:#000"><img src="'+LOGO+'" style="height:28px;margin-bottom:18px"><h3 style="margin-bottom:8px">'+esc(name)+'</h3><p>Simulated preview — in production this document streams from QMS / the dashboard file store and opens in this tab.</p></body>'); }
+  else { const blob=new Blob(['Simulated content of '+name+' — in production this downloads from QMS / the dashboard file store.'],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); toast('Downloading <b>'+esc(name)+'</b>'); }
+}
+function flagInfo(nfa){ const r=registry[nfa]; if(!r||!r.length) return null; return r[r.length-1]; }
+function decIcon(k){
+  if(k==='APPROVED') return '<svg viewBox="0 0 24 24" width="15" height="15" fill="#fff"><path d="M2 10h4v11H2zM22 11c0-1.1-.9-2-2-2h-5.2l.9-4.3v-.3c0-.4-.2-.8-.4-1L14 2 8.6 7.6c-.4.4-.6.9-.6 1.4V19c0 1.1.9 2 2 2h7.5c.8 0 1.5-.5 1.8-1.2l2.6-6.1c.1-.2.1-.5.1-.7v-2z"/></svg>';
+  if(k==='HOLD') return '<svg viewBox="0 0 24 24" width="15" height="15" fill="#fff"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>';
+  return '<svg viewBox="0 0 24 24" width="15" height="15" fill="#fff"><g transform="rotate(180 12 12)"><path d="M2 10h4v11H2zM22 11c0-1.1-.9-2-2-2h-5.2l.9-4.3v-.3c0-.4-.2-.8-.4-1L14 2 8.6 7.6c-.4.4-.6.9-.6 1.4V19c0 1.1.9 2 2 2h7.5c.8 0 1.5-.5 1.8-1.2l2.6-6.1c.1-.2.1-.5.1-.7v-2z"/></g></svg>';
+}
+function decBtns(id, cur){
+  const mk=(k,cls,title)=>'<button class="decbtn '+cls+(cur?(cur===k?' sel':' dim'):'')+'" title="'+title+'" onclick="App.decide('+id+',\''+k+'\')">'+decIcon(k)+'</button>';
+  return mk('APPROVED','g','Approve')+mk('HOLD','y','Hold')+mk('REJECTED','r','Reject');
+}
+
+/* ============ RENDER ROOT ============ */
+function render(){
+  Cal.close();
+  const _qn=document.getElementById('qeNfa');
+  if(_qn){ state.qe={ nfa:_qn.value, idx:document.getElementById('qeIdx').value, wt:document.getElementById('qeWt').value }; }
+  const tabs=[[1,'1 · NFA Entry',''],[2,'2 · Pre-meeting Review','REVIEWER'],[3,'3 · MC Meeting','REVIEWER'],[4,'4 · Order Numbering','']];
+  document.getElementById('pageTabs').innerHTML = tabs.map(t=>{
+    const dis = t[0]===3 && state.role==='user';
+    return '<button class="tab'+(state.page===t[0]?' active':'')+'" '+(dis?'disabled title="Reviewer / Admin access"':'')+' onclick="App.go('+t[0]+')">'+t[1]+(t[2]?' <em>'+t[2]+'</em>':'')+'</button>';
+  }).join('');
+  document.getElementById('auditBtn').style.display = state.role==='admin'?'':'none';
+  document.getElementById('dateBoxWrap').innerHTML = '';
+  document.getElementById('app').innerHTML = state.page===1?renderP1():state.page===2?renderP2():state.page===3?renderP3():renderP4();
+}
+
+/* ============ PAGE 1 ============ */
+function myEntries(){ return state.entries.filter(e=> state.role==='admin' ? true : (e.enteredBy===userName()||e.initiator===userName())); }
+function editableEntry(e){ const s=sheet(e.index,e.date); return (e.status==='draft'||e.status==='submitted') && !s.publishedRev; }
+function hybFinal(h){ return h.pfn ? h.qms : (h.user==null?h.qms:h.user); }
+function fmtInit(v){ if(!v||v==='—') return ''; const p=String(v).split('-'); if(p.length!==3) return v; const mi=(+p[1])-1; if(!(mi>=0&&mi<12)) return v; return p[0].padStart(2,'0')+'-'+MONTHS[mi]+'-'+(p[2].length===2?('20'+p[2]):p[2]); }
+function initLine(x){ const d=fmtInit(x.f?x.f.initDt:x.initDt); return d?'<div class="sub">(Initiated on '+d+')</div>':''; }
+/* v1.3 helpers: B2 pending-move display date · B3 today-view row set */
+function dispDate(e){ return e.pmv ? e.pmv.date : e.date; }
+function shortRef(i,d){ return i+'·'+d.slice(0,6); }
+function p1Listed(){
+  const OPEN=['draft','submitted','presented'];
+  if(ts(state.p1date)===ts(TODAY)) return myEntries().filter(e=> dispDate(e)===TODAY || (ts(dispDate(e))>ts(TODAY) && (OPEN.includes(e.status)||!!e.pmv)));
+  return myEntries().filter(e=> dispDate(e)===state.p1date);
+}
+function renderP1(){
+  const t=state.p1tab;
+  let body='';
+  if(t==='entries') body=renderP1Entries();
+  if(t==='pdfs') body=renderP1PDFs();
+  if(t==='search') body=renderP1Search();
+  return '<div class="subtabs">'+
+    '<button class="stab'+(t==='entries'?' active':'')+'" onclick="App.p1tab(\'entries\')">My Entries</button>'+
+    '<button class="stab'+(t==='pdfs'?' active':'')+'" onclick="App.p1tab(\'pdfs\')">Published PDFs</button>'+
+    '<button class="stab'+(t==='search'?' active':'')+'" onclick="App.p1tab(\'search\')">NFA Search &amp; History</button><span class="spacer"></span>'+(t==='entries'?('<span class="p1datebox">Entry Date View: '+calBtn(state.p1date,'p1','id="p1DateBtn"')+'</span>'):'')+'</div>'+
+    '<div class="surface">'+body+'</div>'+
+    (t==='entries'?'<div class="legendline"><span class="sw"></span>Yellow = user-edited / manual · unmarked cells are QMS-sourced · <b>*</b> on NFA Initiator = proxy entry · files: click to open/download, × to deselect · <b>re-fetch an existing NFA to re-pull QMS fields &amp; restore its attachments</b> · today&rsquo;s view lists <b>all open entries (today + every future review date)</b>; pick a future date to filter to that date only — history lives in Published PDFs &amp; NFA Search</div>':'');
+}
+function renderP1Entries(){
+  const q=(state.p1q||'').toLowerCase();
+  const rows = p1Listed()
+    .filter(e=>!q || (e.nfa+' '+e.f.desc+' '+e.f.vendor+' '+e.f.project+' '+e.initiator).toLowerCase().includes(q))
+    .sort((a,b)=> ts(dispDate(a))-ts(dispDate(b)) || a.id-b.id);
+  const checked = rows.filter(e=>e.sel && (editableEntry(e)||e.pmv)).length;
+  const qeD = state.qeDate;
+  let html = '<div class="qentry">'+
+    '<div class="field"><label>NFA Number <span class="req">*</span></label><input class="inp" id="qeNfa" style="width:132px" placeholder="e.g. 14333" oninput="this.classList.remove(\'err\')" value="'+esc((state.qe&&state.qe.nfa)||'')+'"></div>'+
+    '<div class="field"><label>Index <span class="req">*</span></label><select class="inp" id="qeIdx" onchange="this.classList.remove(\'err\')">'+['','MEP','CIVIL'].map(v=>'<option value="'+v+'"'+(((state.qe&&state.qe.idx)||'')===v?' selected':'')+'>'+(v===''?'Select…':IDX[v])+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Work Type <span class="req">*</span></label><select class="inp" id="qeWt" onchange="this.classList.remove(\'err\')"><option value="">Select…</option>'+Object.keys(WT).map(k=>'<option value="'+k+'"'+((state.qe&&state.qe.wt)===k?' selected':'')+'>'+k+' · '+WT[k]+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Review Date <span class="req">*</span></label>'+calBtn(qeD,'qe','id="qeDateBtn"')+'</div>'+
+    '<button class="btn ghost" onclick="App.pickFiles()">Upload files</button>'+
+    '<button class="btn primary" onclick="App.fetchQMS()">Fetch from QMS</button>'+
+    '<button class="modeb" onclick="App.openModeB()">No NFA in QMS yet? Manual entry (Mode B)</button>'+
+    '<div class="staged" id="stagedBox">'+(state.staged.length?('Staged for next entry: '+state.staged.map(f=>'<span class="fchip"><span class="ft '+ftClass(f.t)+'">'+ftLabel(f.t)+'</span><span class="fn">'+esc(f.n)+'</span></span>').join('')):'')+'</div>'+
+  '</div>';
+  html += '<div class="toolbar"><input class="inp" id="p1q" style="width:250px" placeholder="Filter this date’s list… (NFA / vendor / project)" value="'+esc(state.p1q||'')+'" oninput="App.p1qSet(this.value)">'+
+    '<span class="filterlbl">Index: All</span><span class="filterlbl">Work Type: All</span><span class="filterlbl">Status: All</span>'+
+    '<span class="filterlbl">Showing: <b>'+state.p1date+(ts(state.p1date)===ts(TODAY)?' · today view — all open entries incl. future dates':'')+'</b></span>'+
+    '<span class="spacer"></span><button class="btn primary" onclick="App.submitChecked()">Submit '+checked+' checked → Page 2</button></div>';
+  html += '<div class="tablewrap"><table><colgroup><col style="width:36px"><col style="width:42px"><col style="width:108px"><col style="width:60px"><col style="width:155px"><col style="width:100px"><col style="width:245px"><col style="width:170px"><col style="width:78px"><col style="width:105px"><col style="width:115px"><col style="width:100px"><col style="width:100px"><col style="width:190px"><col style="width:150px"></colgroup>'+
+    '<tr><th><input type="checkbox" class="cbx" onclick="App.selAll(this.checked)" '+(rows.some(e=>editableEntry(e)||e.pmv)&&rows.every(e=>!(editableEntry(e)||e.pmv)||e.sel)?'checked':'')+'></th><th>S.No</th><th>NFA No.</th><th>Index</th><th>Work Type</th><th>Project</th><th>Description of Work</th><th>Vendor Name</th><th>Original Order Value ₹L (incl. GST)</th><th>PR Budget Value ₹L</th><th>Creator</th><th>NFA Initiated By</th><th>Review Date</th><th>Downloadable Files (QMS + uploads)</th><th>Status</th></tr>';
+  rows.forEach((e,i)=>{ html+=p1Row(e,i+1); if(state.expanded===e.id) html+=p1Editor(e); });
+  if(!rows.length) html+='<tr><td colspan="15"><div class="emptystate">No entries for <b>'+state.p1date+'</b> — fetch an NFA above (try 14333), use Mode B, or pick another review date from the calendar.</div></td></tr>';
+  html+='</table></div>';
+  return html;
+}
+function p1Row(e,sno){
+  const edit=editableEntry(e); const flag=flagInfo(e.nfa);
+  const t=e.pmv, dIdx=t?t.index:e.index, dWt=t?t.wt:e.wt, dDate=t?t.date:e.date;
+  const locked=['APPROVED','HOLD','REJECTED','expired','presented'].includes(e.status);
+  const prB=hybFinal(e.hyb.prBudget); const prBUser=(!e.hyb.prBudget.pfn);
+  const future=ts(dDate)>ts(TODAY);
+  let statusCell='';
+  if(e.status==='draft') statusCell='<span class="st grey">Draft'+(e.mode==='B'?' · Mode B':'')+'</span>';
+  else if(e.status==='submitted') statusCell='<span class="st grey">Submitted → Page 2'+(future?' · future sheet':'')+'</span>';
+  else if(e.status==='presented') statusCell='<span class="st grey">Locked for MC · '+e.date+'</span>';
+  else if(e.status==='expired') statusCell='<span class="st pend">Expired (undecided '+e.date+')</span>';
+  else statusCell='<span class="st '+(e.status==='APPROVED'?'ok':e.status==='HOLD'?'hold':'rej')+'">'+e.status+' · '+e.date+'</span><div class="sub"><a class="lnk" onclick="App.openPdfByKey(\''+e.index+'\',\''+e.date+'\')">View PDF ↓</a> · locked</div>';
+  if(flag && edit) statusCell += '<div class="sub" style="color:#9A6700;font-weight:700;">Resubmit — '+flag.o+' '+flag.date+'</div>';
+  if(t) statusCell += '<div class="sub pmvchip">Pending move from '+shortRef(e.index,e.date)+' — submit to apply · previous entry still on Page 2</div>';
+  const stYellow = (e.status==='submitted' && future) ? ' class="yellowcell"' : '';
+  return '<tr id="row'+e.id+'" class="'+(locked&&e.status!=='presented'?'rowlocked':'')+'">'+
+    '<td>'+((edit||t)?'<input type="checkbox" class="cbx" '+(e.sel?'checked':'')+' onclick="App.toggleSel('+e.id+',this.checked)">':'<input type="checkbox" class="cbx" disabled>')+'</td>'+
+    '<td>'+sno+'</td>'+
+    '<td class="nfa" style="cursor:pointer" onclick="App.expand('+e.id+')">'+esc(e.nfa)+initLine(e)+(e.mode==='B'?'<div class="sub">Manual · Mode B · interim reference (cite it in QMS at NFA initiation)</div>':'')+'</td>'+
+    '<td>'+dIdx+'</td><td><b>'+dWt+'</b> · '+WT[dWt]+'</td><td>'+esc(e.f.project)+'</td><td>'+esc(e.f.desc)+'</td><td>'+esc(e.f.vendor)+'</td><td><b>'+esc(e.f.val)+'</b></td>'+
+    '<td'+(prBUser?' class="edit"':'')+'>'+esc(prB)+'</td>'+
+    '<td>'+esc(e.initiator)+(e.initiator!==e.enteredBy?' <b class="redstar" title="Proxy entry — entered by '+esc(e.enteredBy)+' (audit-logged)">*</b>':'')+'</td>'+
+    '<td>'+esc(e.initBy||'—')+'</td>'+
+    '<td'+(future?' style="font-weight:700"':'')+'>'+dDate+'</td>'+
+    '<td>'+fileChips(e.files,{removable:edit,eid:e.id})+'</td>'+
+    '<td'+stYellow+'>'+statusCell+'</td></tr>';
+}
+function p1Editor(e){
+  const edit=editableEntry(e); const flag=flagInfo(e.nfa);
+  const card=(key,label)=>{ const h=e.hyb[key];
+    return '<div class="fcard"><h5>'+label+' <label class="pfn"><input type="checkbox" class="cbx" style="width:12px;height:12px" '+(h.pfn?'checked':'')+' '+(edit?'':'disabled')+' onchange="App.togglePfn('+e.id+',\''+key+'\',this.checked)"> Pick from NFA</label></h5>'+
+    (h.pfn ? '<textarea class="fval" readonly>'+esc(h.qms||'—')+'</textarea>'
+           : '<textarea class="fval userv" '+(edit?'':'readonly')+' oninput="App.setHyb('+e.id+',\''+key+'\',this.value)">'+esc(h.user==null?h.qms:h.user)+'</textarea><div class="sub">QMS text pre-filled — edit any part; your text supersedes QMS.</div>')+'</div>'; };
+  return '<tr><td colspan="15" class="editor-cell"><div class="editor-inner">'+
+    '<div class="ed-head"><b>'+esc(e.nfa)+' — entry editor</b>'+
+    (flag?'<span class="prior">Previously presented — <b>'+flag.o+' · '+flag.date+'</b> · <a class="lnk" onclick="App.openPdfFor(\''+e.nfa+'\')">View PDF ↓</a></span>':'')+
+    '<span style="font-size:10px;color:#444;">'+(e.mode==='A'?'QMS pulled at entry creation — re-fetch anytime to re-pull':'Manual entry — no QMS link yet')+'</span></div>'+
+    '<div class="fieldsrow">'+card('prBudget','PR Budget Value ₹L')+card('reason','Reason for this New work/variation')+card('vendPQ','No&rsquo;s of Considered Vendors &amp; PQ')+card('remarks','Remarks / Status')+'</div>'+
+    '<div class="fieldsrow" style="margin-top:10px">'+
+    '<div class="fcard"><h5>NFA Initiated By <span class="pfn">dropdown</span></h5>'+selCtl(e,'initBy',['C&P Team','Site'],edit)+'</div>'+
+    '<div class="fcard"><h5>Validation of Rates <span class="pfn">dropdown</span></h5>'+selCtl(e,'rateVal',RATEVALS,edit)+'</div></div>'+
+    (e.resubReq?'<div class="resub-card"><h5>Resubmission comment <em>* mandatory — NFA previously presented</em></h5><textarea class="fval" style="min-height:36px" '+(edit?'':'readonly')+' oninput="App.setResub('+e.id+',this.value)">'+esc(e.resubComment)+'</textarea></div>':'')+
+    '<div style="margin-top:10px"><h5 style="font-size:9.5px;text-transform:uppercase;color:#000;margin-bottom:5px">Attached files</h5>'+fileChips(e.files,{removable:edit,eid:e.id})+(edit?' <button class="btn sm ghost" style="margin-top:5px" onclick="App.pickFiles('+e.id+')">+ Upload file</button>':'')+'</div>'+
+    '<div class="ed-actions">'+(edit?'<button class="btn primary" onclick="App.saveEntry('+e.id+')">Save entry</button>'+(e.mode==='A'?'<button class="btn ghost" onclick="App.refreshQMS('+e.id+')">Refresh from QMS</button>':'')+'<button class="btn ghost" onclick="App.withdraw('+e.id+')">Withdraw</button>':'<span class="st grey">Read-only — '+(e.status==='presented'?'locked with reviewer for MC · <b>Fetch from QMS to update</b> (the update lands on Page 2 deselected)':(sheet(e.index,e.date).publishedRev?'date published — closed':'entry closed'))+'</span>')+
+    '<span class="audit-note">Every change is versioned &amp; audit-logged to your login ('+esc(userName())+')</span></div>'+
+  '</div></td></tr>';
+}
+function renderP1PDFs(){
+  if(!state.published.length) return '<div class="emptystate">No PDFs published yet.</div>';
+  return '<div class="tablewrap"><table><colgroup><col style="width:360px"><col style="width:90px"><col style="width:240px"><col style="width:180px"><col style="width:130px"></colgroup>'+
+  '<tr><th>Published PDF</th><th>Rev</th><th>Decisions</th><th>Published</th><th></th></tr>'+
+  state.published.slice().sort((a,b)=>b.id-a.id).map(p=>'<tr><td class="nfa">MC Review — '+IDX[p.index]+' — '+p.date+'.pdf</td><td>Rev-'+p.rev+'</td><td><span class="ok st">Approved '+(p.counts.APPROVED||0)+'</span> · <span class="hold st">Hold '+(p.counts.HOLD||0)+'</span> · <span class="rej st">Rejected '+(p.counts.REJECTED||0)+'</span></td><td>'+p.at+' · '+esc(p.by)+'</td><td><button class="btn sm ghost" onclick="App.openPdf('+p.id+')">Open / Print ↓</button></td></tr>').join('')+'</table></div>';
+}
+function renderP1Search(){
+  const q=state.searchQ.trim();
+  let out='<div class="toolbar"><input class="inp" id="searchInp" style="width:280px" placeholder="NFA number or interim ref…" value="'+esc(q)+'" onchange="App.search(this.value)"><button class="btn ghost" onclick="App.search(document.getElementById(\'searchInp\').value)">Search history</button></div>';
+  if(!q) return out+'<div class="emptystate">Search any NFA number (e.g. 13594) to see its full review timeline and every PDF it appeared in.</div>';
+  const ents=state.entries.filter(e=>e.nfa.toLowerCase().includes(q.toLowerCase()));
+  const reg=Object.keys(registry).filter(k=>k.toLowerCase().includes(q.toLowerCase())).flatMap(k=>registry[k].map(r=>({...r,nfa:k})));
+  if(!ents.length && !reg.length) return out+'<div class="emptystate">No history found for “'+esc(q)+'”.</div>';
+  out+='<div class="tablewrap"><table><colgroup><col style="width:115px"><col style="width:105px"><col style="width:70px"><col style="width:290px"><col style="width:135px"><col style="width:150px"><col style="width:270px"><col style="width:130px"></colgroup><tr><th>NFA</th><th>Review date</th><th>Index</th><th>Description</th><th>NFA Initiator</th><th>Outcome</th><th>Resubmission comment</th><th>PDF</th></tr>';
+  reg.forEach(r=>{ const p=state.published.find(pp=>pp.date===r.date && (!r.index || pp.index===r.index)); out+='<tr><td class="nfa">'+esc(r.nfa)+'</td><td>'+r.date+'</td><td>'+esc(r.index||'MEP')+'</td><td class="st grey">(historical sitting)</td><td>—</td><td><span class="st '+(r.o==='APPROVED'?'ok':r.o==='HOLD'?'hold':r.o==='UNDECIDED'?'pend':'rej')+'">'+r.o+'</span></td><td>—</td><td>'+(p?'<button class="btn sm ghost" onclick="App.openPdf('+p.id+')">Open ↓</button>':'—')+'</td></tr>'; });
+  ents.forEach(e=>{ out+='<tr><td class="nfa">'+esc(e.nfa)+'</td><td>'+e.date+'</td><td>'+e.index+'</td><td>'+esc(e.f.desc)+'</td><td>'+esc(e.initiator)+'</td><td>'+(['APPROVED','HOLD','REJECTED'].includes(e.status)?'<span class="st '+(e.status==='APPROVED'?'ok':e.status==='HOLD'?'hold':'rej')+'">'+e.status+'</span>':'<span class="st grey">'+e.status+'</span>')+'</td><td>'+esc(e.resubComment||'—')+'</td><td>—</td></tr>'; });
+  return out+'</table></div>';
+}
+
+/* ============ PAGE 2 ============ */
+function edCell(e, key, allowed, userEdited){
+  const cur = key==='resub' ? (e.resubComment||'') : hybFinal(e.hyb[key]);
+  const touched = e.touch[key];
+  return '<td class="'+((userEdited||touched)?'yellowcell':'')+'">'+(touched?'<span class="redstar">*</span> ':'')+
+    '<div class="cellinput" contenteditable="'+(allowed?'true':'false')+'" data-id="'+e.id+'" data-key="'+key+'" data-orig="'+esc(cur)+'" oninput="App.p2Input(this)" onblur="App.p2Blur(this)">'+esc(cur||(allowed?'':'—'))+'</div></td>';
+}
+/* v1.4: dropdown cells (P2 reviewer) and editor dropdowns (P1) */
+function selCell(e,key,options,allowed){ const cur=e[key]||''; const touched=e.touch[key];
+  if(!allowed) return '<td class="'+(touched?'yellowcell':'')+'">'+(touched?'<span class="redstar">*</span> ':'')+esc(cur||'—')+'</td>';
+  return '<td class="'+(touched?'yellowcell':'')+'">'+(touched?'<span class="redstar">*</span> ':'')+'<select class="inp selcell" data-key="'+key+'" style="width:100%;font-size:11px;padding:4px 5px" onchange="App.setSel('+e.id+',\''+key+'\',this.value)"><option value=""'+(cur?'':' selected')+'>—</option>'+options.map(o=>'<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select></td>'; }
+function selCtl(e,key,options,allowed){ const cur=e[key]||'';
+  return '<select class="inp edsel" data-key="'+key+'" style="width:100%" '+(allowed?'':'disabled')+' onchange="App.setSel('+e.id+',\''+key+'\',this.value)"><option value=""'+(cur?'':' selected')+'>Select…</option>'+options.map(o=>'<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select>'; }
+function renderP2(){
+  const viewOnly = state.role==='user';
+  const idxAllowed = (state.role==='admin'||viewOnly)?['MEP','CIVIL']:[roleIdx()];
+  if(!idxAllowed.includes(state.idxSel[2])) state.idxSel[2]=idxAllowed[0];
+  const idx=state.idxSel[2], date=state.dateSel[2], s=sheet(idx,date);
+  const pool=state.entries.filter(e=>e.index===idx&&e.date===date&&['submitted','presented'].includes(e.status));
+  const selCount=pool.filter(e=>e.mc).length;
+  let head='<div class="idxtabs">'+['MEP','CIVIL'].map(i=>'<button class="itab'+(idx===i?' active':'')+'" '+(idxAllowed.includes(i)?'':'disabled title="Scoped to your index"')+' onclick="App.setIdx(2,\''+i+'\')">'+IDX[i]+'</button>').join('')+'</div>';
+  let bar='<div class="sheethead"><span class="filterlbl">Sheet date: '+calBtn(date,'s2')+'</span>'+
+    '<span class="counter"><b>'+selCount+' selected</b> of '+pool.length+' submitted</span>'+
+    '<span class="lockstate'+(s.locked?' locked':'')+'">'+(s.publishedRev? 'PUBLISHED Rev-'+s.publishedRev+' — sheet closed for this date' : s.locked?('SHEET LOCKED v'+s.version+' · '+s.lockedAt+' — any select/deselect will unlock; Page 3 shows v'+s.version):(s.version>0?('SHEET UNLOCKED — Page 3 keeps showing snapshot v'+s.version+' until you lock again'):'Not locked yet — Page 3 is empty for this sheet'))+'</span>'+
+    '<span class="spacer"></span>'+
+    (viewOnly?'<span class="viewbadge">VIEW-ONLY — reviewer curates &amp; locks this sheet</span>'
+    :('<button class="btn ghost" '+((!s.publishedRev&&pool.length)?'':'disabled')+' onclick="App.migrate()">Migrate sheet (today ↔ +10 days) ▾</button>'+
+      '<button class="btn primary" '+((!s.publishedRev&&!s.locked)?'':'disabled')+' onclick="App.lockSheet()">Lock sheet → Page 3</button>'))+'</div>';
+  const admin=state.role==='admin';
+  let cols='<colgroup><col style="width:38px"><col style="width:68px"><col style="width:96px"><col style="width:88px"><col style="width:60px"><col style="width:104px"><col style="width:94px"><col style="width:225px"><col style="width:64px"><col style="width:165px"><col style="width:94px"><col style="width:72px"><col style="width:68px"><col style="width:68px"><col style="width:74px"><col style="width:195px"><col style="width:122px"><col style="width:70px"><col style="width:82px"><col style="width:180px">'+(admin?'<col style="width:96px">':'')+'<col style="width:165px"><col style="width:125px"><col style="width:70px"></colgroup>';
+  let thead='<tr><th>S.No</th><th>PR No.</th><th>NFA No.</th><th>Project</th><th>Location</th><th>Creator</th><th>NFA Initiated By</th><th>Description of Work</th><th>Duration</th><th>Vendor Name</th><th>PR Budget Value ₹L</th><th>Original Order Value ₹L (incl. GST)</th><th>Last Amend. Value ₹L</th><th>This Variation ₹L</th><th>Revised Order Value ₹L</th><th>Reason for this New work/variation</th><th>Validation of Rates</th><th>Vendors &amp; PQ</th><th>NFA Approval Pending With</th><th>Remark from NFA Creator (resubmission)</th>'+(admin?'<th>Entered By <em style="font-style:normal;font-size:8px;border:1px solid #C4CAD2;padding:0 2px;color:#000">ADMIN</em></th>':'')+'<th>Downloadable Files (shown on P2 &amp; P3)</th><th>Flags</th><th>Present to MC</th></tr>';
+  let rows='';
+  Object.keys(WT).forEach(w=>{
+    const grp=pool.filter(e=>e.wt===w); if(!grp.length) return;
+    grp.sort((a,b)=> (b.mc?1:0)-(a.mc?1:0) || a.id-b.id);
+    rows+='<tr class="band"><td colspan="'+(admin?24:23)+'">'+w+'. '+WT[w].toUpperCase()+'</td></tr>';
+    grp.forEach((e,i)=>{ rows+=p2Row(e,i+1,s,admin,viewOnly); });
+  });
+  if(rows) rows+='<tr><td class="endmark" colspan="'+(admin?24:23)+'">- - x End of Sheet x - -</td></tr>';
+  if(!rows) rows='<tr><td colspan="'+(admin?24:23)+'"><div class="emptystate">No submitted entries for this index + date yet.</div></td></tr>';
+  return head+'<div class="surface">'+bar+'<div class="tablewrap"><table>'+cols+thead+rows+'</table></div></div>'+
+  '<div class="legendline"><span class="sw"></span>Yellow = user-edited / manual / resubmit flag · <b class="redstar">*</b> red asterisk at field start = reviewer touch-up (audit-attributed) · <b>*</b> on NFA Initiator = proxy entry · click a PR Budget / Reason / Vendors &amp; PQ / Resubmission cell to touch-up in place, or set the dropdowns (pre-lock) · unselected entries stay at the bottom of their category and remain selectable · <b>nothing reaches Page 3 until you press Lock sheet</b>'+(viewOnly?' · <b>your access here is view-only</b>':'')+'</div>';
+}
+function p2Row(e,sno,s,admin,viewOnly){
+  const flag=flagInfo(e.nfa); const dim=!e.mc;
+  const canEdit = isReviewerish() && !s.locked && !s.publishedRev && ['submitted','presented'].includes(e.status);
+  const flagsCell = [flag?'<div>Resubmit — '+flag.o+' '+flag.date+' · <a class="lnk" onclick="App.openPdfFor(\''+e.nfa+'\')">PDF</a></div>':'', e.mode==='B'?'<div>Mode B · interim reference</div>':'', (!e.mc&&s.locked)?'<div>not selected — held at bottom, still selectable</div>':''].join('');
+  return '<tr class="'+(dim?'rowdim':'')+'">'+
+   '<td>'+sno+'</td><td>'+esc(e.f.pr)+'</td><td class="nfa">'+esc(e.nfa)+initLine(e)+'</td><td>'+esc(e.f.project)+'</td><td>'+esc(e.f.location)+'</td>'+
+   '<td>'+esc(e.initiator)+(e.initiator!==e.enteredBy?' <b class="redstar" title="Proxy — entered by '+esc(e.enteredBy)+'">*</b>':'')+'</td>'+
+   selCell(e,'initBy',['C&P Team','Site'],canEdit)+
+   '<td>'+esc(e.f.desc)+'</td><td>'+esc(e.f.duration)+'</td><td>'+esc(e.f.vendor)+'</td>'+
+   edCell(e,'prBudget',canEdit,!e.hyb.prBudget.pfn)+
+   '<td><b>'+esc(e.f.val)+'</b></td><td>'+esc(e.f.lastAmd)+'</td><td>'+esc(e.f.variation)+'</td><td><b>'+esc(revisedVal(e.f))+'</b></td>'+
+   edCell(e,'reason',canEdit,!e.hyb.reason.pfn)+
+   selCell(e,'rateVal',RATEVALS,canEdit)+
+   edCell(e,'vendPQ',canEdit,!e.hyb.vendPQ.pfn)+
+   '<td>'+esc(e.f.pendWith)+'</td>'+
+   edCell(e,'resub',canEdit,!!e.resubComment)+
+   (admin?'<td>'+esc(e.enteredBy)+'</td>':'')+
+   '<td>'+fileChips(e.files)+'</td>'+
+   '<td'+(flag?' class="yellowcell"':'')+'>'+(flagsCell||'<span class="st grey">—</span>')+'</td>'+
+   '<td style="text-align:center">'+((s.publishedRev||viewOnly)?'<input type="checkbox" class="cbx" disabled style="cursor:not-allowed" '+(e.mc?'checked':'')+'>':'<input type="checkbox" class="cbx" '+(e.mc?'checked':'')+' onclick="App.toggleMC('+e.id+',this.checked)">')+'</td></tr>';
+}
+
+/* ============ PAGE 3 ============ */
+function cloneRow(e){
+  return { id:e.id, nfa:e.nfa, wt:e.wt, f:{...e.f},
+    prBudget:hybFinal(e.hyb.prBudget), prBudgetU:!e.hyb.prBudget.pfn, reason:hybFinal(e.hyb.reason), reasonU:!e.hyb.reason.pfn,
+    vendPQ:hybFinal(e.hyb.vendPQ), vendPQU:!e.hyb.vendPQ.pfn, initBy:e.initBy||'', rateVal:e.rateVal||'',
+    resub:e.resubComment, files:e.files.map(f=>({...f})), initiator:e.initiator, enteredBy:e.enteredBy, touch:{...e.touch} };
+}
+function renderP3(){
+  if(state.role==='user') return '<div class="surface"><div class="emptystate">Reviewer / Admin access only.</div></div>';
+  const idxAllowed = state.role==='admin'?['MEP','CIVIL']:[roleIdx()];
+  if(!idxAllowed.includes(state.idxSel[3])) state.idxSel[3]=idxAllowed[0];
+  const idx=state.idxSel[3], date=state.dateSel[3], s=sheet(idx,date);
+  let head='<div class="idxtabs">'+['MEP','CIVIL'].map(i=>'<button class="itab'+(idx===i?' active':'')+'" '+(idxAllowed.includes(i)?'':'disabled')+' onclick="App.setIdx(3,\''+i+'\')">'+IDX[i]+'</button>').join('')+'</div>';
+  const snap=s.snapRows;
+  const decided=snap.filter(r=>s.dec[r.id]).length;
+  let bar='<div class="sheethead"><span class="filterlbl">Meeting date: '+calBtn(date,'s3')+'</span>';
+  if(s.version>0){
+    bar+='<span class="lockstate locked">Locked snapshot <b>v'+s.version+'</b> · '+s.lockedAt+(s.locked?'':' — Page 2 is being re-curated; this view holds v'+s.version+' until re-lock')+'</span>';
+    if(snap.length){
+      bar+='<span class="counter"><b>'+decided+' of '+snap.length+'</b> decided</span>'+
+      (s.decVer?'<span class="saved">Decisions saved · v'+s.decVer+' · '+s.savedAt+'</span>':'')+
+      '<span class="spacer"></span>'+
+      (s.publishedRev? '<span class="st ok">PUBLISHED Rev-'+s.publishedRev+'</span> <button class="btn ghost" onclick="App.openPdfByKey(\''+idx+'\',\''+date+'\')">Open PDF ↓</button>'
+       : '<button class="btn ghost" onclick="App.fakeSave()">Save decisions</button><button class="btn primary" onclick="App.publishAsk()">Publish PDF — '+IDX[idx]+'</button>');
+    } else { bar+='<span class="spacer"></span><span class="st grey">Empty snapshot — nothing to publish</span> <button class="btn primary" disabled>Publish PDF — '+IDX[idx]+'</button>'; }
+  }
+  bar+='</div>';
+  if(s.version===0) return head+'<div class="surface">'+bar+'<div class="emptystate">Awaiting sheet lock on Page 2 — the MC view shows only locked snapshots.</div></div>';
+  if(!snap.length) return head+'<div class="surface">'+bar+'<div class="emptystate" style="font-size:15px;font-weight:600;color:#000">No NFAs for review<br><span style="font-size:11.5px;font-weight:400">Locked v'+s.version+' with an empty selection — re-curate and lock again on Page 2 to present entries.</span></div></div>';
+  let cols='<colgroup><col style="width:36px"><col style="width:60px"><col style="width:82px"><col style="width:56px"><col style="width:98px"><col style="width:88px"><col style="width:215px"><col style="width:60px"><col style="width:160px"><col style="width:88px"><col style="width:70px"><col style="width:66px"><col style="width:66px"><col style="width:72px"><col style="width:190px"><col style="width:112px"><col style="width:56px"><col style="width:84px"><col style="width:80px"><col style="width:172px"><col style="width:150px"><col style="width:185px"><col style="width:135px"></colgroup>';
+  let thead='<tr><th>S.No</th><th>PR No.</th><th>Project</th><th>Location</th><th>Creator</th><th>NFA Initiated By</th><th>Description of Work</th><th>Duration</th><th>Vendor Name</th><th>PR Budget Value ₹L</th><th>Orig. Value ₹L (incl. GST)</th><th>Last Amend. ₹L</th><th>This Variation ₹L</th><th>Revised Value ₹L</th><th>Reason for this New work/variation</th><th>Validation of Rates</th><th>Vendors &amp; PQ</th><th>NFA No.</th><th>Pending With</th><th>Remark from NFA Creator (resubmission)</th><th>Downloadable Files</th><th>MC Comments</th><th>MC Approval / Status</th></tr>';
+  let rows='';
+  Object.keys(WT).forEach(w=>{
+    const grp=snap.filter(r=>r.wt===w); if(!grp.length) return;
+    rows+='<tr class="band"><td colspan="23">'+w+'. '+WT[w].toUpperCase()+'</td></tr>';
+    grp.forEach((r,i)=>{ rows+=p3Row(r,i+1,s); });
+  });
+  rows+='<tr><td class="endmark" colspan="23">- - x End of Sheet x - -</td></tr>';
+  return head+'<div class="surface">'+bar+'<div class="tablewrap"><table>'+cols+thead+rows+'</table></div></div>'+
+  '<div class="legendline"><span class="sw"></span>Yellow = operator-entered (MC comments) / user overrides · type MC comments directly in the cell (Excel-style) · decisions: <span style="display:inline-flex;vertical-align:middle">'+decIcon('APPROVED').replace('#fff','#0B6B3A')+'</span> approve · <span style="display:inline-flex;vertical-align:middle">'+decIcon('HOLD').replace('#fff','#9A6700')+'</span> hold · <span style="display:inline-flex;vertical-align:middle">'+decIcon('REJECTED').replace('#fff','#B3261E')+'</span> reject — comments optional on all three · undecided rows are excluded from the PDF and expire · this table is the locked snapshot: Page 2 changes appear only after re-lock</div>';
+}
+function p3Row(r,sno,s){
+  const pub=!!s.publishedRev; const cur=s.dec[r.id]?s.dec[r.id].s:null;
+  const decCell = pub
+    ? (cur?'<span class="st '+(cur==='APPROVED'?'ok':cur==='HOLD'?'hold':'rej')+'">'+cur+'</span>':'<span class="st pend">—</span>')
+    : decBtns(r.id,cur)+'<div class="sub">'+(cur?'<b class="'+(cur==='APPROVED'?'ok':cur==='HOLD'?'hold':'rej')+'">'+cur+'</b>':'<span class="pend">pending — excluded from PDF if undecided</span>')+'</div>';
+  const mcv=s.mcC[r.id]||'';
+  return '<tr>'+
+   '<td>'+sno+'</td><td>'+esc(r.f.pr)+'</td><td>'+esc(r.f.project)+'</td><td>'+esc(r.f.location)+'</td>'+
+   '<td>'+esc(r.initiator)+(r.initiator!==r.enteredBy?' <b class="redstar">*</b>':'')+'</td>'+
+   '<td'+(r.touch.initBy?' class="yellowcell"':'')+'>'+(r.touch.initBy?'<span class="redstar">*</span> ':'')+esc(r.initBy||'—')+'</td>'+
+   '<td>'+esc(r.f.desc)+'</td><td>'+esc(r.f.duration)+'</td><td>'+esc(r.f.vendor)+'</td>'+
+   '<td'+(r.prBudgetU?' class="edit"':'')+'>'+(r.touch.prBudget?'<span class="redstar">*</span> ':'')+esc(r.prBudget)+'</td>'+
+   '<td><b>'+esc(r.f.val)+'</b></td><td>'+esc(r.f.lastAmd)+'</td><td>'+esc(r.f.variation)+'</td><td><b>'+esc(revisedVal(r.f))+'</b></td>'+
+   '<td'+(r.reasonU?' class="edit"':'')+'>'+(r.touch.reason?'<span class="redstar">*</span> ':'')+esc(r.reason)+'</td>'+
+   '<td'+(r.touch.rateVal?' class="yellowcell"':'')+'>'+(r.touch.rateVal?'<span class="redstar">*</span> ':'')+esc(r.rateVal||'—')+'</td>'+
+   '<td'+(r.vendPQU?' class="edit"':'')+'>'+(r.touch.vendPQ?'<span class="redstar">*</span> ':'')+esc(r.vendPQ)+'</td>'+
+   '<td class="nfa">'+esc(r.nfa)+initLine(r)+(r.relocated?'<div class="sub pmvchip">live entry relocated to '+r.relocated+' — decisions record to NFA history only</div>':'')+'</td><td>'+esc(r.f.pendWith)+'</td>'+
+   '<td'+(r.resub?' class="edit"':'')+'>'+esc(r.resub||'—')+'</td>'+
+   '<td>'+fileChips(r.files)+'</td>'+
+   '<td class="yellowcell"><div class="cellinput" contenteditable="'+(pub?'false':'true')+'" data-id="'+r.id+'" oninput="App.mcInput(this)" onblur="App.mcBlur(this)">'+esc(mcv)+'</div></td>'+
+   '<td>'+decCell+'</td></tr>';
+}
+
+/* ============ PAGE 4 ============ */
+function approvedEntries(){ return state.entries.filter(e=>['APPROVED'].includes(e.status) && (state.role==='user'? (e.enteredBy===userName()||e.initiator===userName()) : true)); }
+function renderP4(){
+  const q=(state.p4q||'').toLowerCase();
+  const rows=approvedEntries()
+    .filter(e=>!q || (e.nfa+' '+e.f.desc+' '+e.f.vendor+' '+e.orders.map(o=>o.no+' '+o.vendor).join(' ')).toLowerCase().includes(q))
+    .sort((a,b)=>b.id-a.id);
+  let html='<div class="surface"><div class="toolbar"><input class="inp" id="p4q" style="width:250px" placeholder="Search NFA no. / order no. / vendor…" value="'+esc(state.p4q||'')+'" oninput="App.p4qSet(this.value)">'+
+   '<span class="filterlbl">Show: '+(state.role==='user'?'My approved NFAs':'All approved NFAs')+'</span><span class="filterlbl">Meeting date: All</span><span class="spacer"></span>'+
+   '<span class="filterlbl">Max orders per NFA: '+(state.role==='admin'?'<input class="inp" style="width:48px;padding:3px 5px" value="'+state.maxOrders+'" onchange="App.setMax(this.value)">':'<b>'+state.maxOrders+'</b>')+' (admin)</span></div>';
+  html+='<div class="tablewrap"><table><colgroup><col style="width:105px"><col style="width:98px"><col style="width:96px"><col style="width:250px"><col style="width:225px"><col style="width:72px"><col style="width:180px"><col style="width:195px"><col style="width:180px"><col style="width:235px"><col style="width:90px"><col style="width:155px"><col style="width:100px"></colgroup>'+
+  '<tr><th>NFA No.</th><th>Approved On</th><th>Project</th><th>Description of Work</th><th>Vendor(s) per NFA</th><th>Value ₹L</th><th>MC Comments</th><th>No. of Orders → Generate</th><th>Order No.</th><th>Vendor / Supplier / Contractor (per order)</th><th>Order Type</th><th>Generated By</th><th></th></tr>';
+  rows.forEach(e=>{ html+=p4Rows(e); });
+  if(!rows.length) html+='<tr><td colspan="13"><div class="emptystate">No approved NFAs yet'+(state.role==='user'?' for you':'')+'. Approvals appear here after Publish on Page 3.</div></td></tr>';
+  html+='</table></div></div>';
+  return html;
+}
+function p4Rows(e){
+  const genCtl='<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><select class="inp" style="width:58px" id="cnt'+e.id+'" onchange="App.genLabel('+e.id+',this.value)">'+Array.from({length:state.maxOrders},(_,i)=>'<option '+(i===0?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
+   '<button class="btn sm primary" id="gen'+e.id+'" onclick="App.genOrders('+e.id+')">'+(e.orders.length?'Add 1 more order':'Generate order number')+'</button></div>'+(e.orders.length?'<div class="sub">'+e.orders.length+' order row'+(e.orders.length>1?'s':'')+' created ↓</div>':'');
+  let html='';
+  const span=e.orders.length||1;
+  const mcv=e.mcFinal||'—';
+  const lead='<td class="nfa" rowspan="'+span+'">'+esc(e.nfa)+'</td><td rowspan="'+span+'">'+e.date+'</td><td rowspan="'+span+'">'+esc(e.f.project)+'</td><td rowspan="'+span+'">'+esc(e.f.desc)+(e.mcFinal?'<div class="sub">MC comment: '+esc(e.mcFinal)+'</div>':'')+'</td><td rowspan="'+span+'">'+esc(e.f.vendor)+'</td><td rowspan="'+span+'"><b>'+esc(e.f.val)+'</b></td><td rowspan="'+span+'">'+esc(mcv)+'</td><td rowspan="'+span+'">'+genCtl+'</td>';
+  if(!e.orders.length){ html+='<tr>'+lead+'<td class="st grey" colspan="5">—</td></tr>'; return html; }
+  e.orders.forEach((o,i)=>{
+    const cells='<td><input class="inp nfa" style="width:158px;font-weight:700" value="'+esc(o.no)+'" onchange="App.overrideNo('+e.id+','+i+',this.value)">'+(o.ov?'<div class="sub" style="color:#9A6700">manual override · audited</div>':'<div class="sub">interim format — syntax pack pending</div>')+'</td>'+
+      '<td class="edit"><input class="inp" style="width:100%;background:transparent;border:none" placeholder="Type vendor name…" value="'+esc(o.vendor)+'" onchange="App.setOVendor('+e.id+','+i+',this.value)"></td>'+
+      '<td><select class="inp" onchange="App.setOType('+e.id+','+i+',this.value)">'+['PO','SO','WO','LOA'].map(t=>'<option '+(o.type===t?'selected':'')+'>'+t+'</option>').join('')+'</select></td>'+
+      '<td>'+esc(o.by)+' · '+o.at+'</td><td style="white-space:nowrap"><span class="st grey">register ✓</span><button class="ordel" title="Delete this order number" onclick="App.delOrderAsk('+e.id+','+i+')">Delete ✕</button></td>';
+    html += i===0 ? '<tr>'+lead+cells+'</tr>' : '<tr>'+cells+'</tr>';
+  });
+  return html;
+}
+
+/* ============ PDF ============ */
+function buildPdfHTML(p){
+  const conf='Confidential — For internal circulation within Smartworld Developers and associated entities only. Unauthorized sharing, reproduction, or distribution of this document, in whole or in part, is strictly prohibited without prior written approval.';
+  const grp={}; p.rows.forEach(r=>{ (grp[r.wt||'A']=grp[r.wt||'A']||[]).push(r); });
+  let table='';
+  Object.keys(WT).forEach(w=>{ const g=grp[w]; if(!g||!g.length) return;
+    table+='<tr class="band"><td colspan="19">'+w+'. '+WT[w].toUpperCase()+'</td></tr>';
+    g.forEach((r,i)=>{ table+='<tr><td>'+(i+1)+'</td><td>'+esc(r.project)+'</td><td>'+esc(r.loc)+'</td><td>'+esc(r.desc)+'</td><td>'+esc(r.vendor)+'</td><td>'+esc(r.prBudget||'—')+'</td><td><b>'+esc(r.val)+'</b></td><td>'+esc(r.lastAmd||'NA')+'</td><td>'+esc(r.variation)+'</td><td><b>'+esc(r.revised||'NA')+'</b></td><td>'+esc(r.reason)+'</td><td>'+esc(r.rateVal||'—')+'</td><td>'+esc(r.vendPQ)+'</td><td>'+esc(r.pr)+'</td><td class="nfa">'+esc(r.nfa)+(fmtInit(r.initDt)?'<div style="font-weight:normal;font-size:6.9px">(Initiated on '+fmtInit(r.initDt)+')</div>':'')+'</td><td>'+esc(r.resub||'—')+'</td><td>'+esc(r.initiator)+'</td><td>'+esc(r.mcComment||'—')+'</td><td class="dec '+(r.dec==='APPROVED'?'ok':r.dec==='HOLD'?'hold':'rej')+'">'+r.dec+'</td></tr>'; });
+  });
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>MC Review — '+IDX[p.index]+' — '+p.date+'</title><style>'+
+  'body{font-family:"Segoe UI","DejaVu Sans",Arial,sans-serif;color:#000;margin:26px}'+
+  '.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #1D5FA8;padding-bottom:8px;margin-bottom:6px}'+
+  'h1{font-size:16.5px}.s1{font-size:9.5px;color:#000;letter-spacing:1.3px;margin-top:3px}'+
+  '.meta{display:flex;gap:20px;font-size:10px;margin-bottom:7px;flex-wrap:wrap}.meta b{color:#000}'+
+  '.summary{display:flex;gap:12px;font-size:10px;margin-bottom:8px}.summary span{border:1px solid #C4CAD2;padding:3px 9px}'+
+  '.ok{color:#0B6B3A;font-weight:bold}.hold{color:#9A6700;font-weight:bold}.rej{color:#B3261E;font-weight:bold}'+
+  'table{border-collapse:collapse;width:100%;table-layout:fixed}'+
+  'th{background:#E9EBEE;border:1px solid #8F969E;font-size:7.8px;padding:3px;text-align:left}'+
+  'td{border:1px solid #A9B0B9;font-size:8.3px;padding:3px;vertical-align:top;line-height:1.32}'+
+  'tr.band td{background:#EFF0F3;font-weight:bold;font-size:8.6px}.nfa{font-weight:bold}.dec{font-weight:bold}'+
+  '.note{font-size:8.4px;color:#000;margin-top:7px;line-height:1.55}'+
+  '.foot{display:flex;justify-content:space-between;gap:16px;font-size:8.1px;color:#000;border-top:1px solid #A9B0B9;margin-top:8px;padding-top:5px}'+
+  '.printbtn{position:fixed;bottom:14px;right:14px;padding:8px 14px;font-weight:bold;background:#2B3947;color:#fff;border:none;cursor:pointer}'+
+  '@media print{.printbtn{display:none}}'+
+  '</style></head><body>'+
+  '<button class="printbtn" onclick="window.print()">Print / Save as PDF</button>'+
+  '<div class="head"><div><h1>MC REVIEW — '+IDX[p.index].toUpperCase()+' — '+p.date+'</h1><div class="s1">SMART WORLD DEVELOPERS · CONTRACTS &amp; PROCUREMENT · MANAGEMENT COMMITTEE REVIEW</div></div><img src="'+LOGO+'" style="height:44px"></div>'+
+  '<div class="meta"><span>Meeting date: <b>'+p.date+'</b></span><span>Index: <b>'+IDX[p.index]+' Packages</b></span><span>Locked snapshot: <b>v'+(p.snapV||1)+'</b></span><span>Published: <b>'+p.at+'</b> by '+esc(p.by)+' (Reviewer)</span><span>Document: <b>Rev-'+p.rev+' (original)</b></span></div>'+
+  '<div class="summary"><span>Presented: <b>'+((p.counts.APPROVED||0)+(p.counts.HOLD||0)+(p.counts.REJECTED||0)+p.undecided.length)+'</b></span><span class="ok">Approved: '+(p.counts.APPROVED||0)+'</span><span class="hold">Hold: '+(p.counts.HOLD||0)+'</span><span class="rej">Rejected: '+(p.counts.REJECTED||0)+'</span><span>Undecided (excluded, expired): '+p.undecided.length+'</span></div>'+
+  '<table><colgroup><col style="width:22px"><col style="width:54px"><col style="width:36px"><col style="width:142px"><col style="width:100px"><col style="width:44px"><col style="width:46px"><col style="width:44px"><col style="width:42px"><col style="width:46px"><col style="width:120px"><col style="width:72px"><col style="width:32px"><col style="width:52px"><col style="width:54px"><col style="width:112px"><col style="width:58px"><col style="width:116px"><col style="width:62px"></colgroup>'+
+  '<tr><th>S.No</th><th>Project</th><th>Loc.</th><th>Description of Work</th><th>Vendor Name</th><th>PR Budget ₹L</th><th>Orig. Value ₹L (incl. GST)</th><th>Last Amend. ₹L</th><th>This Variation ₹L</th><th>Revised Value ₹L</th><th>Reason</th><th>Validation of Rates</th><th>Vend. &amp; PQ</th><th>PR No.</th><th>NFA No.</th><th>Remark from NFA Creator (resubmission)</th><th>Creator</th><th>MC Comments</th><th>MC Approval / Status</th></tr>'+table+'</table>'+
+  '<div class="note">'+(p.undecided.length?('Undecided &amp; excluded from this document: '+p.undecided.map(esc).join(', ')+'.<br>'):'')+
+  'Held/Rejected NFAs re-presentations require a fresh entry with mandatory resubmission comment.</div>'+
+  '<div class="foot"><span>System-generated on Publish · locked &amp; immutable · corrections by admin corrigendum (Rev-2) only</span><span style="max-width:56%">'+conf+'</span><span>Page 1 of 1</span></div>'+
+  '</body></html>';
+}
+
+/* ============ ACTIONS ============ */
+const App = {
+  noop(){},
+  go(p){ state.page=p; state.expanded=null; render(); },
+  setRole(r){ state.role=r; if((state.page===2||state.page===3) && r==='user') state.page=1; state.expanded=null; closeModal(); render(); toast('Now viewing as <b>'+esc(userName())+'</b>'); },
+  p1tab(t){ state.p1tab=t; render(); },
+  setIdx(pg,i){ state.idxSel[pg]=i; render(); },
+  closeModal, openFile,
+  search(q){ state.searchQ=q; state.p1tab='search'; render(); },
+  clearStrip(){ const el=document.getElementById('qeNfa'); if(el) el.value=''; if(state.qe) state.qe.nfa=''; },
+  p1qSet(v){ state.p1q=v; render(); const el=document.getElementById('p1q'); if(el){ el.focus(); el.setSelectionRange(v.length,v.length); } },
+  p4qSet(v){ state.p4q=v; render(); const el=document.getElementById('p4q'); if(el){ el.focus(); el.setSelectionRange(v.length,v.length); } },
+  calPick(cb, ds){
+    if(cb==='p1'){ state.p1date=ds; render(); }
+    else if(cb==='qe'){ state.qeDate=ds; const b=document.getElementById('qeDateBtn'); if(b) b.innerHTML=ds+' <span style="color:#000;font-size:10px">▾</span>'; }
+    else if(cb==='s2'){ state.dateSel[2]=ds; render(); }
+    else if(cb==='s3'){ state.dateSel[3]=ds; render(); }
+    else if(cb==='mb'){ state.mbDate=ds; const b=document.getElementById('mbDateBtn'); if(b) b.innerHTML=ds+' <span style="color:#000;font-size:10px">▾</span>'; }
+    else if(cb==='mig'){ state.migTo=ds; const b=document.getElementById('migToBtn'); if(b) b.innerHTML=ds+' <span style="color:#000;font-size:10px">▾</span>'; }
+  },
+
+  /* files */
+  pickFiles(eid){ const fi=document.getElementById('fileInput'); fi.onchange=()=>{ const fs=[...fi.files].map(f=>({n:f.name,t:/pdf$/i.test(f.name)?'pdf':/xls|csv/i.test(f.name)?'xls':/msg|eml/i.test(f.name)?'msg':/png|jpe?g/i.test(f.name)?'img':'fld',src:'upload'}));
+      if(eid){ const e=state.entries.find(x=>x.id===eid); e.files.push(...fs); audit('File upload', e.nfa+': '+fs.map(f=>f.n).join(', ')); } else { state.staged.push(...fs); }
+      fi.value=''; render(); toast(fs.length+' file(s) attached'); }; fi.click(); },
+  removeFile(eid,i){ const e=state.entries.find(x=>x.id===eid); const f=e.files[i];
+    modal('<h3>Deselect file?</h3><p style="font-size:12.5px">Remove <b>'+esc(f.n)+'</b> from this entry before submission to Page 2?<br><span style="color:#444;font-size:11px">If removed by accident: <b>Fetch from QMS again to re-pull the NFA — its QMS attachments are restored automatically</b> — or upload the file.</span></p><div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Keep</button><button class="btn primary" onclick="App.doRemoveFile('+eid+','+i+')">Deselect file</button></div>'); },
+  doRemoveFile(eid,i){ const e=state.entries.find(x=>x.id===eid); const f=e.files.splice(i,1)[0]; audit('File deselected', e.nfa+': '+f.n); closeModal(); render(); },
+
+  /* quick entry */
+  fetchQMS(){
+    const nfa=(document.getElementById('qeNfa').value||'').trim();
+    const idx=document.getElementById('qeIdx').value, wt=document.getElementById('qeWt').value;
+    const date=state.qeDate||state.p1date;
+    let bad=false;
+    ['qeIdx','qeWt'].forEach(id=>{ const el=document.getElementById(id); el.classList.toggle('err', !el.value); if(!el.value) bad=true; });
+    document.getElementById('qeNfa').classList.toggle('err', !nfa); if(!nfa) bad=true;
+    if(bad){ toast('Index, Work Type and Review Date are <b>mandatory</b> for every entry','warn'); return; }
+    if(!QMS[nfa]){ modal('<h3>NFA '+esc(nfa)+' not found in QMS</h3><p style="font-size:12.5px">The QMS API returned no record. If the NFA is not drafted yet (emergent / pre-NFA case), continue with Mode B manual form-fill.</p><div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Cancel</button><button class="btn primary" onclick="App.closeModal();App.openModeB()">Open Mode B form</button></div>'); return; }
+    const q=QMS[nfa];
+    if(ts(date)<ts(TODAY)){ toast('Review date cannot be in the past — entries are for today or a future MC date.','err'); return; }
+    /* RE-PULL / B2 PENDING-MOVE: an open entry exists for this NFA (D5 — one open entry system-wide) */
+    const open=state.entries.find(e=>e.nfa===nfa&&['draft','submitted','presented'].includes(e.status));
+    if(open){
+      const os=sheet(open.index,open.date);
+      if(os.publishedRev){ toast('Blocked — MC review for '+IDX[open.index]+' · '+open.date+' is <b>published; the date is closed</b>. A fresh entry on the next review date is the only path.','err'); return; }
+      const differs = open.index!==idx || open.wt!==wt || ts(open.date)!==ts(date);
+      if(differs && open.status!=='draft'){
+        /* B2: submit-gated relocation — stage a pending-move ticket; nothing changes on Page 2 until Submit */
+        if(sheet(idx,date).publishedRev){ toast('Blocked — target '+IDX[idx]+' · '+date+' is <b>published; the date is closed</b>. Pick another target date for the move.','err'); return; }
+        const replacing=!!open.pmv;
+        const carried=(open.pmv&&open.pmv.staged)?open.pmv.staged:[];
+        open.pmv={ index:idx, wt, date, f:{...q}, staged:[...carried, ...state.staged.splice(0)] };
+        open.sel=true;
+        state.qe=null; state.expanded=open.id;
+        audit('Pending move '+(replacing?'replaced':'staged'), nfa+' · '+shortRef(open.index,open.date)+' → '+shortRef(idx,date)+' (submit to apply)'+(replacing&&carried.length?' · '+carried.length+' earlier staged file(s) carried forward':''));
+        render(); App.clearStrip(); const rr=document.getElementById('row'+open.id); if(rr){ rr.classList.add('flash'); rr.scrollIntoView({block:'center'}); }
+        toast('<b>'+esc(nfa)+'</b> — pending move from <b>'+shortRef(open.index,open.date)+'</b> to <b>'+shortRef(idx,date)+'</b> staged; QMS fields &amp; attachments refresh with it. <b>Submit to apply</b> — previous entry still on Page 2 (target review date '+date+')','warn');
+        return;
+      }
+      /* same values → any pending ticket is cancelled; normal re-pull (a draft may also take new strip values directly — it has no Page-2 presence) */
+      if(open.pmv){ if(open.pmv.staged&&open.pmv.staged.length) state.staged.push(...open.pmv.staged); delete open.pmv; audit('Pending move cancelled', nfa+' — same-values re-pull clears the ticket'+(state.staged.length?' (ticket uploads returned to staging)':'')); }
+      if(differs){ if(sheet(idx,date).publishedRev){ toast('Blocked — target '+IDX[idx]+' · '+date+' is <b>published; the date is closed</b>. Pick another review date.','err'); return; } open.index=idx; open.wt=wt; open.date=date; audit('Draft re-pull with new strip values', nfa+' → '+shortRef(idx,date)); }
+      const wasSel = open.status==='presented' || open.mc;
+      Object.assign(open.f, q);
+      open.hyb.prBudget.qms=q.prBudget||'—'; open.hyb.reason.qms=q.reason; open.hyb.vendPQ.qms=q.vendPQ; open.hyb.remarks.qms='Value ₹'+q.val+' L. '+(q.reasonability==='—'?'':q.reasonability);
+      const fr=applyQmsFiles(open, q);
+      if(state.staged.length){ open.files.push(...state.staged); state.staged=[]; }
+      if(open.status==='presented') open.status='submitted';
+      open.mc=false;
+      state.qe=null; state.expanded=open.id;
+      audit('Re-pull from QMS'+(wasSel?' — auto-deselected from Present to MC':''), nfa+(fr.restored?' · '+fr.restored+' QMS attachment(s) restored':'')+(fr.replaced?' · '+fr.replaced+' QMS file(s) replaced by name':''));
+      render(); App.clearStrip(); const r=document.getElementById('row'+open.id); if(r){ r.classList.add('flash'); r.scrollIntoView({block:'center'}); }
+      toast('<b>'+esc(nfa)+'</b> re-pulled'+(open.status==='submitted'?' &amp; updated on Page 2':' — fields refreshed (draft: check &amp; Submit to send to Page 2)')+(fr.restored?' · '+fr.restored+' attachment(s) restored':'')+(fr.replaced?' · '+fr.replaced+' QMS file(s) replaced by name (uploads untouched)':'')+(wasSel?' — <b>auto-deselected from Present to MC</b> until the reviewer re-marks it; Page 3 keeps the locked snapshot':'')+' (review date '+open.date+')');
+      return;
+    }
+    if(sheet(idx,date).publishedRev){ toast('Blocked — MC review for '+IDX[idx]+' · '+date+' is <b>published; the date is closed</b>. Pick the next review date from the calendar.','err'); return; }
+    const e=mkEntry(nfa,idx,wt,date,userName());
+    if(state.staged.length){ e.files.push(...state.staged); state.staged=[]; }
+    state.qe=null;
+    state.entries.push(e); state.expanded=e.id;
+    audit('Entry created (QMS fetch)', nfa+' · '+idx+' · '+wt+' · '+date);
+    if(e.resubReq){ const f=flagInfo(nfa); toast('<b>Previously presented</b> — '+f.o+' on '+f.date+'. Resubmission comment is mandatory.','warn'); }
+    render(); App.clearStrip(); const r=document.getElementById('row'+e.id); if(r){ r.classList.add('flash'); r.scrollIntoView({block:'center'}); }
+    toast('NFA <b>'+esc(nfa)+'</b> populated from QMS (review date <b>'+date+'</b>) — review below, then check &amp; Submit');
+  },
+  openModeB(){
+    state.mbDate=state.qeDate;
+    const F=[['project','Project'],['location','Location'],['desc','Description of Work *'],['duration','Duration'],['vendor','Vendor Name *'],['prBudget','PR Budget Value ₹L'],['val','Original Order Value ₹L (incl. GST)'],['lastAmd','Last Amendment Value ₹L'],['variation','This Variation Value ₹L'],['reason','Reason for this New work/variation'],['vendPQ','No. of Considered Vendors & PQ'],['pr','PR No.'],['initDt','NFA Initiated on dt'],['pendWith','NFA Approval Pending With'],['initiator','Creator (free text) *']];
+    modal('<h3>Mode B — Manual entry (all Page 2 headers)</h3>'+
+      '<div class="mrow"><div class="field"><label>Index <span class="req">*</span></label><select class="inp" id="mbIdx"><option value="">Select…</option><option value="MEP">MEP &amp; Procurement</option><option value="CIVIL">Civil &amp; Consultancy</option></select></div>'+
+      '<div class="field"><label>Work Type <span class="req">*</span></label><select class="inp" id="mbWt"><option value="">Select…</option>'+Object.keys(WT).map(k=>'<option value="'+k+'">'+k+' · '+WT[k]+'</option>').join('')+'</select></div>'+
+      '<div class="field"><label>Review Date <span class="req">*</span></label>'+calBtn(state.mbDate,'mb','id="mbDateBtn"')+'</div>'+
+      '<div class="field"><label>NFA Initiated By</label><select class="inp" id="mbInitBy"><option value="">Select…</option><option>C&amp;P Team</option><option>Site</option></select></div>'+
+      '<div class="field"><label>Validation of Rates</label><select class="inp" id="mbRateVal"><option value="">Select…</option>'+RATEVALS.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select></div></div>'+
+      '<div class="mrow">'+F.map(f=>'<div class="field" style="min-width:'+(['desc','reason'].includes(f[0])?'100%':'225px')+'"><label>'+f[1]+'</label>'+(['desc','reason'].includes(f[0])?'<textarea class="inp" rows="2" id="mb_'+f[0]+'"></textarea>':'<input class="inp" id="mb_'+f[0]+'">')+'</div>').join('')+'</div>'+
+      '<div class="mrow"><button class="btn ghost" onclick="App.pickFiles()">Upload files (attach to this entry)</button><span class="sub" style="align-self:center">Interim reference is auto-issued (EM/MM-YY/NNN) — cite it in QMS at NFA initiation; the Remarks breadcrumb is the manual linking practice (F13 omitted).</span></div>'+
+      '<div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Cancel</button><button class="btn primary" onclick="App.createModeB()">Create entry</button></div>');
+  },
+  createModeB(){
+    const idx=document.getElementById('mbIdx').value, wt=document.getElementById('mbWt').value, date=state.mbDate;
+    const g=id=>document.getElementById('mb_'+id).value.trim();
+    if(!idx||!wt){ toast('Index and Work Type are mandatory','warn'); return; }
+    if(!g('desc')||!g('vendor')||!g('initiator')){ toast('Description, Vendor and NFA Initiator are required','warn'); return; }
+    const ref='EM/07-26/'+String(++seq.EM).padStart(3,'0');
+    const f={}; ['project','location','desc','duration','vendor','prBudget','val','lastAmd','variation','reason','vendPQ','pr','initDt','pendWith','initiator'].forEach(k=>f[k]=g(k)||'—');
+    f.apprNote='—'; f.amdVal='—'; f.rate='—'; f.reasonability='—';
+    const e={ id:++eid, nfa:ref, mode:'B', index:idx, wt, date, f, hyb:{prBudget:{pfn:false,qms:'',user:f.prBudget},reason:{pfn:false,qms:'',user:f.reason},vendPQ:{pfn:false,qms:'',user:f.vendPQ},remarks:{pfn:false,qms:'',user:'—'}}, files:[...state.staged], resubReq:false, resubComment:'', initBy:document.getElementById('mbInitBy').value||'', rateVal:document.getElementById('mbRateVal').value||'', initiator:f.initiator, enteredBy:userName(), status:'draft', sel:true, mc:false, touch:{}, orders:[] };
+    state.staged=[]; state.entries.push(e); state.expanded=e.id; audit('Entry created (Mode B)', ref+' · '+idx+' · '+wt+' · '+date);
+    closeModal(); render(); App.clearStrip(); toast('Mode B entry created — interim reference <b>'+ref+'</b> (review date '+date+')');
+  },
+
+  /* row + editor */
+  expand(id){ state.expanded = state.expanded===id?null:id; render(); },
+  toggleSel(id,v){ const e=state.entries.find(x=>x.id===id); e.sel=v; render(); },
+  selAll(v){ p1Listed().forEach(e=>{ if(editableEntry(e)||e.pmv) e.sel=v; }); render(); },
+  togglePfn(id,key,v){ const e=state.entries.find(x=>x.id===id); const h=e.hyb[key]; h.pfn=v; if(!v&&h.user==null) h.user=h.qms; audit('PfN '+(v?'ticked':'unticked'), e.nfa+' · '+key); render(); },
+  setHyb(id,key,v){ const e=state.entries.find(x=>x.id===id); e.hyb[key].user=v; },
+  setResub(id,v){ const e=state.entries.find(x=>x.id===id); e.resubComment=v; },
+  saveEntry(id){ const e=state.entries.find(x=>x.id===id); audit('Entry saved', e.nfa); state.expanded=null; render(); toast('Entry saved — versioned'); },
+  refreshQMS(id){ const e=state.entries.find(x=>x.id===id); const q=QMS[e.nfa]; if(!q) return; e.hyb.prBudget.qms=q.prBudget||'—'; e.hyb.reason.qms=q.reason; e.hyb.vendPQ.qms=q.vendPQ; e.hyb.remarks.qms='Value ₹'+q.val+' L. '+(q.reasonability==='—'?'':q.reasonability); e.f={...q}; const fr=applyQmsFiles(e,q); audit('QMS refresh', e.nfa+(fr.replaced?' · '+fr.replaced+' QMS file(s) replaced by name':'')); render(); toast('Re-pulled from QMS — ticked fields refreshed'+(fr.restored?', '+fr.restored+' attachment(s) restored':'')+(fr.replaced?', '+fr.replaced+' QMS file(s) replaced by name':'')+'; your overrides &amp; uploads untouched'); },
+  withdraw(id){ const e=state.entries.find(x=>x.id===id);
+    modal('<h3>Withdraw entry?</h3><p style="font-size:12.5px">Withdraw <b>'+esc(e.nfa)+'</b> ('+e.date+')? A fresh entry with a new QMS pull will be needed to bring it back.</p><div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Keep entry</button><button class="btn primary" onclick="App.doWithdraw('+id+')">Withdraw</button></div>'); },
+  doWithdraw(id){ const e=state.entries.find(x=>x.id===id); state.entries=state.entries.filter(x=>x.id!==id); audit('Entry withdrawn', e.nfa); state.expanded=null; closeModal(); render(); toast('Entry withdrawn'); },
+  submitChecked(){
+    let n=0, blocked=0, moved=0; const names=[];
+    p1Listed().forEach(e=>{
+      if(e.pmv){ if(!e.sel) return; const res=App.applyMove(e); if(res==='moved') moved++; else blocked++; return; }
+      if(!editableEntry(e)) return;
+      if(e.sel && e.status==='draft'){
+        if(e.resubReq && !e.resubComment.trim()){ blocked++; state.expanded=e.id; toast('<b>'+esc(e.nfa)+'</b>: resubmission comment is mandatory before submit','err'); return; }
+        const sh=sheet(e.index,e.date); e.status='submitted'; if(sh.locked) e.mc=false;
+        n++; names.push(esc(e.nfa)+' → '+e.date); audit('Submitted → Page 2'+(sh.locked?' (locked sheet — arrives deselected)':''), e.nfa+' · '+e.date);
+      } else if(!e.sel && e.status==='submitted'){ e.status='draft'; e.mc=false; audit('Withdrawn from Page 2', e.nfa); }
+    });
+    render(); if(n||moved) toast((n?n+' entr'+(n>1?'ies':'y')+' submitted → Page 2 ('+names.join(' · ')+')':'')+(moved?((n?' · ':'')+moved+' pending move'+(moved>1?'s':'')+' applied'):'')+(blocked?' · '+blocked+' blocked':''));
+    else if(!blocked) toast('Nothing new to submit — check entries first','warn');
+  },
+  /* B2: apply a pending-move ticket at Submit — atomic swap with submit-time revalidation (O2-rework + O7) */
+  applyMove(e){
+    const t=e.pmv, oldIdx=e.index, oldDate=e.date;
+    const os=sheet(oldIdx,oldDate);
+    /* 1 — old date published mid-pending → ticket converts to the fresh-entry path (resub flag + mandatory comment) */
+    if(os.publishedRev){
+      delete e.pmv;
+      let ne;
+      if(['draft','submitted'].includes(e.status)){ ne=e; ne.index=t.index; ne.wt=t.wt; ne.date=t.date; ne.status='draft'; Object.assign(ne.f,t.f); applyQmsFiles(ne,t.f); }
+      else { ne=mkEntry(e.nfa,t.index,t.wt,t.date,userName()); ne.f={...t.f}; state.entries.push(ne); }
+      if(t.staged&&t.staged.length) ne.files.push(...t.staged);
+      ne.resubReq=true; ne.sel=true; ne.mc=false;
+      state.expanded=ne.id;
+      audit('Pending move → fresh entry', e.nfa+' — '+shortRef(oldIdx,oldDate)+' published mid-pending; resubmission comment mandatory');
+      toast('<b>'+esc(e.nfa)+'</b>: '+shortRef(oldIdx,oldDate)+' was <b>published</b> while the move was pending — converted to a <b>fresh entry</b> on '+t.date+'. Resubmission comment is <b>mandatory</b>, then Submit again.','warn');
+      return 'blocked';
+    }
+    /* 2 — target date published → refused; ticket stays editable */
+    if(sheet(t.index,t.date).publishedRev){ toast('<b>'+esc(e.nfa)+'</b>: target '+IDX[t.index]+' · '+t.date+' is <b>published; the date is closed</b> — pending move refused. Fetch with new values to edit the ticket, or fetch with the original values to cancel it.','err'); return 'blocked'; }
+    /* 3 — O7 decided-gate: presented + decided in MC → refused (operator can clear the decision to release the move) */
+    const snapRow=os.snapRows.find(r=>r.id===e.id);
+    if(e.status==='presented' && snapRow && os.dec[e.id]){ toast('<b>'+esc(e.nfa)+'</b> — <b>already reviewed in MC</b> — outcome will publish; re-present via a fresh entry after the PDF. (The MC operator can clear the decision to release this move.)','err'); return 'blocked'; }
+    /* 4 — atomic swap: old Page-2 presence removed; entry committed to the new index/WT/date */
+    const wasPresented = e.status==='presented' && !!snapRow;
+    e.index=t.index; e.wt=t.wt; e.date=t.date;
+    Object.assign(e.f,t.f);
+    e.hyb.prBudget.qms=t.f.prBudget||'—'; e.hyb.reason.qms=t.f.reason; e.hyb.vendPQ.qms=t.f.vendPQ; e.hyb.remarks.qms='Value ₹'+t.f.val+' L. '+(t.f.reasonability==='—'?'':t.f.reasonability);
+    const fr=applyQmsFiles(e,t.f);
+    if(t.staged&&t.staged.length) e.files.push(...t.staged);
+    e.status='submitted'; e.mc=false; e.sel=false; delete e.pmv;
+    if(wasPresented) snapRow.relocated=shortRef(t.index,t.date);
+    const tgt=sheet(t.index,t.date);
+    audit('Entry relocated', e.nfa+' · '+shortRef(oldIdx,oldDate)+' → '+shortRef(t.index,t.date)+' (submit-gated)'+(fr.replaced?' · '+fr.replaced+' QMS file(s) replaced by name':''));
+    toast('<b>'+esc(e.nfa)+'</b> relocated '+shortRef(oldIdx,oldDate)+' → <b>'+shortRef(t.index,t.date)+'</b> (review date '+t.date+')'+(tgt.locked?' — arrived <b>deselected on a locked sheet</b>; snapshot v'+tgt.version+' untouched':'')+(wasPresented?' · the old Page-3 row now carries a relocated marker — decisions there record to NFA history only':''));
+    return 'moved';
+  },
+
+  /* P2 */
+  toggleMC(id,v){ if(state.role==='user'){ render(); return; } const e=state.entries.find(x=>x.id===id); const s=sheet(e.index,e.date);
+    if(s.locked){ s.locked=false; toast('Sheet <b>unlocked</b> — Page 3 continues to show v'+s.version+' until you lock again','warn'); audit('Sheet unlocked (curation)', e.index+' '+e.date); }
+    e.mc=v; render(); },
+  p2Input(el){ const e=state.entries.find(x=>x.id==el.dataset.id); const v=el.innerText; if(el.dataset.key==='resub') e.resubComment=v; else { e.hyb[el.dataset.key].pfn=false; e.hyb[el.dataset.key].user=v; } },
+  p2Blur(el){ const e=state.entries.find(x=>x.id==el.dataset.id); if(el.innerText!==el.dataset.orig){ e.touch[el.dataset.key]=true; audit('Reviewer touch-up', e.nfa+' · '+el.dataset.key); render(); } },
+  setSel(id,key,v){ const e=state.entries.find(x=>x.id===id); if(!e) return; e[key]=v;
+    if(state.page===2 && isReviewerish()){ e.touch[key]=true; audit('Reviewer touch-up', e.nfa+' · '+key+' → '+(v||'—')); }
+    else audit('Field set', e.nfa+' · '+key+' → '+(v||'—'));
+    render(); },
+  lockSheet(){ if(!isReviewerish()) return; const idx=state.idxSel[2], date=state.dateSel[2], s=sheet(idx,date);
+    const pool=state.entries.filter(e=>e.index===idx&&e.date===date&&['submitted','presented'].includes(e.status));
+    const sel=pool.filter(e=>e.mc);
+    const selIds=sel.map(e=>e.id);
+    const droppedDec=Object.keys(s.dec).filter(id=>!selIds.includes(+id)).length;
+    Object.keys(s.dec).forEach(id=>{ if(!selIds.includes(+id)) delete s.dec[id]; });
+    Object.keys(s.mcC).forEach(id=>{ if(!selIds.includes(+id)) delete s.mcC[id]; });
+    s.locked=true; s.version++; s.snapRows=sel.map(cloneRow); s.lockedAt=TODAY+' '+nowT();
+    pool.forEach(e=>{ e.status = selIds.includes(e.id)?'presented':'submitted'; });
+    audit('Sheet locked v'+s.version, idx+' '+date+' · '+selIds.length+' entries'+(droppedDec?' · '+droppedDec+' draft decision(s) dropped':''));
+    render();
+    toast(selIds.length? ('Sheet locked — snapshot <b>v'+s.version+'</b> ('+selIds.length+' entries) is now live on Page 3'+(droppedDec?' · '+droppedDec+' draft decision(s) dropped for deselected entries':'')) : ('Sheet locked — snapshot <b>v'+s.version+'</b> with an empty selection: Page 3 shows “No NFAs for review”'));
+  },
+  migrate(){ const idx=state.idxSel[2], date=state.dateSel[2];
+    const def = ts(date)===ts(TODAY) ? addDays(TODAY,2) : TODAY; state.migTo=def;
+    modal('<h3>Migrate sheet — '+IDX[idx]+' · '+date+'</h3><p style="font-size:12.5px">Move this sheet wholesale to another review date — <b>today, or up to 10 days ahead</b>: bring a parked sheet back to today\'s MC, or push today\'s to a future sitting. It merges with entries already on the target date; all “Present to MC” selections reset to unselected; draft decisions are dropped; everything is audit-logged. A published (closed) date cannot be a target.</p>'+
+    '<div class="mrow"><div class="field"><label>Target date (today → +10 days)</label>'+calBtn(def,'mig','id="migToBtn"')+'</div></div>'+
+    '<div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Cancel</button><button class="btn primary" onclick="App.doMigrate()">Migrate &amp; merge</button></div>'); },
+  doMigrate(){ if(!isReviewerish()) return; const idx=state.idxSel[2], date=state.dateSel[2], to=state.migTo, s=sheet(idx,date);
+    if(ts(to)===ts(date)){ toast('Target is the same date — nothing to migrate','warn'); return; }
+    if(ts(to)<ts(TODAY) || ts(to)>ts(addDays(TODAY,10))){ toast('Target must be between today and '+addDays(TODAY,10)+' (10-day window)','err'); return; }
+    if(sheet(idx,to).publishedRev){ toast('Blocked — '+IDX[idx]+' · '+to+' is already <b>published (closed)</b>. Choose another target.','err'); return; }
+    const pool=state.entries.filter(e=>e.index===idx&&e.date===date&&['submitted','presented'].includes(e.status));
+    pool.forEach(e=>{ e.date=to; e.mc=false; e.status='submitted'; });
+    Object.assign(s,{locked:false,version:0,snapRows:[],dec:{},mcC:{},lockedAt:'',decVer:0,publishedRev:0});
+    const tgt=sheet(idx,to);
+    audit('Bulk migrate', idx+' '+date+' → '+to+' · '+pool.length+' entries · selections reset'+(tgt.locked?' · arrived deselected on a locked sheet (snapshot v'+tgt.version+' untouched)':''));
+    state.dateSel[2]=to; state.dateSel[3]=to; closeModal(); render();
+    toast(pool.length+' entries migrated &amp; merged into <b>'+to+'</b>'+(tgt.locked?' — '+pool.length+' arrived <b>deselected on a locked sheet</b>; the lock and snapshot v'+tgt.version+' are untouched (reviewer re-marks &amp; re-locks)':' — all selections reset for reviewer pass'));
+  },
+
+  /* P3 */
+  decide(id,dec){ const idx=state.idxSel[3], date=state.dateSel[3], s=sheet(idx,date); if(s.publishedRev) return;
+    const cur=s.dec[id]?s.dec[id].s:null;
+    if(cur===dec) delete s.dec[id]; else s.dec[id]={s:dec,by:userName(),at:TODAY+' '+nowT()};
+    s.decVer++; s.savedAt=nowT(); const r=s.snapRows.find(x=>x.id===id); audit('Decision '+(cur===dec?'cleared':dec), r?r.nfa:id); render(); },
+  mcInput(el){ const idx=state.idxSel[3], date=state.dateSel[3], s=sheet(idx,date); s.mcC[el.dataset.id]=el.innerText; },
+  mcBlur(el){ const idx=state.idxSel[3], date=state.dateSel[3], s=sheet(idx,date); s.decVer++; s.savedAt=nowT(); const r=s.snapRows.find(x=>x.id==el.dataset.id); audit('MC comment', r?r.nfa:el.dataset.id); render(); },
+  fakeSave(){ const s=sheet(state.idxSel[3],state.dateSel[3]); s.decVer++; s.savedAt=nowT(); render(); toast('Decisions saved · version '+s.decVer); },
+  publishAsk(){ const idx=state.idxSel[3], date=state.dateSel[3], s=sheet(idx,date);
+    const und=s.snapRows.filter(r=>!s.dec[r.id]);
+    const c={APPROVED:0,HOLD:0,REJECTED:0}; s.snapRows.forEach(r=>{ if(s.dec[r.id]) c[s.dec[r.id].s]++; });
+    modal('<h3>Publish PDF — '+IDX[idx]+' · '+date+'</h3>'+
+    '<p style="font-size:12.5px;line-height:1.6">This locks all decisions permanently and generates the index PDF for the date (one publish per index per date; later fixes = admin corrigendum Rev-2).<br><br>'+
+    '<span class="ok st">Approved: '+c.APPROVED+'</span> &nbsp; <span class="hold st">Hold: '+c.HOLD+'</span> &nbsp; <span class="rej st">Rejected: '+c.REJECTED+'</span><br><br>'+
+    (und.length?(((s.snapRows.length-und.length)===0?'<b class="rej st">0 decided — publishing will expire all '+und.length+' presented entries.</b><br>':'')+'<b>Undecided — will be excluded from the PDF and expire:</b> '+und.map(r=>esc(r.nfa)).join(', ')):'All presented entries are decided.')+'</p>'+
+    '<div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Back to meeting</button><button class="btn primary" onclick="App.doPublish()">Confirm &amp; Publish</button></div>'); },
+  doPublish(){ if(!isReviewerish()) return; const idx=state.idxSel[3], date=state.dateSel[3], s=sheet(idx,date);
+    const decided=s.snapRows.filter(r=>s.dec[r.id]), und=s.snapRows.filter(r=>!s.dec[r.id]);
+    const c={APPROVED:0,HOLD:0,REJECTED:0}; decided.forEach(r=>c[s.dec[r.id].s]++);
+    const rows=decided.map(r=>({wt:r.wt,nfa:r.nfa,project:r.f.project,loc:r.f.location,desc:r.f.desc,vendor:r.f.vendor,prBudget:r.prBudget,val:r.f.val,lastAmd:r.f.lastAmd,variation:r.f.variation,revised:revisedVal(r.f),reason:r.reason,rateVal:r.rateVal,vendPQ:r.vendPQ,pr:r.f.pr,initDt:r.f.initDt,resub:r.resub,initiator:r.initiator,mcComment:s.mcC[r.id]||'',dec:s.dec[r.id].s}));
+    const p={id:state.published.length+1,index:idx,date,rev:1,by:userName(),at:date+' '+nowT(),counts:c,undecided:und.map(r=>r.nfa),rows,snapV:s.version};
+    state.published.push(p); s.publishedRev=1;
+    decided.forEach(r=>{ const e=state.entries.find(x=>x.id===r.id); if(e && e.index===idx && e.date===date){ e.status=s.dec[r.id].s; e.mcFinal=s.mcC[r.id]||''; } (registry[r.nfa]=registry[r.nfa]||[]).push({date,index:idx,o:s.dec[r.id].s}); });
+    und.forEach(r=>{ const e=state.entries.find(x=>x.id===r.id); if(e && e.index===idx && e.date===date) e.status='expired'; (registry[r.nfa]=registry[r.nfa]||[]).push({date,index:idx,o:'UNDECIDED'}); });
+    audit('PUBLISHED Rev-1', IDX[idx]+' '+date+' · A'+c.APPROVED+'/H'+c.HOLD+'/R'+c.REJECTED+(und.length?' · excluded: '+und.map(r=>r.nfa).join(','):'')+(s.snapRows.some(r=>r.relocated)?' · relocated row(s) closed to history only (F8)':''));
+    closeModal(); render(); App.openPdf(p.id);
+    toast('Published — <b>'+IDX[idx]+' — '+date+'.pdf</b> is live on Page 1 for all users');
+  },
+  openPdf(id){ const p=state.published.find(x=>x.id===id); const w=window.open('','_blank'); w.document.write(buildPdfHTML(p)); w.document.close(); },
+  openPdfByKey(idx,date){ const p=state.published.find(x=>x.index===idx&&x.date===date); if(p) App.openPdf(p.id); },
+  openPdfFor(nfa){ const r=registry[nfa]; if(!r) return; const last=r[r.length-1]; const p=state.published.find(x=>x.date===last.date && (!last.index || x.index===last.index)); if(p) App.openPdf(p.id); else toast('PDF of '+last.date+' (seeded reference)'); },
+
+  /* P4 */
+  setMax(v){ state.maxOrders=Math.max(1,parseInt(v)||10); audit('Max orders/NFA set', String(state.maxOrders)); render(); },
+  genLabel(id,v){ const e=state.entries.find(x=>x.id===id); const b=document.getElementById('gen'+id); if(b && e && e.orders.length) b.textContent='Add '+v+' more order'+(+v>1?'s':''); },
+  genOrders(id){ const e=state.entries.find(x=>x.id===id); const n=parseInt(document.getElementById('cnt'+id).value)||1;
+    if(e.orders.length && !confirm('Add '+n+' more order number'+(n>1?'s':'')+' against '+e.nfa+'? Existing order rows stay untouched.')) return;
+    const key='ord'+e.index; const taken=new Set(state.retired); state.entries.forEach(x=>x.orders.forEach(o=>taken.add(o.no)));
+    for(let i=0;i<n;i++){ let no; do{ no='ORD/'+(e.index==='MEP'?'MEP':'CIV')+'/0726-'+String(++seq[key]).padStart(4,'0'); }while(taken.has(no)); taken.add(no); e.orders.push({no,vendor:'',type:'PO',by:userName(),at:TODAY.slice(0,6)+' '+nowT(),ov:false}); }
+    audit('Orders generated', e.nfa+' × '+n); render(); toast(n+' order number'+(n>1?'s':'')+' generated against <b>'+esc(e.nfa)+'</b> — type vendor name per row'); },
+  overrideNo(id,i,v){ const e=state.entries.find(x=>x.id===id); v=v.trim(); if(!v){ render(); return; }
+    const clash=state.entries.some(x=>x.orders.some((o,j)=>o.no===v && !(x.id===id&&j===i)));
+    if(clash){ toast('Order number must be unique — <b>'+esc(v)+'</b> already exists','err'); render(); return; }
+    if(state.retired.includes(v)){ toast('Order number <b>'+esc(v)+'</b> was deleted earlier — <b>retired, permanently unavailable</b> (never re-issued)','err'); render(); return; }
+    if(e.orders[i].no!==v){ e.orders[i].no=v; e.orders[i].ov=true; audit('Order no. override', e.nfa+' → '+v); render(); } },
+  setOVendor(id,i,v){ const e=state.entries.find(x=>x.id===id); e.orders[i].vendor=v; audit('Order vendor set', e.orders[i].no+' → '+v); },
+  setOType(id,i,v){ const e=state.entries.find(x=>x.id===id); e.orders[i].type=v; },
+  delOrderAsk(id,i){ const e=state.entries.find(x=>x.id===id); const o=e.orders[i];
+    modal('<h3>Delete order number?</h3><p style="font-size:12.5px;line-height:1.6">You are deleting order number <b>'+esc(o.no)+'</b> generated against NFA <b>'+esc(e.nfa)+'</b>'+(o.vendor?' ('+esc(o.vendor)+')':'')+'.<br>The number is <b>retired, not reused</b>, and the deletion is audit-logged. Any PO/SO already issued in QMS against it must be voided there separately.</p><div class="mfoot"><button class="btn ghost" onclick="App.closeModal()">Keep order number</button><button class="btn primary" style="background:#B3261E;border-color:#B3261E" onclick="App.doDelOrder('+id+','+i+')">Delete order number</button></div>'); },
+  doDelOrder(id,i){ const e=state.entries.find(x=>x.id===id); const o=e.orders.splice(i,1)[0]; state.retired.push(o.no); audit('Order number deleted', o.no+' ('+e.nfa+') · retired to permanent ledger'); closeModal(); render(); toast('Order number <b>'+esc(o.no)+'</b> deleted — retired &amp; audited','warn'); },
+
+  showAudit(){ modal('<h3>Audit trail (admin)</h3><div style="max-height:440px;overflow:auto"><table style="width:100%"><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr>'+state.audit.map(a=>'<tr><td>'+a.at+'</td><td>'+esc(a.who)+'</td><td><b>'+esc(a.action)+'</b></td><td>'+esc(a.detail)+'</td></tr>').join('')+(state.audit.length?'':'<tr><td colspan="4">No events yet.</td></tr>')+'</table></div><div class="mfoot"><button class="btn primary" onclick="App.closeModal()">Close</button></div>'); }
+};
+window.App=App; window.Cal=Cal;
+render();
+</script>
+</body>
+</html>
