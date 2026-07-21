@@ -119,9 +119,16 @@ module.exports = function sheetsRoutes(getPool) {
       for (const row of r.recordset) {
         if (!row.Selected) continue; // held rows never enter the snapshot
         const prior = priorMap.get(row.Id);
+        // Carry initDt / resubmission remark into the frozen snapshot so the
+        // published PDF (which reads only FieldsJson) can render them —
+        // these live on MC_Entries, not in the QMS field blob itself.
+        const fields = JSON.parse(row.FieldsJson || '{}');
+        fields.initDt = fields.initDt || (row.InitiatedOn ? new Date(row.InitiatedOn).toISOString().slice(0, 10) : null);
+        fields.initiator = fields.initiator || row.InitiatedBy;
+        if (row.ResubRequired && row.ResubComment) fields.resubComment = row.ResubComment;
         await pool.request()
           .input('sheetId', sheet.Id).input('version', newVersion).input('entryId', row.Id)
-          .input('nfa', row.NfaNo).input('wt', row.WorkType).input('fields', row.FieldsJson)
+          .input('nfa', row.NfaNo).input('wt', row.WorkType).input('fields', JSON.stringify(fields))
           .input('decision', prior ? prior.Decision : null).input('mcComment', prior ? prior.McComment : null)
           .input('rowOrder', order++)
           .query(`INSERT INTO dbo.MC_SnapshotRows(SheetId, Version, EntryId, NfaNo, WorkType, FieldsJson, Decision, McComment, RowOrder)

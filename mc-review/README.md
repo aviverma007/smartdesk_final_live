@@ -19,7 +19,13 @@ contract this app implements.
 - **Frontend:** React 19 + Vite, plain CSS (no component library), styled to
   match the original prototype's look.
 - **PDF output:** generated server-side with `pdfkit` from the locked
-  snapshot at publish time (no client-side PDF generation).
+  snapshot at publish time, matched field-for-field against the issued
+  reference sample (`docs/reference-pdf-samples/…v3.pdf`) — landscape
+  table with the full column set (PR Budget, Orig./Last Amend./This
+  Variation/Revised Value, Reason, Validation of Rates, Vend.&PQ, PR No.,
+  NFA No. + resubmission remark, Creator, MC Comments/Status), the
+  Presented/Approved/Hold/Rejected/Undecided counter line, and the
+  verbatim footer/confidentiality copy.
 
 ## Folder layout
 
