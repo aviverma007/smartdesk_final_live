@@ -1,6 +1,9 @@
 const express = require('express');
+const path = require('path');
 const PDFDocument = require('pdfkit');
 const { WORK_TYPES, INDEX_NAMES, revisedVal } = require('../lib/reference');
+
+const LOGO_PATH = path.join(__dirname, '..', 'lib', 'smartworld-logo.png');
 
 /**
  * Published PDF output — Workflow v2.5 §9.1, matched verbatim against the
@@ -47,6 +50,11 @@ module.exports = function pdfRoutes(getPool) {
       doc.pipe(res);
 
       const pageW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+      // Smart World logo, top-right (Workflow v2.5 §6.5 requirement).
+      try {
+        doc.image(LOGO_PATH, doc.page.width - doc.page.margins.right - 110, doc.page.margins.top - 4, { width: 110 });
+      } catch (e) { /* logo optional — never block PDF generation on it */ }
 
       // ---- Header ----
       doc.fontSize(15).font('Helvetica-Bold')

@@ -13,8 +13,11 @@ export default function AppBar({ page, setPage }) {
   return (
     <div className="appbar">
       <div className="brand">
-        <b>MC Review Dashboard</b>
-        <span>SMART WORLD DEVELOPERS</span>
+        <img src="/smartworld-logo.png" alt="Smart World Developers" className="brand-logo" />
+        <div className="brand-text">
+          <b>MC Review Dashboard</b>
+          <span>CONTRACTS &amp; PROCUREMENT</span>
+        </div>
       </div>
       <div className="tabs">
         {PAGES.map((p) => {

@@ -11,8 +11,10 @@ input, select, textarea { font-family: inherit; font-size: 12.5px; }
   background: #fff; border-bottom: 2px solid #1D5FA8; display: flex; align-items: center;
   padding: 0 16px; height: 56px; gap: 16px; position: sticky; top: 0; z-index: 60;
 }
-.brand b { font-size: 14px; letter-spacing: .3px; }
-.brand span { display: block; font-size: 9px; color: #000; letter-spacing: 1.3px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo { height: 28px; width: auto; display: block; }
+.brand-text b { font-size: 14px; letter-spacing: .3px; display: block; }
+.brand-text span { display: block; font-size: 9px; color: #000; letter-spacing: 1.3px; }
 .tabs { display: flex; gap: 2px; height: 56px; }
 .tab {
   font-size: 12.5px; padding: 0 13px; color: #000; display: flex; align-items: center;
