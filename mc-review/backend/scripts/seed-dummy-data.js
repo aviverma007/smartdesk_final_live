@@ -12,7 +12,10 @@
 const axios = require('axios');
 
 const BASE = process.env.SEED_API_BASE || 'http://localhost:5094/api';
-const TODAY = new Date().toISOString().slice(0, 10);
+// Override with SEED_DATE=2026-07-22 to target a date that hasn't been
+// published yet (the app refuses to re-fetch/re-submit onto a published
+// date/index — that's by design, not a bug).
+const TODAY = process.env.SEED_DATE || new Date().toISOString().slice(0, 10);
 
 function client(role, userId) {
   return axios.create({
@@ -30,14 +33,14 @@ async function main() {
   console.log(`Seeding against ${BASE} for review date ${TODAY} ...`);
 
   // --- Page 1: fetch a handful of NFAs as plain drafts (left untouched) ---
-  const draftNfas = ['14355', '14352'];
+  const draftNfas = ['14355', '14352', '14401'];
   for (const nfa of draftNfas) {
     const res = await user.post('/entries/fetch', { nfa, index: 'MEP', wt: 'A', date: TODAY });
     console.log(`  draft: fetched ${nfa} ->`, res.data.created ? 'created' : Object.keys(res.data)[0]);
   }
 
   // --- A couple more, selected + submitted to Page 2 (MEP) ---
-  const mepSubmit = ['14315', '14306', '14331'];
+  const mepSubmit = ['14315', '14306', '14319'];
   const mepEntryIds = [];
   for (const nfa of mepSubmit) {
     const res = await user.post('/entries/fetch', { nfa, index: 'MEP', wt: 'A', date: TODAY });

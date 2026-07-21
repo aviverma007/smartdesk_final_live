@@ -55,9 +55,9 @@ npm run seed
 
 This drives the app through its own API (not raw SQL), so everything it
 creates is workflow-valid:
-- Two plain drafts sitting on Page 1 (NFAs 14355, 14352 — never submitted)
-- Three MEP entries (14315, 14306, 14331) submitted, locked, decided
-  (2 approved + 1 held) and **published** for today's date
+- Two plain drafts sitting on Page 1 (NFAs 14355, 14352, 14401 — never submitted)
+- Three MEP entries submitted, locked, decided (2 approved + 1 held) and
+  **published** for today's date
 - One Civil entry (14350) submitted to Page 2 but left unlocked, so you can
   try locking/deciding it yourself
 - Order numbers generated for the two approved MEP NFAs
@@ -66,8 +66,17 @@ Switch roles with the top-right dropdown to see each stage: User (Page 1),
 Reviewer-MEP (Pages 2/3, already published), Reviewer-Civil (Page 2, still
 actionable), Admin (Page 4 order register).
 
-Safe to re-run — it only ever creates new rows via the API, it doesn't
-reset anything.
+Safe to re-run for a **different date** — the app refuses new fetches/
+submits onto an already-published index+date by design (that's the "one
+publish per index per date" rule, not a bug). To re-run against a fresh
+date:
+```
+# macOS/Linux
+SEED_DATE=2026-07-22 npm run seed
+
+# Windows PowerShell
+$env:SEED_DATE="2026-07-22"; npm run seed
+```
 
 ## Getting started (dev)
 
