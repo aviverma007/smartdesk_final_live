@@ -25,7 +25,7 @@ module.exports = function entriesRoutes(getPool) {
       prBudget: { pfn: true, qms: qmsRec.prBudget || '—', user: null },
       reason: { pfn: true, qms: qmsRec.reason, user: null },
       vendPQ: { pfn: true, qms: qmsRec.vendPQ, user: null },
-      remarks: { pfn: true, qms: `Value ₹${qmsRec.val} L.`, user: null },
+      remarks: { pfn: true, qms: `Value ₹${qmsRec.val} L. ${qmsRec.reasonability === '—' ? '' : qmsRec.reasonability}`, user: null },
     };
   }
 
@@ -393,6 +393,51 @@ module.exports = function entriesRoutes(getPool) {
       if (typeof userValue === 'string') hyb[field].user = userValue;
       await pool.request().input('id', id).input('hyb', JSON.stringify(hyb))
         .query('UPDATE dbo.MC_Entries SET HybridJson=@hyb, UpdatedAt=GETDATE() WHERE Id=@id');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- Plain (non-hybrid) dropdown fields: NFA Initiated By, Validation of Rates --
+  router.post('/:id/plain-field', async (req, res) => {
+    const { field, value } = req.body; // field: 'initBy' | 'rateVal'
+    const id = Number(req.params.id);
+    if (!['initBy', 'rateVal'].includes(field)) return res.status(400).json({ error: 'Unsupported field' });
+    try {
+      const pool = await getPool();
+      const row = await getEntryRow(pool, id);
+      if (!row) return res.status(404).json({ error: 'Entry not found' });
+      const fields = JSON.parse(row.FieldsJson || '{}');
+      fields[field] = value;
+      await pool.request().input('id', id).input('fields', JSON.stringify(fields))
+        .query('UPDATE dbo.MC_Entries SET FieldsJson=@fields, UpdatedAt=GETDATE() WHERE Id=@id');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- Mandatory resubmission comment (entry editor, resub-flagged entries) --
+  router.post('/:id/resub-comment', async (req, res) => {
+    const { comment } = req.body;
+    const id = Number(req.params.id);
+    try {
+      const pool = await getPool();
+      await pool.request().input('id', id).input('c', comment)
+        .query('UPDATE dbo.MC_Entries SET ResubComment=@c, UpdatedAt=GETDATE() WHERE Id=@id');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- Remove a single attached file by index (deselect, B7-compatible) --
+  router.post('/:id/files/remove', async (req, res) => {
+    const { index: fileIndex } = req.body;
+    const id = Number(req.params.id);
+    try {
+      const pool = await getPool();
+      const row = await getEntryRow(pool, id);
+      if (!row) return res.status(404).json({ error: 'Entry not found' });
+      const files = JSON.parse(row.FilesJson || '[]');
+      files.splice(fileIndex, 1);
+      await pool.request().input('id', id).input('files', JSON.stringify(files))
+        .query('UPDATE dbo.MC_Entries SET FilesJson=@files, UpdatedAt=GETDATE() WHERE Id=@id');
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

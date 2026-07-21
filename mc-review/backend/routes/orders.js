@@ -230,5 +230,51 @@ module.exports = function ordersRoutes(getPool) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // ---- Approved NFAs + their orders (Page 4 primary data source) ---------
+  // Joins MC_Entries (status='approved') with any MC_OrderRegister rows so
+  // the UI can render the prototype's rowspan table (NFA/project/desc/
+  // vendor/value/MC-comment on the left, one row per generated order on
+  // the right, zero orders shows a single "—" row).
+  router.get('/approved-nfas', async (req, res) => {
+    const { loginId, role } = currentUser(req);
+    try {
+      const pool = await getPool();
+      let entryQuery = `SELECT e.Id, e.NfaNo, e.IndexName, e.WorkType, e.ReviewDate, e.FieldsJson, e.UpdatedAt
+                         FROM dbo.MC_Entries e WHERE e.Status='approved'`;
+      const request = pool.request();
+      if (role === 'user') { entryQuery += ' AND (e.EnteredBy=@who OR e.InitiatedBy=@who)'; request.input('who', loginId); }
+      entryQuery += ' ORDER BY e.UpdatedAt DESC';
+      const entriesR = await request.query(entryQuery);
+
+      // Pull the MC comment recorded at decision time from the snapshot row, if any.
+      const nfas = entriesR.recordset.map((e) => e.NfaNo);
+      let commentsByNfa = {};
+      if (nfas.length) {
+        const inClause = nfas.map((_, i) => `@nfa${i}`).join(',');
+        const cReq = pool.request();
+        nfas.forEach((n, i) => cReq.input(`nfa${i}`, n));
+        const cRes = await cReq.query(`SELECT NfaNo, McComment FROM dbo.MC_SnapshotRows WHERE NfaNo IN (${inClause}) AND Decision='approved' ORDER BY Id DESC`);
+        cRes.recordset.forEach((row) => { if (!commentsByNfa[row.NfaNo]) commentsByNfa[row.NfaNo] = row.McComment; });
+      }
+
+      const ordersR = await pool.request().query(`SELECT * FROM dbo.MC_OrderRegister WHERE Status='active' ORDER BY Id`);
+      const ordersByNfa = {};
+      ordersR.recordset.forEach((o) => { (ordersByNfa[o.NfaNo] = ordersByNfa[o.NfaNo] || []).push(o); });
+
+      const result = entriesR.recordset.map((e) => {
+        const f = JSON.parse(e.FieldsJson || '{}');
+        return {
+          nfa: e.NfaNo,
+          index: e.IndexName,
+          approvedOn: e.UpdatedAt,
+          project: f.project, desc: f.desc, vendor: f.vendor, val: f.val,
+          mcComment: commentsByNfa[e.NfaNo] || null,
+          orders: ordersByNfa[e.NfaNo] || [],
+        };
+      });
+      res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   return router;
 };

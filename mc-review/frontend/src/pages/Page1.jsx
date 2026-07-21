@@ -4,12 +4,13 @@ import { useToast } from '../context/ToastContext';
 import api from '../api';
 import { todayISO, fmtDMY } from '../utils/date';
 import Modal from '../components/Modal';
+import FileChips from '../components/FileChips';
 
-const STATUS_LABEL = {
-  draft: 'Draft', submitted: 'Submitted', presented: 'Presented',
-  approved: 'Approved', hold: 'Held', rejected: 'Rejected', expired: 'Expired', migrated: 'Migrated',
-};
-const STATUS_CLASS = { approved: 'ok', hold: 'hold', rejected: 'rej', expired: 'rej' };
+// Exact column order from the reference prototype (checkbox, S.No, NFA No.,
+// Index, Work Type, Project, Description of Work, Vendor Name, Original
+// Order Value, PR Budget Value, Creator, NFA Initiated By, Review Date,
+// Downloadable Files, Status).
+const COLS = 15;
 
 export default function Page1() {
   const { reference } = useApp();
@@ -20,10 +21,12 @@ export default function Page1() {
   const [dateView, setDateView] = useState('today');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filterQ, setFilterQ] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   const [qeNfa, setQeNfa] = useState('');
-  const [qeIndex, setQeIndex] = useState('MEP');
-  const [qeWt, setQeWt] = useState('A');
+  const [qeIndex, setQeIndex] = useState('');
+  const [qeWt, setQeWt] = useState('');
   const [qeDate, setQeDate] = useState(today);
   const [showModeB, setShowModeB] = useState(false);
 
@@ -49,7 +52,7 @@ export default function Page1() {
   useEffect(() => { if (subTab === 'pdfs') api.publishedPdfs().then(setPublishedPdfs).catch(() => {}); }, [subTab]);
 
   async function doFetch() {
-    if (!qeNfa.trim()) return push('Enter an NFA number', 'error');
+    if (!qeNfa.trim() || !qeIndex || !qeWt) return push('NFA number, Index, and Work Type are required', 'error');
     try {
       const res = await api.fetchNfa({ nfa: qeNfa.trim(), index: qeIndex, wt: qeWt, date: qeDate });
       const d = res.data;
@@ -98,6 +101,15 @@ export default function Page1() {
     }
   }
 
+  async function submitChecked() {
+    const checked = entries.filter((e) => e.sel && (e.status === 'draft' || e.status === 'submitted' || e.pmv));
+    for (const e of checked) {
+      // eslint-disable-next-line no-await-in-loop
+      await doSubmit(e);
+    }
+    if (checked.length === 0) push('Nothing checked to submit', 'error');
+  }
+
   async function doSearch() {
     if (!searchNfa.trim()) return;
     try {
@@ -106,7 +118,13 @@ export default function Page1() {
     } catch (e) { push(e.response?.data?.error || 'Search failed', 'error'); }
   }
 
-  const filteredEntries = entries;
+  const filterLower = filterQ.toLowerCase();
+  const filteredEntries = entries.filter((e) => {
+    if (!filterLower) return true;
+    const hay = `${e.nfa} ${e.f?.desc || ''} ${e.f?.vendor || ''} ${e.f?.project || ''} ${e.initiator || ''}`.toLowerCase();
+    return hay.includes(filterLower);
+  });
+  const checkedCount = filteredEntries.filter((e) => e.sel && (e.status === 'draft' || e.status === 'submitted' || e.pmv)).length;
 
   return (
     <div className="pagewrap">
@@ -135,87 +153,80 @@ export default function Page1() {
         <div className="surface">
           <div className="qentry">
             <div className="field">
-              <label>NFA No.</label>
-              <input className="inp" value={qeNfa} onChange={(e) => setQeNfa(e.target.value)} placeholder="e.g. 14315" />
+              <label>NFA Number <span className="req">*</span></label>
+              <input className="inp" style={{ width: 132 }} value={qeNfa} onChange={(e) => setQeNfa(e.target.value)} placeholder="e.g. 14315" />
             </div>
             <div className="field">
-              <label>Index</label>
+              <label>Index <span className="req">*</span></label>
               <select className="inp" value={qeIndex} onChange={(e) => setQeIndex(e.target.value)}>
+                <option value="">Select…</option>
                 {reference && Object.keys(reference.indexNames).map((k) => (
                   <option key={k} value={k}>{reference.indexNames[k]}</option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label>Work Type</label>
+              <label>Work Type <span className="req">*</span></label>
               <select className="inp" value={qeWt} onChange={(e) => setQeWt(e.target.value)}>
+                <option value="">Select…</option>
                 {reference && Object.keys(reference.workTypes).map((k) => (
-                  <option key={k} value={k}>{k} — {reference.workTypes[k]}</option>
+                  <option key={k} value={k}>{k} · {reference.workTypes[k]}</option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label>Review Date</label>
+              <label>Review Date <span className="req">*</span></label>
               <input type="date" className="inp" value={qeDate} min={today} onChange={(e) => setQeDate(e.target.value)} />
             </div>
             <button className="btn primary" onClick={doFetch}>Fetch from QMS</button>
-            <button className="modeb" onClick={() => setShowModeB(true)}>+ Mode B (manual entry)</button>
+            <button className="modeb" onClick={() => setShowModeB(true)}>No NFA in QMS yet? Manual entry (Mode B)</button>
           </div>
 
           <div className="toolbar">
-            <b>{loading ? 'Loading…' : `${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'}`}</b>
+            <input className="inp" style={{ width: 250 }} placeholder="Filter this date's list… (NFA / vendor / project)" value={filterQ} onChange={(e) => setFilterQ(e.target.value)} />
+            <span className="filterlbl">Showing: <b>{dateView === 'today' ? `${fmtDMY(today)} · today view — all open entries incl. future dates` : fmtDMY(dateView)}</b></span>
+            <div className="spacer" />
+            <button className="btn primary" onClick={submitChecked}>Submit {checkedCount} checked → Page 2</button>
           </div>
 
-          {filteredEntries.length === 0 ? (
-            <div className="empty">No entries for this view.</div>
+          {loading ? <div className="empty">Loading…</div> : filteredEntries.length === 0 ? (
+            <div className="empty">No entries for this view — fetch an NFA above, use Mode B, or pick another review date.</div>
           ) : (
             <div className="tablewrap">
               <table>
                 <thead>
                   <tr>
-                    <th></th><th>NFA No.</th><th>Index</th><th>WT</th><th>Review Date</th>
-                    <th>Project / Description</th><th>Vendor</th><th>Value (₹L)</th><th>Status</th><th>Action</th>
+                    <th></th><th>S.No</th><th>NFA No.</th><th>Index</th><th>Work Type</th><th>Project</th>
+                    <th>Description of Work</th><th>Vendor Name</th><th>Original Order Value ₹L (incl. GST)</th>
+                    <th>PR Budget Value ₹L</th><th>Creator</th><th>NFA Initiated By</th><th>Review Date</th>
+                    <th>Downloadable Files (QMS + uploads)</th><th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEntries.map((e) => (
-                    <tr key={e.id} className={e.status === 'draft' ? '' : 'rowdim'}>
-                      <td>
-                        {(e.status === 'draft' || e.status === 'submitted') && (
-                          <input type="checkbox" className="cbx" checked={e.sel} onChange={() => toggleSelect(e)} />
-                        )}
-                      </td>
-                      <td>
-                        <span className="nfa">{e.nfa}</span>
-                        {e.initDt && <div className="sub">(Initiated on {fmtDMY(e.initDt)})</div>}
-                        {e.isProxy && <span className="redstar">*</span>}
-                        {e.resubReq && <span className="badge resub">RESUBMIT</span>}
-                        {e.pmv && (
-                          <div className="pmvchip">
-                            Pending move from {e.pmv.fromIndex}·{fmtDMY(e.pmv.fromDate)} — submit to apply · previous entry still on Page 2.
-                          </div>
-                        )}
-                      </td>
-                      <td>{e.pmv ? e.pmv.index : e.index}</td>
-                      <td>{e.pmv ? e.pmv.wt : e.wt}</td>
-                      <td>{fmtDMY(e.pmv ? e.pmv.date : e.date)}</td>
-                      <td>{e.f?.project} — {e.f?.desc}</td>
-                      <td>{e.f?.vendor}</td>
-                      <td>{e.f?.val}</td>
-                      <td><span className={`st ${STATUS_CLASS[e.status] || 'grey'}`}>{STATUS_LABEL[e.status] || e.status}</span></td>
-                      <td>
-                        {(e.status === 'draft' || e.status === 'submitted') && (
-                          <button className="btn sm" onClick={() => doSubmit(e)}>
-                            {e.pmv ? 'Submit (apply move)' : e.sel ? 'Submit' : 'Withdraw'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                  {filteredEntries.map((e, i) => (
+                    <PageOneRow
+                      key={e.id}
+                      entry={e}
+                      sno={i + 1}
+                      expanded={expandedId === e.id}
+                      onExpand={() => setExpandedId(expandedId === e.id ? null : e.id)}
+                      onToggleSelect={() => toggleSelect(e)}
+                      onSubmit={(comment) => doSubmit(e, comment)}
+                      onRefresh={load}
+                      reference={reference}
+                      today={today}
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+          <div className="legendline">
+            Yellow = user-edited / manual · unmarked cells are QMS-sourced · <b>*</b> on NFA Initiator = proxy entry ·
+            files: click to open/download, × to deselect · re-fetch an existing NFA to re-pull QMS fields &amp; restore its attachments ·
+            today's view lists all open entries (today + every future review date); pick a future date to filter to that date only —
+            history lives in Published PDFs &amp; NFA Search
+          </div>
         </div>
       )}
 
@@ -313,6 +324,181 @@ export default function Page1() {
           <textarea className="inp" style={{ width: '100%', minHeight: 70 }} value={resubComment} onChange={(e) => setResubComment(e.target.value)} />
         </Modal>
       )}
+    </div>
+  );
+}
+
+function statusCell(e) {
+  if (e.status === 'draft') return <span className="st grey">Draft{e.mode === 'B' ? ' · Mode B' : ''}</span>;
+  if (e.status === 'submitted') return <span className="st grey">Submitted → Page 2</span>;
+  if (e.status === 'presented') return <span className="st grey">Locked for MC · {fmtDMY(e.date)}</span>;
+  if (e.status === 'expired') return <span className="st pend">Expired (undecided {fmtDMY(e.date)})</span>;
+  const cls = e.status === 'approved' ? 'ok' : e.status === 'hold' ? 'hold' : 'rej';
+  return <span className={`st ${cls}`}>{e.status.toUpperCase()} · {fmtDMY(e.date)}</span>;
+}
+
+function PageOneRow({ entry: e, sno, expanded, onExpand, onToggleSelect, onSubmit, onRefresh, reference, today }) {
+  const { push } = useToast();
+  const editable = e.status === 'draft' || e.status === 'submitted';
+  const locked = ['approved', 'hold', 'rejected', 'expired', 'presented'].includes(e.status);
+  const dIndex = e.pmv ? e.pmv.index : e.index;
+  const dWt = e.pmv ? e.pmv.wt : e.wt;
+  const dDate = e.pmv ? e.pmv.date : e.date;
+  const prBudget = e.hyb?.prBudget ? (e.hyb.prBudget.pfn ? e.hyb.prBudget.qms : (e.hyb.prBudget.user ?? e.hyb.prBudget.qms)) : (e.f?.prBudget || '—');
+  const prBudgetIsUser = e.hyb?.prBudget && !e.hyb.prBudget.pfn;
+
+  async function removeFile(i) {
+    try { await api.removeFile(e.id, i); onRefresh(); } catch (err) { push('Failed to remove file', 'error'); }
+  }
+
+  return (
+    <>
+      <tr className={locked && e.status !== 'presented' ? 'rowlocked' : ''}>
+        <td>
+          {(editable || e.pmv) ? (
+            <input type="checkbox" className="cbx" checked={e.sel} onChange={onToggleSelect} />
+          ) : <input type="checkbox" className="cbx" disabled />}
+        </td>
+        <td>{sno}</td>
+        <td className="nfa" style={{ cursor: 'pointer' }} onClick={onExpand}>
+          {e.nfa}
+          {e.initDt && <div className="sub">(Initiated on {fmtDMY(e.initDt)})</div>}
+          {e.mode === 'B' && <div className="sub">Manual · Mode B · interim reference (cite it in QMS at NFA initiation)</div>}
+          {e.isProxy && <span className="redstar" title="Proxy entry">*</span>}
+          {e.resubReq && <div className="sub" style={{ color: '#9A6700', fontWeight: 700 }}>Resubmit flagged</div>}
+          {e.pmv && (
+            <div className="pmvchip">
+              Pending move from {e.pmv.fromIndex}·{fmtDMY(e.pmv.fromDate)} — submit to apply · previous entry still on Page 2
+            </div>
+          )}
+        </td>
+        <td>{dIndex}</td>
+        <td><b>{dWt}</b> · {reference?.workTypes?.[dWt]}</td>
+        <td>{e.f?.project}</td>
+        <td>{e.f?.desc}</td>
+        <td>{e.f?.vendor}</td>
+        <td><b>{e.f?.val}</b></td>
+        <td className={prBudgetIsUser ? 'edit' : ''}>{prBudget}</td>
+        <td>{e.initiator}{e.initiator !== e.enteredBy && <b className="redstar" title={`Proxy entry — entered by ${e.enteredBy}`}>*</b>}</td>
+        <td>{e.f?.initBy || '—'}</td>
+        <td>{fmtDMY(dDate)}</td>
+        <td><FileChips files={e.files} removable={editable} onRemove={removeFile} /></td>
+        <td>{statusCell(e)}</td>
+      </tr>
+      {expanded && (
+        <tr className="editor-row">
+          <td colSpan={COLS}>
+            <EntryEditor entry={e} editable={editable} onSubmit={onSubmit} onRefresh={onRefresh} reference={reference} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function HybridCard({ entry, field, label, editable, onRefresh }) {
+  const { push } = useToast();
+  const h = entry.hyb?.[field] || { pfn: true, qms: '', user: null };
+  const [localVal, setLocalVal] = useState(h.user == null ? h.qms : h.user);
+
+  async function togglePfn(checked) {
+    try { await api.updateField(entry.id, { field, pfn: checked }); onRefresh(); } catch { push('Failed to update', 'error'); }
+  }
+  async function saveUserVal() {
+    try { await api.updateField(entry.id, { field, userValue: localVal }); onRefresh(); } catch { push('Failed to save', 'error'); }
+  }
+
+  return (
+    <div className="fcard">
+      <h5>{label}
+        <label className="pfn">
+          <input type="checkbox" className="cbx" style={{ width: 12, height: 12 }} checked={h.pfn} disabled={!editable} onChange={(e) => togglePfn(e.target.checked)} />
+          Pick from NFA
+        </label>
+      </h5>
+      {h.pfn ? (
+        <textarea className="fval" readOnly value={h.qms || '—'} />
+      ) : (
+        <>
+          <textarea className="fval userv" readOnly={!editable} value={localVal ?? ''} onChange={(e) => setLocalVal(e.target.value)} onBlur={saveUserVal} />
+          <div className="sub">QMS text pre-filled — edit any part; your text supersedes QMS.</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EntryEditor({ entry: e, editable, onSubmit, onRefresh, reference }) {
+  const { push } = useToast();
+  const [resub, setResub] = useState(e.resubComment || '');
+
+  async function setPlainField(field, value) {
+    try { await api.updatePlainField(e.id, field, value); onRefresh(); } catch { push('Failed to update', 'error'); }
+  }
+  async function saveResub() {
+    try { await api.setResubComment(e.id, resub); push('Resubmission comment saved'); onRefresh(); } catch { push('Failed to save', 'error'); }
+  }
+  async function refreshQms() {
+    try {
+      await api.fetchNfa({ nfa: e.nfa, index: e.index, wt: e.wt, date: e.date });
+      push('Refreshed from QMS');
+      onRefresh();
+    } catch (err) { push(err.response?.data?.error || 'Refresh failed', 'error'); }
+  }
+
+  return (
+    <div className="editor-inner">
+      <div className="ed-head">
+        <b>{e.nfa} — entry editor</b>
+        <span style={{ fontSize: 10, color: '#444' }}>
+          {e.mode === 'A' ? 'QMS pulled at entry creation — re-fetch anytime to re-pull' : 'Manual entry — no QMS link yet'}
+        </span>
+      </div>
+      <div className="fieldsrow">
+        <HybridCard entry={e} field="prBudget" label="PR Budget Value ₹L" editable={editable} onRefresh={onRefresh} />
+        <HybridCard entry={e} field="reason" label="Reason for this New Work/Variation" editable={editable} onRefresh={onRefresh} />
+        <HybridCard entry={e} field="vendPQ" label="No's of Considered Vendors & PQ" editable={editable} onRefresh={onRefresh} />
+        <HybridCard entry={e} field="remarks" label="Remarks / Status" editable={editable} onRefresh={onRefresh} />
+      </div>
+      <div className="fieldsrow" style={{ marginTop: 10 }}>
+        <div className="fcard">
+          <h5>NFA Initiated By <span className="pfn">dropdown</span></h5>
+          <select className="inp" style={{ width: '100%' }} disabled={!editable} value={e.f?.initBy || ''} onChange={(ev) => setPlainField('initBy', ev.target.value)}>
+            <option value="">—</option>
+            {reference?.initiatedByOptions?.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+        <div className="fcard">
+          <h5>Validation of Rates <span className="pfn">dropdown</span></h5>
+          <select className="inp" style={{ width: '100%' }} disabled={!editable} value={e.f?.rateVal || ''} onChange={(ev) => setPlainField('rateVal', ev.target.value)}>
+            <option value="">—</option>
+            {reference?.rateValidations?.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      </div>
+      {e.resubReq && (
+        <div className="resub-card">
+          <h5>Resubmission comment <em>* mandatory — NFA previously presented</em></h5>
+          <textarea className="fval" style={{ minHeight: 36 }} readOnly={!editable} value={resub} onChange={(ev) => setResub(ev.target.value)} onBlur={saveResub} />
+        </div>
+      )}
+      <div style={{ marginTop: 10 }}>
+        <h5 style={{ fontSize: 9.5, textTransform: 'uppercase', color: '#000', marginBottom: 5 }}>Attached files</h5>
+        <FileChips files={e.files} removable={editable} />
+      </div>
+      <div className="ed-actions">
+        {editable ? (
+          <>
+            {e.mode === 'A' && <button className="btn ghost" onClick={refreshQms}>Refresh from QMS</button>}
+            <button className="btn ghost" onClick={() => onSubmit()}>{e.sel ? 'Submit' : 'Withdraw'}</button>
+          </>
+        ) : (
+          <span className="st grey">
+            Read-only — {e.status === 'presented' ? 'locked with reviewer for MC · Fetch from QMS to update (the update lands on Page 2 deselected)' : 'entry closed'}
+          </span>
+        )}
+        <span className="audit-note">Every change is versioned &amp; audit-logged.</span>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,9 @@ export const api = {
   selectEntry: (id, selected) => client.post(`/entries/${id}/select`, { selected }),
   submitEntry: (id, comment) => client.post(`/entries/${id}/submit`, { comment }),
   updateField: (id, payload) => client.post(`/entries/${id}/field`, payload),
+  updatePlainField: (id, field, value) => client.post(`/entries/${id}/plain-field`, { field, value }),
+  setResubComment: (id, comment) => client.post(`/entries/${id}/resub-comment`, { comment }),
+  removeFile: (id, index) => client.post(`/entries/${id}/files/remove`, { index }),
 
   // Page 2 — sheets
   getSheet: (index, date) => client.get(`/sheets/${index}/${date}`).then((r) => r.data),
@@ -32,6 +35,7 @@ export const api = {
   // Page 4 — orders
   ordersForNfa: (nfa) => client.get(`/orders/nfa/${encodeURIComponent(nfa)}`).then((r) => r.data),
   allOrders: () => client.get('/orders').then((r) => r.data),
+  approvedNfas: () => client.get('/orders/approved-nfas').then((r) => r.data),
   generateOrders: (payload) => client.post('/orders/generate', payload).then((r) => r.data),
   addMoreOrders: (payload) => client.post('/orders/add-more', payload).then((r) => r.data),
   overrideOrder: (id, newValue) => client.post(`/orders/${id}/override`, { newValue }),

@@ -92,3 +92,45 @@ tr.rowlocked td { background: #F3F4F6; }
 .chip { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; background: #EEF4FB; color: #1D5FA8; font-weight: 700; margin-left: 6px; }
 .badge { display: inline-block; font-size: 9.5px; padding: 2px 6px; border-radius: 3px; font-weight: 700; }
 .badge.resub { background: #FDF6E3; color: #9A6700; border: 1px solid #E8D089; }
+
+.fchips { display: flex; flex-direction: column; gap: 3px; }
+.fchip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; border: 1px solid #C4CAD2; border-radius: 3px; padding: 2px 5px; background: #fff; max-width: 220px; }
+.fchip .ft { font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 2px; color: #fff; flex-shrink: 0; }
+.fchip .ft.pdf { background: #B3261E; } .fchip .ft.xls { background: #0B6B3A; } .fchip .ft.msg { background: #1D5FA8; }
+.fchip .ft.img { background: #6B4FA0; } .fchip .ft.fld { background: #9A6700; }
+.fchip .fn { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1D5FA8; }
+.fchip .fn:hover { text-decoration: underline; }
+.fchip .fx { border: none; background: none; color: #B3261E; font-weight: 700; cursor: pointer; padding: 0 0 0 3px; }
+
+.editor-row td { background: #FAFBFC; padding: 14px; border-top: none; }
+.editor-inner { display: flex; flex-direction: column; gap: 10px; }
+.ed-head { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.ed-head .prior { color: #9A6700; font-size: 11px; }
+.fieldsrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.fcard { border: 1px solid #C4CAD2; border-radius: 4px; padding: 8px; background: #fff; }
+.fcard h5 { font-size: 9.5px; text-transform: uppercase; font-weight: 700; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+.fcard .pfn { font-size: 9px; font-weight: 400; text-transform: none; display: flex; align-items: center; gap: 3px; }
+.fcard .fval { width: 100%; border: 1px solid #C4CAD2; border-radius: 3px; font-size: 11.5px; padding: 5px 7px; min-height: 32px; resize: vertical; }
+.fcard .fval.userv { background: #FFFDF3; border-color: #E8D089; }
+.resub-card { border: 1px solid #E8A0A0; background: #FFF6F5; border-radius: 4px; padding: 8px; }
+.resub-card h5 { font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #B3261E; }
+.resub-card em { font-style: italic; font-weight: 400; }
+.ed-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.audit-note { font-size: 10px; color: #888; margin-left: auto; }
+
+.counter { font-size: 11.5px; }
+.lockstate { font-size: 10.5px; font-weight: 700; color: #9A6700; background: #FDF6E3; border: 1px solid #E8D089; padding: 4px 8px; border-radius: 3px; }
+.lockstate.locked { color: #0B6B3A; background: #E7F4EC; border-color: #9AD1B2; }
+.yellowcell { background: #FFFDF3 !important; }
+.legendline { font-size: 9.5px; color: #666; padding: 8px 4px 2px 4px; line-height: 1.6; }
+.cellinput { min-height: 18px; outline: none; }
+.cellinput:focus { background: #FFFDF3; }
+td.edit { background: #FFFDF3; }
+.inp.sm { font-size: 10.5px; padding: 3px 5px; }
+.idxtabs { display: flex; gap: 2px; padding: 0 16px; }
+.itab { font-size: 11.5px; padding: 6px 14px; background: #E9EBEE; border: 1px solid #C4CAD2; border-bottom: none; color: #000; }
+.itab.active { background: #fff; font-weight: 700; }
+.itab:disabled { color: #aaa; cursor: not-allowed; }
+.sheethead { display: flex; align-items: center; gap: 10px; padding: 10px 16px 0 16px; flex-wrap: wrap; }
+.decisions-legend { font-size: 9.5px; color: #666; }
+.filterlbl { font-size: 11px; color: #444; }
