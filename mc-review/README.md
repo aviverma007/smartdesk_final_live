@@ -39,6 +39,30 @@ mc-review/
   docs/               the IT handover documentation this build implements
 ```
 
+## Seeding dummy data (dev/demo)
+
+With the backend running, in a second terminal:
+```
+cd backend
+npm run seed
+```
+
+This drives the app through its own API (not raw SQL), so everything it
+creates is workflow-valid:
+- Two plain drafts sitting on Page 1 (NFAs 14355, 14352 — never submitted)
+- Three MEP entries (14315, 14306, 14331) submitted, locked, decided
+  (2 approved + 1 held) and **published** for today's date
+- One Civil entry (14350) submitted to Page 2 but left unlocked, so you can
+  try locking/deciding it yourself
+- Order numbers generated for the two approved MEP NFAs
+
+Switch roles with the top-right dropdown to see each stage: User (Page 1),
+Reviewer-MEP (Pages 2/3, already published), Reviewer-Civil (Page 2, still
+actionable), Admin (Page 4 order register).
+
+Safe to re-run — it only ever creates new rows via the API, it doesn't
+reset anything.
+
 ## Getting started (dev)
 
 Backend:
