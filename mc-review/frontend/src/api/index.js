@@ -18,6 +18,18 @@ export const api = {
   updatePlainField: (id, field, value) => client.post(`/entries/${id}/plain-field`, { field, value }),
   setResubComment: (id, comment) => client.post(`/entries/${id}/resub-comment`, { comment }),
   removeFile: (id, index) => client.post(`/entries/${id}/files/remove`, { index }),
+  uploadFilesToEntry: (id, fileList) => {
+    const form = new FormData();
+    Array.from(fileList).forEach((f) => form.append('files', f));
+    return client.post(`/entries/${id}/files/upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  stageFiles: (fileList) => {
+    const form = new FormData();
+    Array.from(fileList).forEach((f) => form.append('files', f));
+    return client.post('/entries/stage-files', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  getStagedFiles: () => client.get('/entries/stage-files').then((r) => r.data),
+  clearStagedFiles: () => client.delete('/entries/stage-files'),
 
   // Page 2 — sheets
   getSheet: (index, date) => client.get(`/sheets/${index}/${date}`).then((r) => r.data),

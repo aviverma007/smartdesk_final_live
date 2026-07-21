@@ -35,6 +35,20 @@ export default function Page1() {
   const [publishedPdfs, setPublishedPdfs] = useState([]);
   const [searchNfa, setSearchNfa] = useState('');
   const [searchResult, setSearchResult] = useState(null);
+  const [stagedFiles, setStagedFiles] = useState([]);
+
+  async function loadStaged() {
+    try { const d = await api.getStagedFiles(); setStagedFiles(d.staged || []); } catch { /* ignore */ }
+  }
+
+  async function onPickStagedFiles(fileList) {
+    if (!fileList || !fileList.length) return;
+    try {
+      const res = await api.stageFiles(fileList);
+      setStagedFiles(res.data.staged || []);
+      push(`${fileList.length} file(s) staged for the next entry`);
+    } catch (e) { push('Upload failed', 'error'); }
+  }
 
   async function load() {
     setLoading(true);
@@ -49,6 +63,7 @@ export default function Page1() {
   }
 
   useEffect(() => { load(); }, [dateView]);
+  useEffect(() => { loadStaged(); }, []);
   useEffect(() => { if (subTab === 'pdfs') api.publishedPdfs().then(setPublishedPdfs).catch(() => {}); }, [subTab]);
 
   async function doFetch() {
@@ -61,6 +76,7 @@ export default function Page1() {
       else if (d.draftRetargeted) push(`Draft retargeted to ${qeIndex}/${qeWt}/${fmtDMY(qeDate)}`);
       else if (d.pendingMoveStaged) push(d.chip, 'warn');
       setQeNfa('');
+      setStagedFiles([]);
       load();
     } catch (e) {
       const data = e.response?.data;
@@ -179,8 +195,17 @@ export default function Page1() {
               <input type="date" className="inp" value={qeDate} min={today} onChange={(e) => setQeDate(e.target.value)} />
             </div>
             <button className="btn primary" onClick={doFetch}>Fetch from QMS</button>
+            <label className="btn ghost" style={{ cursor: 'pointer', marginBottom: 0 }}>
+              Upload files
+              <input type="file" multiple style={{ display: 'none' }} onChange={(e) => { onPickStagedFiles(e.target.files); e.target.value = ''; }} />
+            </label>
             <button className="modeb" onClick={() => setShowModeB(true)}>No NFA in QMS yet? Manual entry (Mode B)</button>
           </div>
+          {stagedFiles.length > 0 && (
+            <div className="staged">
+              Staged for next entry: <FileChips files={stagedFiles} />
+            </div>
+          )}
 
           <div className="toolbar">
             <input className="inp" style={{ width: 250 }} placeholder="Filter this date's list… (NFA / vendor / project)" value={filterQ} onChange={(e) => setFilterQ(e.target.value)} />
@@ -445,6 +470,17 @@ function EntryEditor({ entry: e, editable, onSubmit, onRefresh, reference }) {
       onRefresh();
     } catch (err) { push(err.response?.data?.error || 'Refresh failed', 'error'); }
   }
+  async function uploadToEntry(fileList) {
+    if (!fileList || !fileList.length) return;
+    try {
+      const res = await api.uploadFilesToEntry(e.id, fileList);
+      push(`${res.data.added.length} file(s) attached`);
+      onRefresh();
+    } catch (err) { push('Upload failed', 'error'); }
+  }
+  async function removeEntryFile(i) {
+    try { await api.removeFile(e.id, i); onRefresh(); } catch { push('Failed to remove file', 'error'); }
+  }
 
   return (
     <div className="editor-inner">
@@ -484,7 +520,13 @@ function EntryEditor({ entry: e, editable, onSubmit, onRefresh, reference }) {
       )}
       <div style={{ marginTop: 10 }}>
         <h5 style={{ fontSize: 9.5, textTransform: 'uppercase', color: '#000', marginBottom: 5 }}>Attached files</h5>
-        <FileChips files={e.files} removable={editable} />
+        <FileChips files={e.files} removable={editable} onRemove={removeEntryFile} />
+        {editable && (
+          <label className="btn sm ghost" style={{ marginTop: 5, cursor: 'pointer', display: 'inline-block' }}>
+            + Upload file
+            <input type="file" multiple style={{ display: 'none' }} onChange={(ev) => { uploadToEntry(ev.target.files); ev.target.value = ''; }} />
+          </label>
+        )}
       </div>
       <div className="ed-actions">
         {editable ? (

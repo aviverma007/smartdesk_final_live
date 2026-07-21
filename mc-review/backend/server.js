@@ -13,12 +13,14 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const sql = require('mssql');
+const path = require('path');
 
 const { migrate } = require('./db/migrate');
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'x-user-role', 'x-user-id'] }));
 app.use(express.json({ limit: '5mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const dbConfig = {
   user: process.env.DB_USER,

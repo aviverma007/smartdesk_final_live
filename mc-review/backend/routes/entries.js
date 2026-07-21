@@ -1,8 +1,34 @@
 const express = require('express');
 const sql = require('mssql');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { currentUser, audit } = require('../lib/auth');
 const { lookupNfa } = require('../lib/qmsAdapter');
 const { todayISO, revisedVal } = require('../lib/reference');
+
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    // Prefix with a timestamp so same-named files from different entries
+    // never collide on disk; the original name is preserved in FilesJson
+    // and shown to the user, only the on-disk name is mangled.
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: 25 * 1024 * 1024, files: 10 },
+});
+
+// Typed file chips, matching the prototype's PDF/XLS/MAIL/IMG/FLD scheme.
+function fileTypeFromName(name) {
+  if (/\.pdf$/i.test(name)) return 'pdf';
+  if (/\.(xlsx?|csv)$/i.test(name)) return 'xls';
+  if (/\.(msg|eml)$/i.test(name)) return 'msg';
+  if (/\.(png|jpe?g|gif|webp)$/i.test(name)) return 'img';
+  return 'fld';
+}
 
 /**
  * Page 1 — NFA Entry. Implements Workflow v2.5 §4 + the B2 pending-move
@@ -83,6 +109,55 @@ module.exports = function entriesRoutes(getPool) {
     return r.recordset[0] || null;
   }
 
+  // ---- Upload & attach files directly to an existing entry ---------------
+  router.post('/:id/files/upload', upload.array('files', 10), async (req, res) => {
+    const { loginId } = currentUser(req);
+    const id = Number(req.params.id);
+    try {
+      const pool = await getPool();
+      const row = await getEntryRow(pool, id);
+      if (!row) return res.status(404).json({ error: 'Entry not found' });
+      const existing = JSON.parse(row.FilesJson || '[]');
+      const added = (req.files || []).map((f) => ({
+        n: f.originalname, t: fileTypeFromName(f.originalname), src: 'upload', storedAs: f.filename,
+      }));
+      const merged = [...existing, ...added];
+      await pool.request().input('id', id).input('files', JSON.stringify(merged))
+        .query('UPDATE dbo.MC_Entries SET FilesJson=@files, UpdatedAt=GETDATE() WHERE Id=@id');
+      await audit(pool, loginId, 'File upload', `${row.NfaNo}: ${added.map((f) => f.n).join(', ')}`);
+      res.json({ ok: true, added });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- Upload files with no entry yet — staged for the next Fetch/Mode-B --
+  // In-memory per-login staging area (dev-scale; fine for a single-process
+  // deployment). Cleared once consumed by fetch/mode-b.
+  const stagedByUser = new Map();
+  router.post('/stage-files', upload.array('files', 10), async (req, res) => {
+    const { loginId } = currentUser(req);
+    const added = (req.files || []).map((f) => ({
+      n: f.originalname, t: fileTypeFromName(f.originalname), src: 'upload', storedAs: f.filename,
+    }));
+    const cur = stagedByUser.get(loginId) || [];
+    stagedByUser.set(loginId, [...cur, ...added]);
+    res.json({ ok: true, staged: stagedByUser.get(loginId) });
+  });
+  router.get('/stage-files', async (req, res) => {
+    const { loginId } = currentUser(req);
+    res.json({ staged: stagedByUser.get(loginId) || [] });
+  });
+  router.delete('/stage-files', async (req, res) => {
+    const { loginId } = currentUser(req);
+    stagedByUser.delete(loginId);
+    res.json({ ok: true });
+  });
+  // Expose so /fetch and /mode-b can pull + clear the staged set.
+  router._takeStaged = (loginId) => {
+    const s = stagedByUser.get(loginId) || [];
+    stagedByUser.delete(loginId);
+    return s;
+  };
+
   // ---- List "My Entries" (Entry Date View — B3/F14) ----------------------
   router.get('/', async (req, res) => {
     const { loginId, role } = currentUser(req);
@@ -154,10 +229,12 @@ module.exports = function entriesRoutes(getPool) {
 
         const fields = { ...qmsRec };
         const hyb = hybridInit(qmsRec);
+        const staged = router._takeStaged(loginId);
+        const allFiles = [...qmsRec.files.map((f) => ({ ...f, src: 'qms' })), ...staged];
         const ins = await pool.request()
           .input('nfa', nfa).input('mode', 'A').input('idx', index).input('wt', wt).input('d', date)
           .input('fields', JSON.stringify(fields)).input('hyb', JSON.stringify(hyb))
-          .input('files', JSON.stringify(qmsRec.files.map((f) => ({ ...f, src: 'qms' }))))
+          .input('files', JSON.stringify(allFiles))
           .input('initiator', qmsRec.initiator).input('isProxy', qmsRec.initiator !== loginId ? 1 : 0)
           .input('initDt', qmsRec.initDt).input('enteredBy', loginId)
           .input('resubReq', resubReq ? 1 : 0)
@@ -265,7 +342,7 @@ module.exports = function entriesRoutes(getPool) {
       const ins = await pool.request()
         .input('nfa', nfaNo).input('idx', index).input('wt', wt).input('d', date)
         .input('fields', JSON.stringify(fields || {})).input('hyb', JSON.stringify({}))
-        .input('files', JSON.stringify([]))
+        .input('files', JSON.stringify(router._takeStaged(loginId)))
         .input('initiator', initiator || loginId).input('isProxy', (initiator && initiator !== loginId) ? 1 : 0)
         .input('interimRef', interimRef).input('enteredBy', loginId)
         .query(`INSERT INTO dbo.MC_Entries
