@@ -91,6 +91,12 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('Seed failed:', e.response?.data || e.message);
+  if (e.response) {
+    console.error(`Seed failed: HTTP ${e.response.status} —`, e.response.data);
+  } else if (e.request) {
+    console.error(`Seed failed: no response from ${BASE} — is the backend running? (${e.code || e.message})`);
+  } else {
+    console.error('Seed failed:', e.message);
+  }
   process.exit(1);
 });
