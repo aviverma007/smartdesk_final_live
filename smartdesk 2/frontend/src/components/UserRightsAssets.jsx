@@ -33,7 +33,12 @@ const STATUS_META = {
   approved: { label: 'Approved', color: 'var(--accent-green)' },
   rejected: { label: 'Rejected', color: '#dc2626' },
   manager_approved: { label: 'Manager Approved', color: 'var(--accent-sky)' },
-  it_given: { label: 'IT — Given', color: 'var(--accent-teal)' },
+  offer_accepted: { label: 'Offer Accepted', color: 'var(--accent-sky)' },
+  docs_pending: { label: 'Documents Pending', color: 'var(--accent-orange)' },
+  docs_complete: { label: 'Documents Complete', color: 'var(--accent-teal)' },
+  ready: { label: 'Ready for Handover', color: 'var(--accent-green)' },
+  handed_over: { label: 'Handed Over', color: 'var(--text-muted)' },
+  dropped: { label: 'Dropped', color: '#dc2626' },
 };
 const Pill = ({ status }) => {
   const m = STATUS_META[status] || { label: status, color: 'var(--text-muted)' };
@@ -1097,11 +1102,201 @@ const DirectoryView = ({ onBack }) => {
   );
 };
 
+/* ═══════════════════════ HR PRE-ONBOARDING ═════════════════════════════════ */
+const PRE_DOCS = [
+  { key: 'idProof', label: 'ID proof' },
+  { key: 'addressProof', label: 'Address proof' },
+  { key: 'education', label: 'Education certificates' },
+  { key: 'relieving', label: 'Relieving / experience letter' },
+  { key: 'bank', label: 'Bank details' },
+  { key: 'photo', label: 'Photograph' },
+];
+const PRE_STATUS = {
+  offer_accepted: { label: 'Offer Accepted', color: 'var(--accent-sky)' },
+  docs_pending: { label: 'Documents Pending', color: 'var(--accent-orange)' },
+  docs_complete: { label: 'Documents Complete', color: 'var(--accent-teal)' },
+  ready: { label: 'Ready for Handover', color: 'var(--accent-green)' },
+  handed_over: { label: 'Handed Over', color: 'var(--text-muted)' },
+  dropped: { label: 'Dropped', color: '#dc2626' },
+};
+
+const PreOnboardingView = ({ onBack }) => {
+  const api = useApi();
+  const [list, setList] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('active'); // active | ready | handed_over | all
+  const [showForm, setShowForm] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [msg, setMsg] = useState('');
+  const blank = { candidateName: '', role: '', grade: '', department: '', hiringManager: '', phone: '', email: '', mrfRef: '', joiningDate: '' };
+  const [form, setForm] = useState(blank);
+
+  const load = useCallback(async () => { const d = await api('/preonboarding'); if (d.success) setList(d.records); }, [api]);
+  useEffect(() => { load(); }, [load]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const create = async () => {
+    if (!form.candidateName.trim()) return setMsg('Candidate name is required.');
+    const d = await api('/preonboarding', 'POST', form);
+    if (d.success) { setForm(blank); setShowForm(false); setMsg('Candidate added.'); load(); } else setMsg(d.error || 'Failed.');
+  };
+
+  const docsOf = (r) => { try { return JSON.parse(r.Documents || '[]'); } catch { return PRE_DOCS.map(d => ({ ...d, received: false })); } };
+  const dispStatus = (r) => {
+    if (['ready', 'handed_over', 'dropped'].includes(r.Status)) return r.Status;
+    const d = docsOf(r);
+    if (d.length && d.every(x => x.received)) return 'docs_complete';
+    if (d.some(x => x.received) || r.OfferAcceptedDate) return 'docs_pending';
+    return 'offer_accepted';
+  };
+  const daysToJoin = (r) => r.JoiningDate ? Math.ceil((new Date(r.JoiningDate) - new Date()) / 86400000) : null;
+  const deadlineDays = (r) => r.JoiningDate ? Math.ceil((new Date(r.JoiningDate) - new Date()) / 86400000) - 7 : null;
+
+  const fmt = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const filtered = list.filter(r => {
+    const s = search.trim().toLowerCase();
+    const ms = !s || (r.CandidateName || '').toLowerCase().includes(s) || (r.AssignedEmpId || '').toLowerCase().includes(s) || (r.Department || '').toLowerCase().includes(s);
+    const mf = filter === 'all' || (filter === 'active' ? !['handed_over', 'dropped'].includes(r.Status) : r.Status === filter);
+    return ms && mf;
+  });
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Pre-Onboarding" subtitle="Prepare each accepted candidate before day one: acceptance, documents, ID, and handover." />
+
+      {!showForm && (
+        <button style={{ ...primaryBtn, marginBottom: 16 }} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New candidate</button>
+      )}
+      {showForm && (
+        <div style={card}>
+          <h2 style={h2}>New candidate</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 8 }}>
+            <Field l="Candidate name *"><input style={input} value={form.candidateName} onChange={e => set('candidateName', e.target.value)} /></Field>
+            <Field l="Role"><input style={input} value={form.role} onChange={e => set('role', e.target.value)} /></Field>
+            <Field l="Grade / band"><input style={input} value={form.grade} onChange={e => set('grade', e.target.value)} /></Field>
+            <Field l="Department"><input style={input} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
+            <Field l="Hiring manager"><input style={input} value={form.hiringManager} onChange={e => set('hiringManager', e.target.value)} /></Field>
+            <Field l="MRF reference"><input style={input} value={form.mrfRef} onChange={e => set('mrfRef', e.target.value)} /></Field>
+            <Field l="Phone"><input style={input} value={form.phone} onChange={e => set('phone', e.target.value)} /></Field>
+            <Field l="Email"><input style={input} value={form.email} onChange={e => set('email', e.target.value)} /></Field>
+            <Field l="Offered joining date"><input type="date" style={input} value={form.joiningDate} onChange={e => set('joiningDate', e.target.value)} /></Field>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={primaryBtn} onClick={create}>Add candidate</button>
+            <button style={ghostBtn} onClick={() => { setShowForm(false); setMsg(''); }}>Cancel</button>
+          </div>
+          {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+        </div>
+      )}
+
+      <div style={card}>
+        <h2 style={h2}>Candidates</h2>
+        <FilterBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter}
+          placeholder="Search by name, ID or department…"
+          options={[{ key: 'active', label: 'Active' }, { key: 'ready', label: 'Ready' }, { key: 'handed_over', label: 'Handed over' }, { key: 'all', label: 'All' }]} />
+        {filtered.length === 0 && <Empty text="No candidates." />}
+        {filtered.map(r => {
+          const dd = deadlineDays(r);
+          const late = dd !== null && dd < 0 && !docsOf(r).every(d => d.received) && !['handed_over', 'dropped'].includes(r.Status);
+          const soon = dd !== null && dd >= 0 && dd <= 3 && !docsOf(r).every(d => d.received);
+          return (
+            <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.CandidateName}{r.AssignedEmpId ? <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}> · ID {r.AssignedEmpId}</span> : ''}</div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[r.Role, r.Department].filter(Boolean).join(' · ') || '—'}{r.JoiningDate ? ` · joins ${fmt(r.JoiningDate)}` : ''}</div>
+                </div>
+                {late && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Docs overdue</span>}
+                {!late && soon && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>Docs due in {dd}d</span>}
+                <Pill status={dispStatus(r)} />
+                <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(openId === r.Id ? null : r.Id)}>{openId === r.Id ? 'Close' : 'Manage'}</button>
+              </div>
+              {openId === r.Id && <PreOnboardingDetail record={r} api={api} reload={load} />}
+            </div>
+          );
+        })}
+        {msg && !showForm && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+      </div>
+    </div>
+  );
+};
+
+const PreOnboardingDetail = ({ record, api, reload }) => {
+  const [r, setR] = useState(record);
+  const [msg, setMsg] = useState('');
+  useEffect(() => { setR(record); }, [record]);
+  const docs = (() => { try { return JSON.parse(r.Documents || '[]'); } catch { return PRE_DOCS.map(d => ({ ...d, received: false })); } })();
+  const allDocs = docs.every(d => d.received);
+
+  const save = async (patch) => {
+    const d = await api(`/preonboarding/${r.Id}`, 'PUT', patch);
+    if (d.success) { const nx = { ...r, ...toRow(patch) }; setR(nx); setMsg('Saved.'); reload(); }
+    else setMsg(d.error || 'Failed.');
+  };
+  // map camelCase patch -> row columns for local state
+  const toRow = (patch) => {
+    const m = { offerAcceptedDate: 'OfferAcceptedDate', resignationAcceptedDate: 'ResignationAcceptedDate', joiningDate: 'JoiningDate', assignedEmpId: 'AssignedEmpId', status: 'Status', notes: 'Notes', documents: 'Documents' };
+    const o = {}; Object.entries(patch).forEach(([k, v]) => { if (m[k]) o[m[k]] = k === 'documents' ? JSON.stringify(v) : v; }); return o;
+  };
+  const toggleDoc = (key) => { const nd = docs.map(d => d.key === key ? { ...d, received: !d.received } : d); save({ documents: nd }); };
+  const upload = async (key, file) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const d = await api(`/preonboarding/${r.Id}/upload`, 'POST', { key, fileName: file.name, dataBase64: reader.result });
+      if (d.success) { setMsg('Uploaded.'); reload(); const fresh = await api('/preonboarding'); if (fresh.success) { const u = fresh.records.find(x => x.Id === r.Id); if (u) setR(u); } }
+      else setMsg(d.error || 'Upload failed.');
+    };
+    reader.readAsDataURL(file);
+  };
+  const dateVal = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const done = ['handed_over', 'dropped'].includes(r.Status);
+
+  return (
+    <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <Field l="Offer acceptance date"><input type="date" style={input} disabled={done} value={dateVal(r.OfferAcceptedDate)} onChange={e => save({ offerAcceptedDate: e.target.value })} /></Field>
+        <Field l="Resignation acceptance date"><input type="date" style={input} disabled={done} value={dateVal(r.ResignationAcceptedDate)} onChange={e => save({ resignationAcceptedDate: e.target.value })} /></Field>
+        <Field l="Confirmed joining date"><input type="date" style={input} disabled={done} value={dateVal(r.JoiningDate)} onChange={e => save({ joiningDate: e.target.value })} /></Field>
+        <Field l="Assigned Employee ID"><input style={input} disabled={done} placeholder="Assign the User ID" value={r.AssignedEmpId || ''} onChange={e => setR({ ...r, AssignedEmpId: e.target.value })} onBlur={e => save({ assignedEmpId: e.target.value })} /></Field>
+      </div>
+      {r.JoiningDate && <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>Document deadline (7 days before joining): <strong>{new Date(new Date(r.JoiningDate).getTime() - 7 * 86400000).toISOString().slice(0, 10)}</strong></p>}
+
+      <div style={label}>Documents (tick when received; upload is optional)</div>
+      {docs.map(d => (
+        <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+          <label style={{ flex: 1, fontSize: '.86rem', color: 'var(--text-primary)' }}>
+            <input type="checkbox" disabled={done} checked={!!d.received} onChange={() => toggleDoc(d.key)} style={{ marginRight: 8 }} />{d.label}
+          </label>
+          {d.fileName && <a href={`${URA_API}/preonboarding/${r.Id}/file/${d.key}`} target="_blank" rel="noreferrer" style={{ fontSize: '.78rem', color: 'var(--accent)' }}>{d.fileName}</a>}
+          {!done && <label style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem', cursor: 'pointer', marginBottom: 0 }}>
+            Upload<input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && upload(d.key, e.target.files[0])} />
+          </label>}
+        </div>
+      ))}
+
+      <div style={label}>Engagement notes</div>
+      <textarea style={{ ...input, minHeight: 54 }} disabled={done} defaultValue={r.Notes || ''} onBlur={e => save({ notes: e.target.value })} placeholder="Touchpoints with the candidate…" />
+
+      {!done && (
+        <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+          <button style={primaryBtn} disabled={!(r.OfferAcceptedDate && r.ResignationAcceptedDate && r.JoiningDate && r.AssignedEmpId && allDocs)} onClick={() => save({ status: 'ready' })}>Mark Ready for handover</button>
+          {r.Status === 'ready' && <button style={ghostBtn} onClick={() => save({ status: 'handed_over' })}>Confirm handover to Operations</button>}
+          <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping this candidate?') || ''; save({ status: 'dropped', droppedReason: why }); }}>Mark dropped</button>
+        </div>
+      )}
+      {!allDocs && !done && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 8 }}>Ready-for-handover needs: offer + resignation dates, confirmed joining date, all documents ticked, and an assigned Employee ID.</p>}
+      {r.DroppedReason && <p style={{ fontSize: '.8rem', color: '#dc2626', marginTop: 8 }}>Dropped: {r.DroppedReason}</p>}
+      {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
+    </div>
+  );
+};
+
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
-  { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
-  { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['hr', 'it', 'admin', 'employee'] },
-  { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['hr', 'it', 'manager', 'admin', 'employee'] },
+  { id: 'preonboarding', title: 'Pre-Onboarding', desc: 'Prepare a new joiner before day one — documents, checks, and ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
+  { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['admin'] },
+  { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['it', 'admin', 'employee'] },
+  { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['it', 'manager', 'admin', 'employee'] },
   { id: 'overview', title: 'Employee Overview', desc: 'Search employees, view assets & rights, export to Excel.', grad: 'linear-gradient(135deg,#07212b,#0e7490)', roles: ['hr', 'it', 'admin'] },
   { id: 'matrix', title: 'Approval & Rights Matrix', desc: 'Admin-only. Assign or change any rights for anyone.', grad: 'linear-gradient(135deg,#2a0a0a,#b91c1c)', roles: ['admin'] },
   { id: 'directory', title: 'Directory Management', desc: 'Admin-only. Add or remove employees, with a full change log.', grad: 'linear-gradient(135deg,#0a2540,#1d4ed8)', roles: ['admin'] },
@@ -1157,6 +1352,7 @@ const UserRightsAssets = () => {
     </div>
   ) : null;
 
+  if (view === 'preonboarding') return <>{banner}<PreOnboardingView onBack={() => setView('home')} /></>;
   if (view === 'onboarding') return <><div style={{ padding: '0 0 0' }}>{banner}</div><OnboardingView onBack={() => setView('home')} /></>;
   if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
