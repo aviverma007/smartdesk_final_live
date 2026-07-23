@@ -850,8 +850,8 @@ app.put('/api/preonboarding/:id', async (req, res) => {
     const jd = b.joiningDate !== undefined ? b.joiningDate : cur.JoiningDate;
 
     if (status === 'ready') {
-      if (!offer || !resign || !jd || !assigned || !allDocsIn())
-        return res.status(400).json({ success: false, error: 'To mark Ready: offer acceptance, resignation acceptance, joining date, all documents, and an assigned Employee ID are required.' });
+      if (!offer || !resign || !jd || !allDocsIn())
+        return res.status(400).json({ success: false, error: 'To mark Ready: offer acceptance, resignation acceptance, confirmed joining date, and all documents are required.' });
     }
 
     await p.request()
@@ -876,22 +876,6 @@ app.put('/api/preonboarding/:id', async (req, res) => {
         HiringManager=@HM, Phone=@Phone, Email=@Email, MrfRef=@Mrf, JoiningDate=@JD,
         OfferAcceptedDate=@Offer, ResignationAcceptedDate=@Resign, Documents=@Docs, AssignedEmpId=@Emp,
         Notes=@Notes, Status=@Status, DroppedReason=@Drop, UpdatedAt=GETDATE() WHERE Id=@Id`);
-
-    // Assigning an Employee ID registers the joiner in the directory (so they can log in)
-    if (assigned && assigned !== cur.AssignedEmpId) {
-      await p.request().input('EmpId', sql.NVarChar, String(assigned).trim())
-        .input('Name', sql.NVarChar, b.candidateName ?? cur.CandidateName)
-        .input('Dept', sql.NVarChar, b.department ?? cur.Department)
-        .input('Desig', sql.NVarChar, b.role ?? cur.Role)
-        .input('Email', sql.NVarChar, b.email ?? cur.Email)
-        .input('By', sql.NVarChar, actor(req))
-        .query(`MERGE dbo.DirectoryEmployees AS t USING (SELECT @EmpId AS EmpId) AS s ON t.EmpId=s.EmpId
-                WHEN MATCHED THEN UPDATE SET Name=@Name, Department=@Dept, Designation=@Desig, Email=@Email, Status='active', DeletedBy=NULL, DeletedAt=NULL
-                WHEN NOT MATCHED THEN INSERT (EmpId,Name,Department,Designation,Email,CreatedBy) VALUES (@EmpId,@Name,@Dept,@Desig,@Email,@By);`).catch(() => {});
-      await p.request().input('A', sql.NVarChar, 'add').input('E', sql.NVarChar, String(assigned).trim())
-        .input('N', sql.NVarChar, b.candidateName ?? cur.CandidateName).input('By', sql.NVarChar, actor(req))
-        .query(`INSERT INTO dbo.DirectoryLog (Action,EmpId,Name,ActedBy) VALUES (@A,@E,@N,@By)`).catch(() => {});
-    }
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

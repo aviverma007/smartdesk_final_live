@@ -1156,7 +1156,7 @@ const PreOnboardingView = ({ onBack }) => {
   const filtered = list.filter(r => {
     const s = search.trim().toLowerCase();
     const ms = !s || (r.CandidateName || '').toLowerCase().includes(s) || (r.AssignedEmpId || '').toLowerCase().includes(s) || (r.Department || '').toLowerCase().includes(s);
-    const mf = filter === 'all' || (filter === 'active' ? !['handed_over', 'dropped'].includes(r.Status) : r.Status === filter);
+    const mf = filter === 'all' || (filter === 'active' ? !['ready', 'handed_over', 'dropped'].includes(r.Status) : r.Status === filter);
     return ms && mf;
   });
 
@@ -1203,7 +1203,7 @@ const PreOnboardingView = ({ onBack }) => {
             <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.CandidateName}{r.AssignedEmpId ? <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.8rem' }}> · ID {r.AssignedEmpId}</span> : ''}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.CandidateName}</div>
                   <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[r.Role, r.Department].filter(Boolean).join(' · ') || '—'}{r.JoiningDate ? ` · joins ${fmt(r.JoiningDate)}` : ''}</div>
                 </div>
                 {late && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Docs overdue</span>}
@@ -1211,7 +1211,7 @@ const PreOnboardingView = ({ onBack }) => {
                 <Pill status={dispStatus(r)} />
                 <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(openId === r.Id ? null : r.Id)}>{openId === r.Id ? 'Close' : 'Manage'}</button>
               </div>
-              {openId === r.Id && <PreOnboardingDetail record={r} api={api} reload={load} />}
+              {openId === r.Id && <PreOnboardingDetail record={r} api={api} reload={load} onClose={() => setOpenId(null)} />}
             </div>
           );
         })}
@@ -1221,7 +1221,7 @@ const PreOnboardingView = ({ onBack }) => {
   );
 };
 
-const PreOnboardingDetail = ({ record, api, reload }) => {
+const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
   const [r, setR] = useState(record);
   const [msg, setMsg] = useState('');
   useEffect(() => { setR(record); }, [record]);
@@ -1233,12 +1233,30 @@ const PreOnboardingDetail = ({ record, api, reload }) => {
     if (d.success) { const nx = { ...r, ...toRow(patch) }; setR(nx); setMsg('Saved.'); reload(); }
     else setMsg(d.error || 'Failed.');
   };
-  // map camelCase patch -> row columns for local state
   const toRow = (patch) => {
-    const m = { offerAcceptedDate: 'OfferAcceptedDate', resignationAcceptedDate: 'ResignationAcceptedDate', joiningDate: 'JoiningDate', assignedEmpId: 'AssignedEmpId', status: 'Status', notes: 'Notes', documents: 'Documents' };
+    const m = { offerAcceptedDate: 'OfferAcceptedDate', resignationAcceptedDate: 'ResignationAcceptedDate', joiningDate: 'JoiningDate', status: 'Status', notes: 'Notes', documents: 'Documents', droppedReason: 'DroppedReason' };
     const o = {}; Object.entries(patch).forEach(([k, v]) => { if (m[k]) o[m[k]] = k === 'documents' ? JSON.stringify(v) : v; }); return o;
   };
   const toggleDoc = (key) => { const nd = docs.map(d => d.key === key ? { ...d, received: !d.received } : d); save({ documents: nd }); };
+
+  // Ready-for-handover: if anything is pending, show a popup listing it; otherwise mark ready + collapse.
+  const markReady = async () => {
+    const missing = [];
+    if (!r.OfferAcceptedDate) missing.push('Offer acceptance date');
+    if (!r.ResignationAcceptedDate) missing.push('Resignation acceptance date');
+    if (!r.JoiningDate) missing.push('Confirmed joining date');
+    if (!allDocs) missing.push('All documents received');
+    if (missing.length) {
+      window.alert('Cannot mark Ready for handover yet.\n\nStill pending:\n\u2022 ' + missing.join('\n\u2022 '));
+      return;
+    }
+    const d = await api(`/preonboarding/${r.Id}`, 'PUT', { status: 'ready' });
+    if (d.success) {
+      window.alert('Marked ready \u2014 moved to \u201cReady for Handover\u201d.');
+      reload();
+      onClose && onClose();
+    } else window.alert(d.error || 'Failed.');
+  };
   const upload = async (key, file) => {
     const reader = new FileReader();
     reader.onload = async () => {
@@ -1257,7 +1275,6 @@ const PreOnboardingDetail = ({ record, api, reload }) => {
         <Field l="Offer acceptance date"><input type="date" style={input} disabled={done} value={dateVal(r.OfferAcceptedDate)} onChange={e => save({ offerAcceptedDate: e.target.value })} /></Field>
         <Field l="Resignation acceptance date"><input type="date" style={input} disabled={done} value={dateVal(r.ResignationAcceptedDate)} onChange={e => save({ resignationAcceptedDate: e.target.value })} /></Field>
         <Field l="Confirmed joining date"><input type="date" style={input} disabled={done} value={dateVal(r.JoiningDate)} onChange={e => save({ joiningDate: e.target.value })} /></Field>
-        <Field l="Assigned Employee ID"><input style={input} disabled={done} placeholder="Assign the User ID" value={r.AssignedEmpId || ''} onChange={e => setR({ ...r, AssignedEmpId: e.target.value })} onBlur={e => save({ assignedEmpId: e.target.value })} /></Field>
       </div>
       {r.JoiningDate && <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>Document deadline (7 days before joining): <strong>{new Date(new Date(r.JoiningDate).getTime() - 7 * 86400000).toISOString().slice(0, 10)}</strong></p>}
 
@@ -1279,12 +1296,12 @@ const PreOnboardingDetail = ({ record, api, reload }) => {
 
       {!done && (
         <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-          <button style={primaryBtn} disabled={!(r.OfferAcceptedDate && r.ResignationAcceptedDate && r.JoiningDate && r.AssignedEmpId && allDocs)} onClick={() => save({ status: 'ready' })}>Mark Ready for handover</button>
-          {r.Status === 'ready' && <button style={ghostBtn} onClick={() => save({ status: 'handed_over' })}>Confirm handover to Operations</button>}
+          {r.Status !== 'ready' && <button style={primaryBtn} onClick={markReady}>Mark Ready for handover</button>}
+          {r.Status === 'ready' && <button style={primaryBtn} onClick={() => save({ status: 'handed_over' })}>Confirm handover to Operations</button>}
           <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping this candidate?') || ''; save({ status: 'dropped', droppedReason: why }); }}>Mark dropped</button>
         </div>
       )}
-      {!allDocs && !done && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 8 }}>Ready-for-handover needs: offer + resignation dates, confirmed joining date, all documents ticked, and an assigned Employee ID.</p>}
+      {r.Status !== 'ready' && !done && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 8 }}>Ready-for-handover needs: offer + resignation dates, confirmed joining date, and all documents ticked.</p>}
       {r.DroppedReason && <p style={{ fontSize: '.8rem', color: '#dc2626', marginTop: 8 }}>Dropped: {r.DroppedReason}</p>}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
     </div>
