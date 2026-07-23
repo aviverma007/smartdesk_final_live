@@ -1206,6 +1206,7 @@ const PreOnboardingView = ({ onBack }) => {
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.CandidateName}</div>
                   <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[r.Role, r.Department].filter(Boolean).join(' · ') || '—'}{r.JoiningDate ? ` · joins ${fmt(r.JoiningDate)}` : ''}</div>
                 </div>
+                {r.DeleteRequested && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Delete requested</span>}
                 {late && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Docs overdue</span>}
                 {!late && soon && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>Docs due in {dd}d</span>}
                 <Pill status={dispStatus(r)} />
@@ -1222,6 +1223,7 @@ const PreOnboardingView = ({ onBack }) => {
 };
 
 const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
+  const { isAdmin } = useAuth();
   const [r, setR] = useState(record);
   const [msg, setMsg] = useState('');
   useEffect(() => { setR(record); }, [record]);
@@ -1239,7 +1241,26 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
   };
   const toggleDoc = (key) => { const nd = docs.map(d => d.key === key ? { ...d, received: !d.received } : d); save({ documents: nd }); };
 
-  // Ready-for-handover: if anything is pending, show a popup listing it; otherwise mark ready + collapse.
+  // Delete request (HR) -> admin approval
+  const requestDelete = async () => {
+    const why = window.prompt('Delete this entry? A reason will be sent to Admin for approval:');
+    if (why === null) return;
+    const d = await api(`/preonboarding/${r.Id}/request-delete`, 'POST', { reason: why });
+    if (d.success) { window.alert('Deletion requested \u2014 pending Admin approval.'); reload(); onClose && onClose(); }
+    else window.alert(d.error || 'Failed.');
+  };
+  const approveDelete = async () => {
+    if (!window.confirm('Approve deletion? This permanently removes the entry.')) return;
+    const d = await api(`/preonboarding/${r.Id}/approve-delete`, 'POST', {});
+    if (d.success) { window.alert('Entry deleted.'); reload(); onClose && onClose(); }
+    else window.alert(d.error || 'Failed.');
+  };
+  const rejectDelete = async () => {
+    const d = await api(`/preonboarding/${r.Id}/reject-delete`, 'POST', {});
+    if (d.success) { window.alert('Deletion request rejected.'); reload(); onClose && onClose(); }
+    else window.alert(d.error || 'Failed.');
+  };
+
   const markReady = async () => {
     const missing = [];
     if (!r.OfferAcceptedDate) missing.push('Offer acceptance date');
@@ -1294,14 +1315,34 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
       <div style={label}>Engagement notes</div>
       <textarea style={{ ...input, minHeight: 54 }} disabled={done} defaultValue={r.Notes || ''} onBlur={e => save({ notes: e.target.value })} placeholder="Touchpoints with the candidate…" />
 
-      {!done && (
-        <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-          {r.Status !== 'ready' && <button style={primaryBtn} onClick={markReady}>Mark Ready for handover</button>}
-          {r.Status === 'ready' && <button style={primaryBtn} onClick={() => save({ status: 'handed_over' })}>Confirm handover to Operations</button>}
-          <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping this candidate?') || ''; save({ status: 'dropped', droppedReason: why }); }}>Mark dropped</button>
+      {r.DeleteRequested ? (
+        <div style={{ marginTop: 10, padding: 12, borderRadius: 8, background: 'color-mix(in srgb, #dc2626 8%, transparent)', border: '1px solid #dc2626' }}>
+          <div style={{ fontSize: '.84rem', color: '#dc2626', fontWeight: 700 }}>Deletion requested{r.DeleteRequestedBy ? ` by ${r.DeleteRequestedBy}` : ''}</div>
+          {r.DeleteReason && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 3 }}>Reason: {r.DeleteReason}</div>}
+          {isAdmin ? (
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button style={{ ...primaryBtn, background: '#dc2626' }} onClick={approveDelete}>Approve deletion</button>
+              <button style={ghostBtn} onClick={rejectDelete}>Reject</button>
+            </div>
+          ) : (
+            <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 6 }}>Awaiting Admin approval.</div>
+          )}
         </div>
+      ) : (
+        <>
+          {!done && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+              {r.Status !== 'ready' && <button style={primaryBtn} onClick={markReady}>Mark Ready for handover</button>}
+              {r.Status === 'ready' && <button style={primaryBtn} onClick={() => save({ status: 'handed_over' })}>Confirm handover to Operations</button>}
+              <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping this candidate?') || ''; save({ status: 'dropped', droppedReason: why }); }}>Mark dropped</button>
+            </div>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', fontSize: '.8rem', padding: '6px 12px' }} onClick={requestDelete}>Delete entry</button>
+          </div>
+        </>
       )}
-      {r.Status !== 'ready' && !done && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 8 }}>Ready-for-handover needs: offer + resignation dates, confirmed joining date, and all documents ticked.</p>}
+      {r.Status !== 'ready' && !done && !r.DeleteRequested && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 8 }}>Ready-for-handover needs: offer + resignation dates, confirmed joining date, and all documents ticked.</p>}
       {r.DroppedReason && <p style={{ fontSize: '.8rem', color: '#dc2626', marginTop: 8 }}>Dropped: {r.DroppedReason}</p>}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
     </div>

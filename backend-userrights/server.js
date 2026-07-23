@@ -234,6 +234,10 @@ CREATE TABLE dbo.PreOnboarding (
   CreatedAt DATETIME NOT NULL DEFAULT(GETDATE()),
   UpdatedAt DATETIME NOT NULL DEFAULT(GETDATE())
 );
+IF COL_LENGTH('dbo.PreOnboarding','DeleteRequested') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequested BIT NOT NULL DEFAULT(0);
+IF COL_LENGTH('dbo.PreOnboarding','DeleteReason') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteReason NVARCHAR(300) NULL;
+IF COL_LENGTH('dbo.PreOnboarding','DeleteRequestedBy') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequestedBy NVARCHAR(80) NULL;
+IF COL_LENGTH('dbo.PreOnboarding','DeleteRequestedAt') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequestedAt DATETIME NULL;
   `);
   console.log('   ✓ Tables ready');
 }
@@ -912,6 +916,41 @@ app.get('/api/preonboarding/:id/file/:key', async (req, res) => {
     if (!f) return res.status(404).send('Not found');
     res.download(pathmod.join(dir, f), f.split('__').slice(1).join('__'));
   } catch (err) { res.status(500).send(err.message); }
+});
+
+// HR requests deletion of a candidate record -> goes to admin for approval
+app.post('/api/preonboarding/:id/request-delete', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .input('Reason', sql.NVarChar, (req.body || {}).reason || null)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.PreOnboarding SET DeleteRequested=1, DeleteReason=@Reason, DeleteRequestedBy=@By, DeleteRequestedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Admin approves the deletion -> record (and its files) are removed
+app.post('/api/preonboarding/:id/approve-delete', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id).query(`DELETE FROM dbo.PreOnboarding WHERE Id=@Id`);
+    try { fs.rmSync(pathmod.join(PRE_DIR, String(req.params.id)), { recursive: true, force: true }); } catch (_) {}
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Admin rejects the deletion -> clears the request
+app.post('/api/preonboarding/:id/reject-delete', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.PreOnboarding SET DeleteRequested=0, DeleteReason=NULL, DeleteRequestedBy=NULL, DeleteRequestedAt=NULL, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 /* ═══════════════════════ APP-USER LOGIN ════════════════════════════════════ */
