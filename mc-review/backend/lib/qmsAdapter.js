@@ -1,41 +1,138 @@
 /**
  * QMS adapter — read-only, one-way QMS -> Dashboard (Workflow v2.5 §1.1).
  *
- * Production wires this up to the real QMS OData endpoint (I1/I2/I3 in the
- * readiness doc). Until then, this module simulates the exact NFA records
- * from the reference prototype (mc-review-dashboard-prototype-v1-4.html,
- * the `const QMS = {...}` seed set), field-for-field, so the app's UI can
- * be built/demoed against the real shape and values the org already
- * validated in that prototype.
+ * Wired to the real live PR/NFA feed:
+ *   https://smartworlddevelopersonline.com/SapPrNFATatReport.php
+ *     ?startdate=YYYY-MM-DD&enddate=YYYY-MM-DD
  *
- * Swap point: replace `lookupNfa()` with a real HTTP call and keep the
- * returned shape identical so nothing else in the codebase has to change.
+ * Per instruction: startdate is fixed at 2025-01-01 and enddate is always
+ * "today" (the server's own clock — never a client-supplied value, per
+ * I10/F9), so every fetch pulls the full available history through now.
+ *
+ * The feed returns one JSON object per PR/NFA row with SAP-style field
+ * names (NFA_No, NFA_Title, Vendor_Name, NFA_Budget, ...). This module
+ * normalizes that shape into the field names the rest of the app expects
+ * (project, desc, vendor, val, reason, ...) — see mapRecord() below. No
+ * attached-file data is provided by this endpoint; `files` stays empty
+ * until the QMS file-store/OData integration (a separate, still-pending
+ * piece per the readiness doc's I1/I2/I3) is wired in.
+ *
+ * A short in-memory cache avoids re-fetching the (potentially large) feed
+ * on every keystroke/request; call invalidateCache() if a manual refresh
+ * is ever needed.
  */
 
-const QMS_SIM = {
-  '14315': { project: 'Gems 89', location: 'Sec 89', apprNote: 'No', desc: 'Supply of utilities items at Clubhouse for SW Gems 89 site', duration: '02 Months', vendor: 'M/s Gunwant Electrical & Hardware Store', val: '0.76', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'Dispensers 6 nos @ ₹7,650 · ext. boards 3 @ ₹460 · dustbins 23 @ ₹590 · soap disp. 6 @ ₹550 (excl. GST 18%)', reason: 'As requested by site', reasonability: 'Rates finalised through competitive bidding', vendPQ: '3', pr: '10462', initDt: '2026-06-24', pendWith: 'MC', initiator: 'Dhruv', prBudget: '0.80', initBy: 'Site', rateVal: 'Competitive bidding', files: [{ n: 'NFA_14315_v00.pdf', t: 'pdf' }, { n: 'Quotation_Gunwant.pdf', t: 'pdf' }, { n: 'Comparative_3bids.xlsx', t: 'xls' }] },
-  '14306': { project: 'One DXP 113', location: '113', apprNote: 'No', desc: 'Sale order of scrap — TMT reinforcement steel (2 months)', duration: '2 Months', vendor: 'M/s Brown Traders', val: '19.82', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'Qty 50 MT @ ₹39,648/MT incl. GST 18%', reason: '—', reasonability: 'Competitive bidding; rates reasonable vs market', vendPQ: '5', pr: '8140001162', initDt: '2026-06-23', pendWith: 'MC', initiator: 'Manish', prBudget: '20.00', initBy: 'C&P Team', rateVal: 'Competitive bidding', files: [{ n: 'NFA_14306_v00.pdf', t: 'pdf' }, { n: 'Scrap_bids_5vendors.xlsx', t: 'xls' }] },
-  '14331': { project: 'Orchard 61', location: '61', apprNote: 'No', desc: 'Supply & installation of club upgradation landscape items', duration: '1 Month', vendor: '1. M/s Ascent Homes (₹1.21 L) · 2. M/s Vimal Probuild (₹2.61 L) · 3. M/s Oraa Enterprises (₹6.00 L)', val: '9.82', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'FRP planters @ ₹3,990–5,200 · artificial grass @ ₹527/sqft · bollards @ ₹18,400 · recessed lights @ ₹9,800–11,600 (excl. GST)', reason: 'Club upgradation items per landscape scheme', reasonability: 'Competitive bidding; credit / PI-linked payment terms per vendor', vendPQ: '3', pr: '13302', initDt: '2026-06-26', pendWith: 'MC', initiator: 'Jai Tyagi', prBudget: '10.00', initBy: 'Site', rateVal: 'Competitive bidding', files: [{ n: 'NFA_14331_v00.pdf', t: 'pdf' }, { n: 'Landscape_BOQ.xlsx', t: 'xls' }, { n: 'Vendor_offers', t: 'fld' }] },
-  '13594': { project: 'Orchard 61', location: '61', apprNote: 'No', desc: 'Amendment-02 to Order 1566 — SITC of DG exhaust pipeline works (Ph-3)', duration: 'As per initial order', vendor: 'M/s Satkartar Electricals & Electronics Pvt. Ltd.', val: '39.82', lastAmd: 'NA', amdVal: '31.99', variation: '-7.83', rate: 'Qty amendment ↓ ₹7.95 L per final certified qty · extra item silencer insulation 320 kVA DG ₹0.12 L', reason: 'Qty per actual certified quantity; extra item missing from initial BOQ', reasonability: 'Initial qty amendment ₹0.18 L revised to ₹7.95 L per final certification; extra item negotiated ₹33,000 → ₹10,000 + GST', vendPQ: '1', pr: '10022', initDt: '2026-06-25', pendWith: 'MC', initiator: 'Bhavdeep Pilania', prBudget: '32.00', initBy: 'Site', rateVal: 'Rate analysis', files: [{ n: 'NFA_13594_v01.pdf', t: 'pdf' }, { n: 'Amendment_annexure.xlsx', t: 'xls' }, { n: 'Certified_qty_mail.msg', t: 'msg' }] },
-  '14319': { project: 'Orchard 61', location: '61', apprNote: 'No', desc: 'Amendment 01 to PO SRPL/Paver/2321 — supply of pavers', duration: '—', vendor: 'M/s Shree Balaji Pavers', val: '23.99', lastAmd: 'NA', amdVal: '24.76', variation: '0.77', rate: 'Pavers 200×100×80 yellow M-30 · 120.96 sqm @ ₹540/sqm excl. GST', reason: 'Additional item included in scope; vendor declined further discount', reasonability: 'Benchmarked vs Gems base-rate approval 30-05-26 — quoted rates lower', vendPQ: '1', pr: '10539', initDt: '2026-06-25', pendWith: 'MC', initiator: 'Manish', prBudget: '25.00', initBy: 'Site', rateVal: 'Existing rate reference', files: [{ n: 'NFA_14319_v00.pdf', t: 'pdf' }] },
-  '14401': { project: 'One DXP 113', location: '113', apprNote: 'No', desc: 'Base rates — Z-Black granite (18–20 mm)', duration: '1 month', vendor: 'M/s Servesar Granite', val: '21.43 (excl. GST)', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: '₹1,647/sqm (₹153/sqft) excl. GST · FOR site · unloading included · payment 100% advance', reason: '—', reasonability: '—', vendPQ: '1', pr: '—', initDt: '2026-07-02', pendWith: 'MC', initiator: 'Manish', prBudget: '—', initBy: 'C&P Team', rateVal: 'Rate analysis', files: [{ n: 'Granite_rate_offer.pdf', t: 'pdf' }, { n: 'Sample_photos', t: 'img' }] },
-  '14402': { project: 'One DXP 113', location: '113', apprNote: 'No', desc: 'Base rates — steel grey granite (20 mm+)', duration: '1 month', vendor: 'M/s Servesar Granite', val: '4.03 (excl. GST)', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: '₹125/sqft excl. GST · FOR site · unloading included · payment 100% advance', reason: '—', reasonability: '—', vendPQ: '1', pr: '—', initDt: '2026-07-02', pendWith: 'MC', initiator: 'Manish', prBudget: '—', initBy: 'C&P Team', rateVal: 'Rate analysis', files: [{ n: 'Granite_rate_offer.pdf', t: 'pdf' }] },
-  '14355': { project: 'Sky Arc 69', location: '69', apprNote: 'No', desc: 'Supply of misc. consumables — details incomplete', duration: '1 Month', vendor: 'M/s A-One Traders', val: '1.12', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'rate details awaited', reason: '—', reasonability: '—', vendPQ: '1', pr: '—', initDt: '2026-07-03', pendWith: 'L3', initiator: 'Kunal Mehra', prBudget: '—', initBy: 'Site', rateVal: '', files: [{ n: 'NFA_14355_v00.pdf', t: 'pdf' }] },
-  '14350': { project: 'Orchard 61', location: '61', apprNote: 'No', desc: 'Boundary wall & RCC works — phase 2 stretch', duration: '3 Months', vendor: 'M/s Jagrati Construction', val: '41.20', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'As per BOQ — L1 of 4 bids', reason: 'Phase-2 site development', reasonability: 'Competitive bidding; L1 lowest', vendPQ: '4', pr: '11208', initDt: '2026-07-01', pendWith: 'MC', initiator: 'Dhruv', prBudget: '42.00', initBy: 'Site', rateVal: 'Competitive bidding', files: [{ n: 'NFA_14350_v00.pdf', t: 'pdf' }, { n: 'RCC_BOQ.xlsx', t: 'xls' }] },
-  '14352': { project: 'The Edition', location: 'Sec 66', apprNote: 'No', desc: 'Structural consultancy — peer review, Towers C & D', duration: '6 Months', vendor: 'M/s StruCon Consultants LLP', val: '14.50', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'Lump-sum per tower @ ₹7.25 L excl. GST', reason: 'Peer review mandated for high-rise', reasonability: 'Negotiated from ₹8.4 L per tower', vendPQ: '2', pr: '11544', initDt: '2026-06-30', pendWith: 'MC', initiator: 'Priya Nair', prBudget: '15.00', initBy: 'C&P Team', rateVal: 'Rate analysis', files: [{ n: 'NFA_14352_v00.pdf', t: 'pdf' }, { n: 'Scope_note.pdf', t: 'pdf' }] },
-  '14333': { project: 'One DXP-2 113', location: '113', apprNote: 'No', desc: 'SITC of dust separation system works', duration: '3 Months', vendor: 'M/s Oxy Green Landscape and Infra LLP', val: '11.88', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'As per BOQ', reason: 'Dust control at batching zone', reasonability: 'Reference rates via competitive bidding; Oxy Green is L1 — reasonable', vendPQ: '2', pr: '8140001160', initDt: '2026-06-26', pendWith: 'Yash Sharma', initiator: 'Yash Sharma', prBudget: '12.00', initBy: 'Site', rateVal: 'Competitive bidding', files: [{ n: 'NFA_14333_v00.pdf', t: 'pdf' }, { n: 'DustSys_BOQ.xlsx', t: 'xls' }, { n: 'L1_L2_mail.msg', t: 'msg' }] },
-  '14313': { project: 'One DXP', location: '113', apprNote: 'No', desc: 'Sale order — shifting of 30 kVA DG set from Sales Gallery Sec-111 to Sky Arc Sec-69', duration: '15 days', vendor: 'M/s Riverday Infrastructure Pvt. Ltd.', val: '2.06', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'Internal shifting', reason: 'Internal shifting of DG set', reasonability: '—', vendPQ: '1', pr: '8140001174', initDt: '2026-06-26', pendWith: '—', initiator: 'Suraj Bhan Bhardwaj', prBudget: '2.10', initBy: 'C&P Team', rateVal: '', files: [{ n: 'NFA_14313_v00.pdf', t: 'pdf' }] },
-  '14344': { project: 'Orchard 61', location: '61', apprNote: 'No', desc: 'Sale order of scrap — TMT reinforcement steel', duration: '2 Months', vendor: 'M/s Brown Traders', val: '3.78', lastAmd: 'NA', amdVal: 'NA', variation: 'NA', rate: 'Scrap qty 10 MT @ ₹37,760/MT incl. GST 18%', reason: 'Collection from multiple locations', reasonability: 'Competitive bidding; rates reasonable', vendPQ: '3', pr: '10321', initDt: '2026-06-29', pendWith: '—', initiator: 'Yash Sharma', prBudget: '4.00', initBy: 'Site', rateVal: 'Competitive bidding', files: [{ n: 'NFA_14344_v00.pdf', t: 'pdf' }] },
-};
+const BASE_URL = 'https://smartworlddevelopersonline.com/SapPrNFATatReport.php';
+const FIXED_START_DATE = '2025-01-01';
+const CACHE_TTL_MS = 60 * 1000; // 60s — balances freshness against hammering the feed
+
+let cache = { at: 0, byNfa: new Map() };
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Normalizes an NFA number for lookup: strips leading zeros so "0000014315"
+// and "14315" match the same record (QMS pads to 10 digits; the dashboard
+// and people type the short form).
+function normalizeNfa(nfa) {
+  return String(nfa || '').replace(/^0+/, '') || '0';
+}
+
+// "0000014315" -> "14315" for display; falls back to the raw value if it
+// doesn't look like a zero-padded numeric NFA.
+function displayNfa(rawNfaNo) {
+  const n = normalizeNfa(rawNfaNo);
+  return /^\d+$/.test(n) ? n : rawNfaNo;
+}
+
+// "0.80 Lacs" / "23.00 Lacs" -> "0.80" / "23.00"; leaves non-numeric as-is.
+function lacsToNumberString(s) {
+  if (!s) return '—';
+  const m = String(s).match(/-?[\d,]+\.?\d*/);
+  return m ? m[0].replace(/,/g, '') : String(s).trim();
+}
+
+// DD/MM/YYYY -> YYYY-MM-DD (the feed's date fields use this format).
+function dmyToIso(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+// Collapses Vendor_One..Vendor_Five into a single "1. X · 2. Y" string,
+// matching how the dashboard already displays multi-vendor NFAs.
+function combineVendors(rec) {
+  const names = [rec.Vendor_One, rec.Vendor_Two, rec.Vendor_Three, rec.Vendor_Four, rec.Vendor_Five]
+    .map((v) => (v || '').trim())
+    .filter((v) => v && v !== '0');
+  if (names.length === 0) return rec.Vendor_Name || '—';
+  if (names.length === 1) return names[0];
+  return names.map((n, i) => `${i + 1}. ${n}`).join(' · ');
+}
+
+function mapRecord(rec) {
+  return {
+    project: rec.Project_Name || rec.NFA_Location || '—',
+    location: rec.NFA_Location || rec.PR_Location || '—',
+    desc: rec.NFA_Title || rec.Scope || '—',
+    duration: rec.Contract_Duration || '—',
+    vendor: combineVendors(rec),
+    val: lacsToNumberString(rec.NFA_Budget),
+    lastAmd: 'NA', // not separately exposed by this feed; revisedVal() falls back to val
+    variation: 'NA',
+    reason: rec.Subject_Of_NFA || rec.Scope || '—',
+    reasonability: rec.Rate_Recommendations || '—',
+    rateVal: rec.Vendor_Recommendations || '',
+    vendPQ: String([rec.Vendor_One, rec.Vendor_Two, rec.Vendor_Three, rec.Vendor_Four, rec.Vendor_Five]
+      .filter((v) => v && v.trim() && v.trim() !== '0').length || 1),
+    pr: rec.EPR_No || '—',
+    initDt: dmyToIso(rec.PRN_Date) || (rec.PR_Created_Date || '').slice(0, 10) || null,
+    pendWith: rec.NFA_Pending_With || rec.PR_Pending_With || '—',
+    initiator: rec.recomender_name || rec.cp_name || '—',
+    prBudget: lacsToNumberString(rec.NFA_Budget),
+    initBy: rec.PRH_Package || 'Site',
+    files: [], // real QMS file-store integration pending (I1/I2/I3)
+  };
+}
+
+async function loadCache() {
+  const now = Date.now();
+  if (now - cache.at < CACHE_TTL_MS && cache.byNfa.size > 0) return cache.byNfa;
+
+  const url = `${BASE_URL}?startdate=${FIXED_START_DATE}&enddate=${todayISO()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`QMS feed returned HTTP ${res.status}`);
+  const data = await res.json();
+  const rows = Array.isArray(data.results) ? data.results : [];
+
+  const byNfa = new Map();
+  rows.forEach((rec) => {
+    const key = normalizeNfa(rec.NFA_No);
+    // Later rows (feed order) win on duplicate NFA numbers — the feed can
+    // return the same NFA multiple times across amendment versions.
+    byNfa.set(key, rec);
+  });
+
+  cache = { at: now, byNfa };
+  return byNfa;
+}
 
 /**
  * Look up an NFA in QMS. Returns null if not found (Mode A validation #1 —
  * "NFA not in QMS -> error + offer Mode B").
  */
 async function lookupNfa(nfaNo) {
-  const rec = QMS_SIM[nfaNo];
+  const byNfa = await loadCache();
+  const rec = byNfa.get(normalizeNfa(nfaNo));
   if (!rec) return null;
-  return { ...rec, files: rec.files.map((f) => ({ ...f })) };
+  return mapRecord(rec);
 }
 
-module.exports = { lookupNfa, QMS_SIM };
+function invalidateCache() {
+  cache = { at: 0, byNfa: new Map() };
+}
+
+module.exports = { lookupNfa, invalidateCache, mapRecord, normalizeNfa, displayNfa };

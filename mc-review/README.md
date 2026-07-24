@@ -54,12 +54,16 @@ npm run seed
 ```
 
 This drives the app through its own API (not raw SQL), so everything it
-creates is workflow-valid:
-- Two plain drafts sitting on Page 1 (NFAs 14355, 14352, 14401 — never submitted)
+creates is workflow-valid. It fetches real, currently-live NFA numbers
+from the QMS feed — if any of them have aged out of the feed's result
+window by the time you run this, open the feed URL in a browser and swap
+in whatever `NFA_No` values currently appear (see the comment at the top
+of `scripts/seed-dummy-data.js`):
+- Two plain drafts sitting on Page 1 (never submitted)
 - Three MEP entries submitted, locked, decided (2 approved + 1 held) and
   **published** for today's date
-- One Civil entry (14350) submitted to Page 2 but left unlocked, so you can
-  try locking/deciding it yourself
+- One Civil entry submitted to Page 2 but left unlocked, so you can try
+  locking/deciding it yourself
 - Order numbers generated for the two approved MEP NFAs
 
 Switch roles with the top-right dropdown to see each stage: User (Page 1),
@@ -136,16 +140,34 @@ Everything in Workflow Definition v2.5, including the build queue B1–B7:
 
 ## What's simulated / stubbed for now
 
-- **QMS integration** (`backend/lib/qmsAdapter.js`) — the real OData
-  endpoint (I1/I2/I3) wasn't live in this environment at build time, so this
-  module simulates the same NFA records the prototype used. Swap
-  `lookupNfa()` for a real HTTP call; keep the returned shape identical.
 - **Auth** — header-based trust, matching the existing SmartDesk pattern.
   Real AD/SSO (I4) is a separate IT lane.
+- **QMS attached files** — the live PR/NFA feed (see below) does not expose
+  document/attachment data, so `files` stays empty until the QMS
+  file-store integration is separately wired.
 - **Server date** — the backend derives `today` from its own clock
   (`lib/reference.js: todayISO()`), never from the client, per I10/F9. There
   is no "frozen demo date" like the prototype's `05-Jul-2026` — this build
   always uses the real server date.
+
+## QMS integration (live)
+
+`backend/lib/qmsAdapter.js` fetches from the real PR/NFA feed:
+```
+https://smartworlddevelopersonline.com/SapPrNFATatReport.php?startdate=2025-01-01&enddate=<today>
+```
+`startdate` is fixed at `2025-01-01`; `enddate` is always today's date on
+the server's own clock (never client-supplied, per I10/F9). Results are
+cached in-memory for 60s to avoid re-fetching the full feed on every
+keystroke. NFA numbers are matched with/without the feed's zero-padding
+(e.g. `14315` and `0000014315` both resolve to the same record).
+
+Field mapping from the feed's SAP-style names to the dashboard's internal
+shape lives in `mapRecord()` in that file — e.g. `NFA_Title` → `desc`,
+`NFA_Budget` ("23.00 Lacs") → `val`/`prBudget` (numeric string), multiple
+`Vendor_One..Vendor_Five` → a single combined `vendor` string, `NFA_Title`
++ `Subject_Of_NFA` → `desc`/`reason`. If the feed's shape changes, this is
+the only place to update.
 
 ## Known open items (carried from the handover pack, not decided here)
 

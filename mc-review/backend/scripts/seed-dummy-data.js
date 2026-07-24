@@ -6,6 +6,14 @@
  * one sheet taken all the way through lock -> decide -> publish, and a
  * couple of generated order numbers.
  *
+ * IMPORTANT: since lib/qmsAdapter.js now fetches the real live QMS feed
+ * (smartworlddevelopersonline.com), the NFA numbers below must exist in
+ * that feed's current result set — they are NOT guaranteed stable, since
+ * the feed only returns recent PR/NFA activity. If a fetch below fails
+ * with "NFA not found in QMS", open the feed URL in a browser
+ * (https://smartworlddevelopersonline.com/SapPrNFATatReport.php?startdate=2025-01-01&enddate=<today>)
+ * and swap in whatever NFA_No values currently appear there.
+ *
  * Usage (backend must already be running on PORT from .env, default 5094):
  *   node scripts/seed-dummy-data.js
  */
@@ -31,16 +39,18 @@ const admin = client('admin', 'akhilesh');
 
 async function main() {
   console.log(`Seeding against ${BASE} for review date ${TODAY} ...`);
+  console.log('NOTE: NFA numbers below must exist in the live QMS feed right now — see file header if a fetch fails.');
 
   // --- Page 1: fetch a handful of NFAs as plain drafts (left untouched) ---
-  const draftNfas = ['14355', '14352', '14401'];
+  // Update these to current NFA_No values from the live feed if they 404.
+  const draftNfas = ['14717', '14715'];
   for (const nfa of draftNfas) {
     const res = await user.post('/entries/fetch', { nfa, index: 'MEP', wt: 'A', date: TODAY });
     console.log(`  draft: fetched ${nfa} ->`, res.data.created ? 'created' : Object.keys(res.data)[0]);
   }
 
   // --- A couple more, selected + submitted to Page 2 (MEP) ---
-  const mepSubmit = ['14315', '14306', '14319'];
+  const mepSubmit = ['14712', '14709', '14706'];
   const mepEntryIds = [];
   for (const nfa of mepSubmit) {
     const res = await user.post('/entries/fetch', { nfa, index: 'MEP', wt: 'A', date: TODAY });
@@ -52,11 +62,11 @@ async function main() {
   }
 
   // --- One CIVIL entry too, so the Civil reviewer has something to see ---
-  const civRes = await user.post('/entries/fetch', { nfa: '14350', index: 'CIVIL', wt: 'A', date: TODAY });
+  const civRes = await user.post('/entries/fetch', { nfa: '14708', index: 'CIVIL', wt: 'A', date: TODAY });
   const civId = civRes.data.entry.id;
   await user.post(`/entries/${civId}/select`, { selected: true });
   await user.post(`/entries/${civId}/submit`, {});
-  console.log(`  CIVIL: 14350 submitted to Page 2 (${TODAY})`);
+  console.log(`  CIVIL: 14708 submitted to Page 2 (${TODAY})`);
 
   // --- Page 2 (MEP reviewer): mark all three "present to MC", then lock ---
   const sheetBefore = await revMEP.get(`/sheets/MEP/${TODAY}`);
@@ -78,7 +88,7 @@ async function main() {
   console.log(`  MEP published: ${pubRes.data.decidedCount} decided, ${pubRes.data.undecidedCount} expired`);
 
   // --- Page 4: generate order numbers for the approved NFAs ---
-  const approvedNfas = mepSubmit.slice(0, 2); // 14315, 14306 were set to 'approved' above
+  const approvedNfas = mepSubmit.slice(0, 2); // 14712, 14709 were set to 'approved' above
   for (const nfa of approvedNfas) {
     const genRes = await admin.post('/orders/generate', { nfa, index: 'MEP', count: 1, orderType: 'PO' });
     console.log(`  order generated for ${nfa}:`, genRes.data.created?.[0]);
@@ -87,7 +97,7 @@ async function main() {
   console.log('\nDone. Open http://localhost:94 and switch roles to explore:');
   console.log(`  - Page 1 (User): drafts for 14355 / 14352, approved/held rows for the rest`);
   console.log(`  - Page 2 (Reviewer-MEP): sheet for ${TODAY} — already locked/published`);
-  console.log(`  - Page 2 (Reviewer-Civil): sheet for ${TODAY} — one NFA (14350), not yet locked`);
+  console.log(`  - Page 2 (Reviewer-Civil): sheet for ${TODAY} — one NFA (14708), not yet locked`);
   console.log(`  - Page 3 (Reviewer-MEP): published decisions for ${TODAY}`);
   console.log(`  - Page 4 (Admin): order numbers generated for the approved NFAs`);
   console.log(`  - Page 1 > Published PDFs tab: MEP / ${TODAY} PDF ready to open`);
