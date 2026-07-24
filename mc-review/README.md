@@ -154,13 +154,17 @@ Everything in Workflow Definition v2.5, including the build queue B1–B7:
 
 `backend/lib/qmsAdapter.js` fetches from the real PR/NFA feed:
 ```
-https://smartworlddevelopersonline.com/SapPrNFATatReport.php?startdate=2025-01-01&enddate=<today>
+https://smartworlddevelopersonline.com/SapPrNFATatReport.php?startdate=<today-3mo>&enddate=<today>
 ```
-`startdate` is fixed at `2025-01-01`; `enddate` is always today's date on
-the server's own clock (never client-supplied, per I10/F9). Results are
+`startdate` is a rolling window — today minus 3 months (see
+`LOOKBACK_MONTHS` in that file) — and `enddate` is always today's date on
+the server's own clock (never client-supplied, per I10/F9). A full-history
+window (originally fixed at 2025-01-01) was too large a payload and too
+slow to load, so it was narrowed to a rolling 3 months; adjust
+`LOOKBACK_MONTHS` if a different window is ever needed. Results are
 cached in-memory for 60s to avoid re-fetching the full feed on every
-keystroke. NFA numbers are matched with/without the feed's zero-padding
-(e.g. `14315` and `0000014315` both resolve to the same record).
+keystroke, and the fetch itself times out after 20s so a slow response
+fails cleanly instead of hanging the UI.
 
 Field mapping from the feed's SAP-style names to the dashboard's internal
 shape lives in `mapRecord()` in that file — e.g. `NFA_Title` → `desc`,

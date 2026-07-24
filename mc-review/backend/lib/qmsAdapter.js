@@ -5,9 +5,12 @@
  *   https://smartworlddevelopersonline.com/SapPrNFATatReport.php
  *     ?startdate=YYYY-MM-DD&enddate=YYYY-MM-DD
  *
- * Per instruction: startdate is fixed at 2025-01-01 and enddate is always
- * "today" (the server's own clock — never a client-supplied value, per
- * I10/F9), so every fetch pulls the full available history through now.
+ * The window is a rolling last-3-months: startdate = today minus
+ * LOOKBACK_MONTHS, enddate is always today's date on the server's own
+ * clock (never a client-supplied value, per I10/F9). A full-history window
+ * (originally 2025-01-01) was too large a payload and too slow to load, so
+ * this was narrowed to 3 months — adjust LOOKBACK_MONTHS below if a wider
+ * or narrower window is ever needed.
  *
  * The feed returns one JSON object per PR/NFA row with SAP-style field
  * names (NFA_No, NFA_Title, Vendor_Name, NFA_Budget, ...). This module
@@ -23,13 +26,21 @@
  */
 
 const BASE_URL = 'https://smartworlddevelopersonline.com/SapPrNFATatReport.php';
-const FIXED_START_DATE = '2025-01-01';
+const LOOKBACK_MONTHS = 3; // rolling window — 2025-01-01 was too large a payload and too slow to load
 const CACHE_TTL_MS = 60 * 1000; // 60s — balances freshness against hammering the feed
 
 let cache = { at: 0, byNfa: new Map() };
 
 function todayISO() {
   const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Rolling start date = today minus LOOKBACK_MONTHS, recomputed on every
+// cache refresh so the window always slides forward with "today".
+function startDateISO() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - LOOKBACK_MONTHS);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -102,14 +113,14 @@ async function loadCache() {
   const now = Date.now();
   if (now - cache.at < CACHE_TTL_MS && cache.byNfa.size > 0) return cache.byNfa;
 
-  const url = `${BASE_URL}?startdate=${FIXED_START_DATE}&enddate=${todayISO()}`;
+  const url = `${BASE_URL}?startdate=${startDateISO()}&enddate=${todayISO()}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000); // fail fast rather than hang the UI indefinitely
   let res;
   try {
     res = await fetch(url, { signal: controller.signal });
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error('QMS feed timed out after 20s — it may be returning a very large payload for the 2025-01-01 window');
+    if (e.name === 'AbortError') throw new Error('QMS feed timed out after 20s — try again in a moment');
     throw e;
   } finally {
     clearTimeout(timeout);

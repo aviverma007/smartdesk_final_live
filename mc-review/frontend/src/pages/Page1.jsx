@@ -382,7 +382,7 @@ export default function Page1() {
           )}
 
           <div className="legendline">
-            Pulled live from the QMS PR/NFA feed (startdate fixed at 2025-01-01, enddate always today) — this is the full
+            Pulled live from the QMS PR/NFA feed (rolling last 3 months, enddate always today) — this is the full
             set currently available, not filtered to your own entries. Click "Use in Fetch" to pre-fill the NFA number on
             the My Entries tab, then pick Index/Work Type/Review Date and Fetch as usual.
           </div>
