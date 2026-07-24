@@ -36,6 +36,10 @@ export default function Page1() {
   const [searchNfa, setSearchNfa] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [stagedFiles, setStagedFiles] = useState([]);
+  const [allNfas, setAllNfas] = useState([]);
+  const [allNfasLoading, setAllNfasLoading] = useState(false);
+  const [allNfasError, setAllNfasError] = useState(null);
+  const [allNfasFilter, setAllNfasFilter] = useState('');
 
   async function loadStaged() {
     try { const d = await api.getStagedFiles(); setStagedFiles(d.staged || []); } catch { /* ignore */ }
@@ -65,6 +69,15 @@ export default function Page1() {
   useEffect(() => { load(); }, [dateView]);
   useEffect(() => { loadStaged(); }, []);
   useEffect(() => { if (subTab === 'pdfs') api.publishedPdfs().then(setPublishedPdfs).catch(() => {}); }, [subTab]);
+  useEffect(() => {
+    if (subTab !== 'allnfas') return;
+    setAllNfasLoading(true);
+    setAllNfasError(null);
+    api.allNfas()
+      .then(setAllNfas)
+      .catch((e) => setAllNfasError(e.response?.data?.error || 'Failed to load NFAs from QMS'))
+      .finally(() => setAllNfasLoading(false));
+  }, [subTab]);
 
   async function doFetch() {
     if (!qeNfa.trim() || !qeIndex || !qeWt) return push('NFA number, Index, and Work Type are required', 'error');
@@ -145,9 +158,9 @@ export default function Page1() {
   return (
     <div className="pagewrap">
       <div className="subtabs">
-        {['entries', 'pdfs', 'search'].map((t) => (
+        {['entries', 'allnfas', 'pdfs', 'search'].map((t) => (
           <button key={t} className={`stab ${subTab === t ? 'active' : ''}`} onClick={() => setSubTab(t)}>
-            {t === 'entries' ? 'My Entries' : t === 'pdfs' ? 'Published PDFs' : 'NFA Search & History'}
+            {t === 'entries' ? 'My Entries' : t === 'allnfas' ? 'All NFAs (QMS)' : t === 'pdfs' ? 'Published PDFs' : 'NFA Search & History'}
           </button>
         ))}
         <div className="spacer" />
@@ -251,6 +264,80 @@ export default function Page1() {
             files: click to open/download, × to deselect · re-fetch an existing NFA to re-pull QMS fields &amp; restore its attachments ·
             today's view lists all open entries (today + every future review date); pick a future date to filter to that date only —
             history lives in Published PDFs &amp; NFA Search
+          </div>
+        </div>
+      )}
+
+      {subTab === 'allnfas' && (
+        <div className="surface">
+          <div className="toolbar">
+            <input
+              className="inp" style={{ width: 280 }}
+              placeholder="Filter by NFA / project / vendor / description…"
+              value={allNfasFilter}
+              onChange={(e) => setAllNfasFilter(e.target.value)}
+            />
+            <span className="filterlbl">
+              {allNfasLoading ? 'Loading from QMS…' : `${allNfas.length} NFA(s) in the live feed window`}
+            </span>
+            <div className="spacer" />
+            <button className="btn ghost" onClick={() => { setAllNfasLoading(true); api.allNfas().then(setAllNfas).catch((e) => setAllNfasError(e.response?.data?.error || 'Failed')).finally(() => setAllNfasLoading(false)); }}>
+              Refresh
+            </button>
+          </div>
+
+          {allNfasError ? (
+            <div className="empty">{allNfasError}</div>
+          ) : allNfasLoading ? (
+            <div className="empty">Loading…</div>
+          ) : (
+            <div className="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>NFA No.</th><th>Project</th><th>Location</th><th>Description of Work</th>
+                    <th>Vendor(s)</th><th>Value (₹L)</th><th>PR No.</th><th>Initiated On</th>
+                    <th>Initiator</th><th>Pending With</th><th>Package</th><th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allNfas
+                    .filter((n) => {
+                      if (!allNfasFilter.trim()) return true;
+                      const q = allNfasFilter.toLowerCase();
+                      return `${n.nfa} ${n.project} ${n.vendor} ${n.desc}`.toLowerCase().includes(q);
+                    })
+                    .map((n) => (
+                      <tr key={n.nfa}>
+                        <td className="nfa">{n.nfa}</td>
+                        <td>{n.project}</td>
+                        <td>{n.location}</td>
+                        <td>{n.desc}</td>
+                        <td>{n.vendor}</td>
+                        <td>{n.val}</td>
+                        <td>{n.pr}</td>
+                        <td>{n.initDt ? fmtDMY(n.initDt) : '—'}</td>
+                        <td>{n.initiator}</td>
+                        <td>{n.pendWith}</td>
+                        <td>{n.initBy}</td>
+                        <td>
+                          <button className="btn sm" onClick={() => { setQeNfa(n.nfa); setSubTab('entries'); }}>
+                            Use in Fetch
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  {allNfas.length === 0 && !allNfasLoading && (
+                    <tr><td colSpan={12} className="empty">No NFAs returned by the QMS feed for the current window.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="legendline">
+            Pulled live from the QMS PR/NFA feed (startdate fixed at 2025-01-01, enddate always today) — this is the full
+            set currently available, not filtered to your own entries. Click "Use in Fetch" to pre-fill the NFA number on
+            the My Entries tab, then pick Index/Work Type/Review Date and Fetch as usual.
           </div>
         </div>
       )}

@@ -131,8 +131,24 @@ async function lookupNfa(nfaNo) {
   return mapRecord(rec);
 }
 
+/**
+ * List every NFA currently in the feed's result window, mapped to the same
+ * shape as lookupNfa() plus the display-friendly NFA number. Backs the
+ * Page-1 "All NFAs" browse tab.
+ */
+async function listAll() {
+  const byNfa = await loadCache();
+  const out = [];
+  byNfa.forEach((rec, key) => {
+    out.push({ nfa: displayNfa(rec.NFA_No), ...mapRecord(rec) });
+  });
+  // Most-recently-initiated first, matching the feed's own ordering intent.
+  out.sort((a, b) => (b.initDt || '').localeCompare(a.initDt || ''));
+  return out;
+}
+
 function invalidateCache() {
   cache = { at: 0, byNfa: new Map() };
 }
 
-module.exports = { lookupNfa, invalidateCache, mapRecord, normalizeNfa, displayNfa };
+module.exports = { lookupNfa, listAll, invalidateCache, mapRecord, normalizeNfa, displayNfa };

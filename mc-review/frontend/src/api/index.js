@@ -3,6 +3,7 @@ import client, { API_BASE } from './client';
 export const api = {
   // Reference & users
   reference: () => client.get('/reference').then((r) => r.data),
+  allNfas: () => client.get('/qms/all-nfas').then((r) => r.data),
   users: () => client.get('/users').then((r) => r.data),
   me: () => client.get('/users/me').then((r) => r.data),
   audit: () => client.get('/audit').then((r) => r.data),

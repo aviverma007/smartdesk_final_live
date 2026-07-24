@@ -1,5 +1,6 @@
 const express = require('express');
 const { WORK_TYPES, INDEX_NAMES, ORDER_TYPES, RATE_VALIDATIONS, INITIATED_BY_OPTIONS } = require('../lib/reference');
+const { listAll } = require('../lib/qmsAdapter');
 
 module.exports = function miscRoutes(getPool) {
   const router = express.Router();
@@ -7,6 +8,16 @@ module.exports = function miscRoutes(getPool) {
   // ---- Reference data for dropdowns/labels --------------------------------
   router.get('/reference', (req, res) => {
     res.json({ workTypes: WORK_TYPES, indexNames: INDEX_NAMES, orderTypes: ORDER_TYPES, rateValidations: RATE_VALIDATIONS, initiatedByOptions: INITIATED_BY_OPTIONS });
+  });
+
+  // ---- All NFAs currently in the QMS feed (Page-1 "All NFAs" browse tab) --
+  router.get('/qms/all-nfas', async (req, res) => {
+    try {
+      const nfas = await listAll();
+      res.json(nfas);
+    } catch (e) {
+      res.status(502).json({ error: `QMS feed unavailable: ${e.message}` });
+    }
   });
 
   // ---- Audit trail (admin-viewable; §9.4) ---------------------------------
