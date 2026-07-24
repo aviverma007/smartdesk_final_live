@@ -37,9 +37,11 @@ export default function Page1() {
   const [searchResult, setSearchResult] = useState(null);
   const [stagedFiles, setStagedFiles] = useState([]);
   const [allNfas, setAllNfas] = useState([]);
+  const [allNfasTotal, setAllNfasTotal] = useState(0);
   const [allNfasLoading, setAllNfasLoading] = useState(false);
   const [allNfasError, setAllNfasError] = useState(null);
   const [allNfasFilter, setAllNfasFilter] = useState('');
+  const [allNfasPageSize, setAllNfasPageSize] = useState(100);
 
   async function loadStaged() {
     try { const d = await api.getStagedFiles(); setStagedFiles(d.staged || []); } catch { /* ignore */ }
@@ -69,14 +71,40 @@ export default function Page1() {
   useEffect(() => { load(); }, [dateView]);
   useEffect(() => { loadStaged(); }, []);
   useEffect(() => { if (subTab === 'pdfs') api.publishedPdfs().then(setPublishedPdfs).catch(() => {}); }, [subTab]);
-  useEffect(() => {
-    if (subTab !== 'allnfas') return;
+
+  async function loadAllNfas(limit) {
     setAllNfasLoading(true);
     setAllNfasError(null);
-    api.allNfas()
-      .then(setAllNfas)
-      .catch((e) => setAllNfasError(e.response?.data?.error || 'Failed to load NFAs from QMS'))
-      .finally(() => setAllNfasLoading(false));
+    try {
+      const data = await api.allNfas(limit, 0);
+      setAllNfas(data.rows);
+      setAllNfasTotal(data.total);
+      setAllNfasPageSize(limit);
+    } catch (e) {
+      setAllNfasError(e.response?.data?.error || 'Failed to load NFAs from QMS');
+    } finally {
+      setAllNfasLoading(false);
+    }
+  }
+
+  async function loadMoreNfas() {
+    const nextLimit = allNfasPageSize + 100;
+    setAllNfasLoading(true);
+    try {
+      const data = await api.allNfas(nextLimit, 0);
+      setAllNfas(data.rows);
+      setAllNfasTotal(data.total);
+      setAllNfasPageSize(nextLimit);
+    } catch (e) {
+      setAllNfasError(e.response?.data?.error || 'Failed to load more');
+    } finally {
+      setAllNfasLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (subTab !== 'allnfas') return;
+    loadAllNfas(100);
   }, [subTab]);
 
   async function doFetch() {
@@ -278,12 +306,10 @@ export default function Page1() {
               onChange={(e) => setAllNfasFilter(e.target.value)}
             />
             <span className="filterlbl">
-              {allNfasLoading ? 'Loading from QMS…' : `${allNfas.length} NFA(s) in the live feed window`}
+              {allNfasLoading ? 'Loading from QMS…' : `Showing ${allNfas.length} of ${allNfasTotal} NFA(s) in the live feed window`}
             </span>
             <div className="spacer" />
-            <button className="btn ghost" onClick={() => { setAllNfasLoading(true); api.allNfas().then(setAllNfas).catch((e) => setAllNfasError(e.response?.data?.error || 'Failed')).finally(() => setAllNfasLoading(false)); }}>
-              Refresh
-            </button>
+            <button className="btn ghost" onClick={() => loadAllNfas(allNfasPageSize)}>Refresh</button>
           </div>
 
           {allNfasError ? (
@@ -334,6 +360,27 @@ export default function Page1() {
               </table>
             </div>
           )}
+
+          {!allNfasError && (
+            <div className="toolbar" style={{ marginTop: 10 }}>
+              {allNfasPageSize < allNfasTotal && (
+                <button className="btn" disabled={allNfasLoading} onClick={loadMoreNfas}>
+                  Load {Math.min(100, allNfasTotal - allNfasPageSize)} more
+                </button>
+              )}
+              {allNfasPageSize < 500 && allNfasTotal > allNfasPageSize && (
+                <button className="btn ghost" disabled={allNfasLoading} onClick={() => loadAllNfas(500)}>
+                  Show 500
+                </button>
+              )}
+              {allNfasPageSize < allNfasTotal && (
+                <button className="btn ghost" disabled={allNfasLoading} onClick={() => loadAllNfas(allNfasTotal)}>
+                  Show all ({allNfasTotal})
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="legendline">
             Pulled live from the QMS PR/NFA feed (startdate fixed at 2025-01-01, enddate always today) — this is the full
             set currently available, not filtered to your own entries. Click "Use in Fetch" to pre-fill the NFA number on

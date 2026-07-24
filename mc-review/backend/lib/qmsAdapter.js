@@ -103,7 +103,17 @@ async function loadCache() {
   if (now - cache.at < CACHE_TTL_MS && cache.byNfa.size > 0) return cache.byNfa;
 
   const url = `${BASE_URL}?startdate=${FIXED_START_DATE}&enddate=${todayISO()}`;
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000); // fail fast rather than hang the UI indefinitely
+  let res;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('QMS feed timed out after 20s — it may be returning a very large payload for the 2025-01-01 window');
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) throw new Error(`QMS feed returned HTTP ${res.status}`);
   const data = await res.json();
   const rows = Array.isArray(data.results) ? data.results : [];

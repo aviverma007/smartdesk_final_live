@@ -11,10 +11,14 @@ module.exports = function miscRoutes(getPool) {
   });
 
   // ---- All NFAs currently in the QMS feed (Page-1 "All NFAs" browse tab) --
+  // ?limit=100&offset=0 — defaults to the first 100; the frontend's
+  // Load-more/Show-500 controls just change these two params.
   router.get('/qms/all-nfas', async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 100, 2000);
+    const offset = Number(req.query.offset) || 0;
     try {
-      const nfas = await listAll();
-      res.json(nfas);
+      const all = await listAll();
+      res.json({ total: all.length, offset, limit, rows: all.slice(offset, offset + limit) });
     } catch (e) {
       res.status(502).json({ error: `QMS feed unavailable: ${e.message}` });
     }
