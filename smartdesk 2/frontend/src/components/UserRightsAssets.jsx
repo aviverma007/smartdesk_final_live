@@ -33,7 +33,12 @@ const STATUS_META = {
   approved: { label: 'Approved', color: 'var(--accent-green)' },
   rejected: { label: 'Rejected', color: '#dc2626' },
   manager_approved: { label: 'Manager Approved', color: 'var(--accent-sky)' },
-  it_given: { label: 'IT — Given', color: 'var(--accent-teal)' },
+  offer_accepted: { label: 'Offer Accepted', color: 'var(--accent-sky)' },
+  docs_pending: { label: 'Documents Pending', color: 'var(--accent-orange)' },
+  docs_complete: { label: 'Documents Complete', color: 'var(--accent-teal)' },
+  ready: { label: 'Ready for Handover', color: 'var(--accent-green)' },
+  handed_over: { label: 'Handed Over', color: 'var(--text-muted)' },
+  dropped: { label: 'Dropped', color: '#dc2626' },
 };
 const Pill = ({ status }) => {
   const m = STATUS_META[status] || { label: status, color: 'var(--text-muted)' };
@@ -738,10 +743,15 @@ const FilterBar = ({ search, setSearch, filter, setFilter, options, placeholder 
     <div style={{ display: 'flex', gap: 8 }}>
       {options.map(o => (
         <button key={o.key} onClick={() => setFilter(o.key)} style={{ padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
-          fontSize: '.82rem', fontFamily: "'DM Sans',sans-serif",
+          fontSize: '.82rem', fontFamily: "'DM Sans',sans-serif", display: 'inline-flex', alignItems: 'center', gap: 7,
           border: `1px solid ${filter === o.key ? 'var(--accent)' : 'var(--border)'}`,
           background: filter === o.key ? 'var(--accent)' : 'transparent',
-          color: filter === o.key ? '#fff' : 'var(--text-primary)' }}>{o.label}</button>
+          color: filter === o.key ? '#fff' : 'var(--text-primary)' }}>
+          {o.label}
+          {o.count != null && <span style={{ fontSize: '.72rem', fontWeight: 700, lineHeight: 1, padding: '2px 7px', borderRadius: 10,
+            background: filter === o.key ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--accent) 15%, transparent)',
+            color: filter === o.key ? '#fff' : 'var(--accent)' }}>{o.count}</span>}
+        </button>
       ))}
     </div>
   </div>
@@ -1097,11 +1107,403 @@ const DirectoryView = ({ onBack }) => {
   );
 };
 
+/* ═══════════════════════ HR PRE-ONBOARDING ═════════════════════════════════ */
+const PRE_DOCS = [
+  { key: 'idProof', label: 'ID proof' },
+  { key: 'addressProof', label: 'Address proof' },
+  { key: 'education', label: 'Education certificates' },
+  { key: 'relieving', label: 'Relieving / experience letter' },
+  { key: 'bank', label: 'Bank details' },
+  { key: 'photo', label: 'Photograph' },
+];
+const PRE_STATUS = {
+  offer_accepted: { label: 'Offer Accepted', color: 'var(--accent-sky)' },
+  docs_pending: { label: 'Documents Pending', color: 'var(--accent-orange)' },
+  docs_complete: { label: 'Documents Complete', color: 'var(--accent-teal)' },
+  ready: { label: 'Ready for Handover', color: 'var(--accent-green)' },
+  handed_over: { label: 'Handed Over', color: 'var(--text-muted)' },
+  dropped: { label: 'Dropped', color: '#dc2626' },
+};
+
+const PreOnboardingView = ({ onBack }) => {
+  const api = useApi();
+  const [list, setList] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('active'); // active | ready | handed_over | all
+  const [showForm, setShowForm] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [msg, setMsg] = useState('');
+  const blank = { candidateName: '', role: '', grade: '', department: '', hiringManager: '', phone: '', email: '', mrfRef: '', joiningDate: '' };
+  const [form, setForm] = useState(blank);
+  const [staged, setStaged] = useState([]);   // candidates parsed from an upload, pending review
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => { const d = await api('/preonboarding'); if (d.success) setList(d.records); }, [api]);
+  useEffect(() => { load(); }, [load]);
+
+  // ── Bulk uploader ──────────────────────────────────────────────
+  const TEMPLATE_COLS = ['Candidate Name', 'Role', 'Grade', 'Department', 'Hiring Manager', 'Phone', 'Email', 'MRF Reference', 'Joining Date (YYYY-MM-DD)'];
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      TEMPLATE_COLS,
+      ['Asha Rao', 'Sales Executive', 'M2', 'Sales', 'R. Mehta', '9876543210', 'asha@example.com', 'MRF-2026-014', '2026-08-18'],
+    ]);
+    ws['!cols'] = TEMPLATE_COLS.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+    XLSX.writeFile(wb, 'preonboarding_candidates_template.xlsx');
+  };
+  const toISO = (v) => {
+    if (!v) return '';
+    if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10);
+    const d = new Date(v);
+    return isNaN(d) ? String(v) : d.toISOString().slice(0, 10);
+  };
+  const pick = (row, ...keys) => { for (const k of keys) { if (row[k] !== undefined && String(row[k]).trim() !== '') return String(row[k]).trim(); } return ''; };
+  const cleanName = (s) => String(s).replace(/^[=+\-@]+/, '').trim(); // neutralise CSV formula injection
+  const validRow = (c, i, all) => {
+    const errs = [];
+    if (c.joiningDate && !/^\d{4}-\d{2}-\d{2}$/.test(c.joiningDate)) errs.push('joining date not YYYY-MM-DD');
+    if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) errs.push('email looks invalid');
+    const dupExisting = list.some(r => (r.CandidateName || '').trim().toLowerCase() === c.candidateName.toLowerCase() && !['dropped'].includes(r.Status));
+    const dupInBatch = all.findIndex(x => x.candidateName.toLowerCase() === c.candidateName.toLowerCase()) !== i;
+    if (dupExisting) errs.push('already in the list');
+    else if (dupInBatch) errs.push('duplicate in this file');
+    return errs;
+  };
+  const onUploadFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        let rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        // trim/normalise header keys so " Candidate Name " still matches
+        rows = rows.map(r => { const o = {}; Object.keys(r).forEach(k => { o[String(k).trim()] = r[k]; }); return o; });
+        const mapped = rows.map(r => ({
+          candidateName: cleanName(pick(r, 'Candidate Name', 'Candidate name', 'Name')),
+          role: pick(r, 'Role', 'Designation'),
+          grade: pick(r, 'Grade', 'Band'),
+          department: pick(r, 'Department', 'Dept'),
+          hiringManager: pick(r, 'Hiring Manager', 'Manager'),
+          phone: pick(r, 'Phone', 'Mobile', 'Contact'),
+          email: pick(r, 'Email', 'Email ID'),
+          mrfRef: pick(r, 'MRF Reference', 'MRF Ref', 'MRF'),
+          joiningDate: toISO(r['Joining Date (YYYY-MM-DD)'] || r['Joining Date'] || r['Joining'] || ''),
+        })).filter(x => x.candidateName);
+        if (!mapped.length) { window.alert('No valid rows found. Make sure the first row has the column headers from the template (e.g. "Candidate Name") and that names are filled in.'); return; }
+        const withErrs = mapped.map((c, i, all) => ({ ...c, _errs: validRow(c, i, all) }));
+        setStaged(withErrs);
+        setShowForm(false);
+        const bad = withErrs.filter(c => c._errs.length).length;
+        window.alert(`${withErrs.length} candidate(s) read from the file.` + (bad ? `\n\n${bad} row(s) have warnings — shown in red below. Fix them in the file and re-upload, or delete them before saving.` : '\n\nReview the list below and remove any wrong entries, then click "Save".'));
+      } catch (err) {
+        window.alert('Could not read that file. Please upload the .xlsx template (or a .csv with the same column headers).');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  const removeStaged = (i) => setStaged(s => s.filter((_, idx) => idx !== i));
+  const saveStaged = async () => {
+    if (!staged.length) return;
+    const blocked = staged.filter(c => c._errs && c._errs.length);
+    if (blocked.length) {
+      const ok = window.confirm(`${blocked.length} row(s) still have warnings and will be SKIPPED. Save the ${staged.length - blocked.length} clean row(s) anyway?`);
+      if (!ok) return;
+    }
+    const toSave = staged.filter(c => !(c._errs && c._errs.length));
+    if (!toSave.length) { window.alert('Nothing to save — every row has a warning. Delete or fix them first.'); return; }
+    setSaving(true);
+    let okc = 0; const failed = [];
+    for (const c of toSave) {
+      const { _errs, ...payload } = c;
+      try { const d = await api('/preonboarding', 'POST', payload); if (d.success) okc++; else failed.push(`${c.candidateName}: ${d.error || 'failed'}`); }
+      catch { failed.push(`${c.candidateName}: request failed`); }
+    }
+    setSaving(false);
+    setStaged([]);
+    load();
+    window.alert(`Added ${okc} candidate(s).` + (failed.length ? `\n\nCould not add ${failed.length}:\n\u2022 ${failed.join('\n\u2022 ')}` : ''));
+  };
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const create = async () => {
+    if (!form.candidateName.trim()) return setMsg('Candidate name is required.');
+    const d = await api('/preonboarding', 'POST', form);
+    if (d.success) { setForm(blank); setShowForm(false); setMsg('Candidate added.'); load(); } else setMsg(d.error || 'Failed.');
+  };
+
+  const docsOf = (r) => { try { return JSON.parse(r.Documents || '[]'); } catch { return PRE_DOCS.map(d => ({ ...d, received: false })); } };
+  const dispStatus = (r) => {
+    if (['ready', 'handed_over', 'dropped'].includes(r.Status)) return r.Status;
+    const d = docsOf(r);
+    if (d.length && d.every(x => x.received)) return 'docs_complete';
+    if (d.some(x => x.received) || r.OfferAcceptedDate) return 'docs_pending';
+    return 'offer_accepted';
+  };
+  const daysToJoin = (r) => r.JoiningDate ? Math.ceil((new Date(r.JoiningDate) - new Date()) / 86400000) : null;
+  const deadlineDays = (r) => r.JoiningDate ? Math.ceil((new Date(r.JoiningDate) - new Date()) / 86400000) - 7 : null;
+
+  const fmt = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const filtered = list.filter(r => {
+    const s = search.trim().toLowerCase();
+    const ms = !s || (r.CandidateName || '').toLowerCase().includes(s) || (r.AssignedEmpId || '').toLowerCase().includes(s) || (r.Department || '').toLowerCase().includes(s);
+    const mf = filter === 'all' || (filter === 'active' ? !['ready', 'handed_over', 'dropped'].includes(r.Status) : r.Status === filter);
+    return ms && mf;
+  });
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Pre-Onboarding" subtitle="Prepare each accepted candidate before day one: acceptance, documents, ID, and handover." />
+
+      {!showForm && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New candidate</button>
+          <button style={ghostBtn} onClick={downloadTemplate}>Download uploader template</button>
+          <label style={{ ...ghostBtn, cursor: 'pointer', marginBottom: 0 }}>
+            Upload candidates
+            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
+              onChange={e => { onUploadFile(e.target.files[0]); e.target.value = ''; }} />
+          </label>
+        </div>
+      )}
+
+      {staged.length > 0 && (
+        <div style={{ ...card, border: '1px solid var(--accent)' }}>
+          <h2 style={h2}>Review upload — {staged.length} candidate(s)</h2>
+          <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: -4, marginBottom: 12 }}>Check the rows below. Remove anything uploaded by mistake, then save the rest.</p>
+          {staged.map((c, i) => (
+            <div key={i} style={{ ...rowStyle, ...(c._errs && c._errs.length ? { border: '1px solid #dc2626', borderRadius: 8 } : {}) }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.candidateName}</div>
+                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[c.role, c.department, c.joiningDate ? `joins ${c.joiningDate}` : '', c.email].filter(Boolean).join(' · ') || '—'}</div>
+                {c._errs && c._errs.length > 0 && <div style={{ fontSize: '.78rem', color: '#dc2626', marginTop: 3 }}>⚠ {c._errs.join(' · ')}</div>}
+              </div>
+              <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '6px 12px', fontSize: '.8rem' }} onClick={() => removeStaged(i)}>Delete</button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <button style={primaryBtn} disabled={saving} onClick={saveStaged}>{saving ? 'Saving…' : `Save ${staged.length} candidate(s)`}</button>
+            <button style={ghostBtn} disabled={saving} onClick={() => setStaged([])}>Discard upload</button>
+          </div>
+        </div>
+      )}
+      {showForm && (
+        <div style={card}>
+          <h2 style={h2}>New candidate</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 8 }}>
+            <Field l="Candidate name *"><input style={input} value={form.candidateName} onChange={e => set('candidateName', e.target.value)} /></Field>
+            <Field l="Role"><input style={input} value={form.role} onChange={e => set('role', e.target.value)} /></Field>
+            <Field l="Grade / band"><input style={input} value={form.grade} onChange={e => set('grade', e.target.value)} /></Field>
+            <Field l="Department"><input style={input} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
+            <Field l="Hiring manager"><input style={input} value={form.hiringManager} onChange={e => set('hiringManager', e.target.value)} /></Field>
+            <Field l="MRF reference"><input style={input} value={form.mrfRef} onChange={e => set('mrfRef', e.target.value)} /></Field>
+            <Field l="Phone"><input style={input} value={form.phone} onChange={e => set('phone', e.target.value)} /></Field>
+            <Field l="Email"><input style={input} value={form.email} onChange={e => set('email', e.target.value)} /></Field>
+            <Field l="Offered joining date"><input type="date" style={input} value={form.joiningDate} onChange={e => set('joiningDate', e.target.value)} /></Field>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={primaryBtn} onClick={create}>Add candidate</button>
+            <button style={ghostBtn} onClick={() => { setShowForm(false); setMsg(''); }}>Cancel</button>
+          </div>
+          {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+        </div>
+      )}
+
+      <div style={card}>
+        <h2 style={h2}>Candidates</h2>
+        <FilterBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter}
+          placeholder="Search by name, ID or department…"
+          options={[
+            { key: 'active', label: 'Active', count: list.filter(x => !['ready', 'handed_over', 'dropped'].includes(x.Status)).length },
+            { key: 'ready', label: 'Ready', count: list.filter(x => x.Status === 'ready').length },
+            { key: 'handed_over', label: 'Handed over', count: list.filter(x => x.Status === 'handed_over').length },
+            { key: 'all', label: 'All', count: list.length },
+          ]} />
+        {filtered.length === 0 && <Empty text="No candidates." />}
+        {filtered.map(r => {
+          const dd = deadlineDays(r);
+          const late = dd !== null && dd < 0 && !docsOf(r).every(d => d.received) && !['handed_over', 'dropped'].includes(r.Status);
+          const soon = dd !== null && dd >= 0 && dd <= 3 && !docsOf(r).every(d => d.received);
+          return (
+            <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.CandidateName}</div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[r.Role, r.Department].filter(Boolean).join(' · ') || '—'}{r.JoiningDate ? ` · joins ${fmt(r.JoiningDate)}` : ''}</div>
+                </div>
+                {r.DeleteRequested && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Delete requested</span>}
+                {late && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Docs overdue</span>}
+                {!late && soon && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>Docs due in {dd}d</span>}
+                <Pill status={dispStatus(r)} />
+                <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(openId === r.Id ? null : r.Id)}>{openId === r.Id ? 'Close' : 'Manage'}</button>
+              </div>
+              {openId === r.Id && <PreOnboardingDetail record={r} api={api} reload={load} onClose={() => setOpenId(null)} />}
+            </div>
+          );
+        })}
+        {msg && !showForm && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+      </div>
+    </div>
+  );
+};
+
+const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
+  const { isAdmin, user } = useAuth();
+  const [r, setR] = useState(record);
+  const [msg, setMsg] = useState('');
+  useEffect(() => { setR(record); }, [record]);
+  const docs = (() => { try { return JSON.parse(r.Documents || '[]'); } catch { return PRE_DOCS.map(d => ({ ...d, received: false })); } })();
+  const allDocs = docs.every(d => d.received);
+
+  // View an uploaded file: fetch WITH the role header (a plain link fails the role check), then open it.
+  const viewFile = async (key) => {
+    try {
+      const res = await fetch(`${URA_API}/preonboarding/${r.Id}/file/${key}`, {
+        headers: { 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' },
+      });
+      if (!res.ok) { window.alert('Could not open the document (' + res.status + ').'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch { window.alert('Could not reach the server to open the document.'); }
+  };
+  const deleteFile = async (key, label) => {
+    if (!window.confirm(`Remove the uploaded file for "${label}"? The item will be un-ticked so you can upload the correct file.`)) return;
+    const d = await api(`/preonboarding/${r.Id}/file/${key}`, 'DELETE');
+    if (d.success) { const fresh = await api('/preonboarding'); if (fresh.success) { const u = fresh.records.find(x => x.Id === r.Id); if (u) setR(u); } reload(); setMsg('File removed.'); }
+    else window.alert(d.error || 'Could not delete the file.');
+  };
+
+  const save = async (patch) => {
+    const d = await api(`/preonboarding/${r.Id}`, 'PUT', patch);
+    if (d.success) { const nx = { ...r, ...toRow(patch) }; setR(nx); setMsg('Saved.'); reload(); }
+    else setMsg(d.error || 'Failed.');
+  };
+  const toRow = (patch) => {
+    const m = { offerAcceptedDate: 'OfferAcceptedDate', resignationAcceptedDate: 'ResignationAcceptedDate', joiningDate: 'JoiningDate', status: 'Status', notes: 'Notes', documents: 'Documents', droppedReason: 'DroppedReason' };
+    const o = {}; Object.entries(patch).forEach(([k, v]) => { if (m[k]) o[m[k]] = k === 'documents' ? JSON.stringify(v) : v; }); return o;
+  };
+  const toggleDoc = (key) => { const nd = docs.map(d => d.key === key ? { ...d, received: !d.received } : d); save({ documents: nd }); };
+
+  // Delete request (HR) -> admin approval
+  const requestDelete = async () => {
+    const why = window.prompt('Delete this entry? A reason will be sent to Admin for approval:');
+    if (why === null) return;
+    const d = await api(`/preonboarding/${r.Id}/request-delete`, 'POST', { reason: why });
+    if (d.success) { window.alert('Deletion requested \u2014 pending Admin approval.'); reload(); onClose && onClose(); }
+    else window.alert(d.error || 'Failed.');
+  };
+  const approveDelete = async () => {
+    if (!window.confirm('Approve deletion? This permanently removes the entry.')) return;
+    const d = await api(`/preonboarding/${r.Id}/approve-delete`, 'POST', {});
+    if (d.success) { window.alert('Entry deleted.'); reload(); onClose && onClose(); }
+    else window.alert(d.error || 'Failed.');
+  };
+  const rejectDelete = async () => {
+    const d = await api(`/preonboarding/${r.Id}/reject-delete`, 'POST', {});
+    if (d.success) { window.alert('Deletion request rejected.'); reload(); onClose && onClose(); }
+    else window.alert(d.error || 'Failed.');
+  };
+
+  const markReady = async () => {
+    const missing = [];
+    if (!r.OfferAcceptedDate) missing.push('Offer acceptance date');
+    if (!r.ResignationAcceptedDate) missing.push('Resignation acceptance date');
+    if (!r.JoiningDate) missing.push('Confirmed joining date');
+    if (!allDocs) missing.push('All documents received');
+    if (missing.length) {
+      window.alert('Cannot mark Ready for handover yet.\n\nStill pending:\n\u2022 ' + missing.join('\n\u2022 '));
+      return;
+    }
+    const d = await api(`/preonboarding/${r.Id}`, 'PUT', { status: 'ready' });
+    if (d.success) {
+      window.alert('Marked ready \u2014 moved to \u201cReady for Handover\u201d.');
+      reload();
+      onClose && onClose();
+    } else window.alert(d.error || 'Failed.');
+  };
+  const upload = async (key, file) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const d = await api(`/preonboarding/${r.Id}/upload`, 'POST', { key, fileName: file.name, dataBase64: reader.result });
+      if (d.success) { setMsg('Uploaded.'); reload(); const fresh = await api('/preonboarding'); if (fresh.success) { const u = fresh.records.find(x => x.Id === r.Id); if (u) setR(u); } }
+      else setMsg(d.error || 'Upload failed.');
+    };
+    reader.readAsDataURL(file);
+  };
+  const dateVal = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const done = ['handed_over', 'dropped'].includes(r.Status);
+
+  return (
+    <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <Field l="Offer acceptance date"><input type="date" style={input} disabled={done} value={dateVal(r.OfferAcceptedDate)} onChange={e => save({ offerAcceptedDate: e.target.value })} /></Field>
+        <Field l="Resignation acceptance date"><input type="date" style={input} disabled={done} value={dateVal(r.ResignationAcceptedDate)} onChange={e => save({ resignationAcceptedDate: e.target.value })} /></Field>
+        <Field l="Confirmed joining date"><input type="date" style={input} disabled={done} value={dateVal(r.JoiningDate)} onChange={e => save({ joiningDate: e.target.value })} /></Field>
+      </div>
+      {r.JoiningDate && <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>Document deadline (7 days before joining): <strong>{new Date(new Date(r.JoiningDate).getTime() - 7 * 86400000).toISOString().slice(0, 10)}</strong></p>}
+
+      <div style={label}>Documents (tick when received; upload is optional)</div>
+      {docs.map(d => (
+        <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+          <label style={{ flex: 1, fontSize: '.86rem', color: 'var(--text-primary)' }}>
+            <input type="checkbox" disabled={done} checked={!!d.received} onChange={() => toggleDoc(d.key)} style={{ marginRight: 8 }} />{d.label}
+          </label>
+          {d.fileName && <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.fileName}</span>}
+          {d.fileName && <button style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem', marginBottom: 0 }} onClick={() => viewFile(d.key)}>View</button>}
+          {d.fileName && !done && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '4px 10px', fontSize: '.76rem', marginBottom: 0 }} onClick={() => deleteFile(d.key, d.label)}>Delete file</button>}
+          {!done && <label style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem', cursor: 'pointer', marginBottom: 0 }}>
+            {d.fileName ? 'Replace' : 'Upload'}<input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && upload(d.key, e.target.files[0])} />
+          </label>}
+        </div>
+      ))}
+
+      <div style={label}>Engagement notes</div>
+      <textarea style={{ ...input, minHeight: 54 }} disabled={done} defaultValue={r.Notes || ''} onBlur={e => save({ notes: e.target.value })} placeholder="Touchpoints with the candidate…" />
+
+      {r.DeleteRequested ? (
+        <div style={{ marginTop: 10, padding: 12, borderRadius: 8, background: 'color-mix(in srgb, #dc2626 8%, transparent)', border: '1px solid #dc2626' }}>
+          <div style={{ fontSize: '.84rem', color: '#dc2626', fontWeight: 700 }}>Deletion requested{r.DeleteRequestedBy ? ` by ${r.DeleteRequestedBy}` : ''}</div>
+          {r.DeleteReason && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 3 }}>Reason: {r.DeleteReason}</div>}
+          {isAdmin ? (
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button style={{ ...primaryBtn, background: '#dc2626' }} onClick={approveDelete}>Approve deletion</button>
+              <button style={ghostBtn} onClick={rejectDelete}>Reject</button>
+            </div>
+          ) : (
+            <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 6 }}>Awaiting Admin approval.</div>
+          )}
+        </div>
+      ) : (
+        <>
+          {!done && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+              {r.Status !== 'ready' && <button style={primaryBtn} onClick={markReady}>Mark Ready for handover</button>}
+              {r.Status === 'ready' && <button style={primaryBtn} onClick={() => save({ status: 'handed_over' })}>Confirm handover to Operations</button>}
+              <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping this candidate?') || ''; save({ status: 'dropped', droppedReason: why }); }}>Mark dropped</button>
+            </div>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', fontSize: '.8rem', padding: '6px 12px' }} onClick={requestDelete}>Delete entry</button>
+          </div>
+        </>
+      )}
+      {r.Status !== 'ready' && !done && !r.DeleteRequested && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 8 }}>Ready-for-handover needs: offer + resignation dates, confirmed joining date, and all documents ticked.</p>}
+      {r.DroppedReason && <p style={{ fontSize: '.8rem', color: '#dc2626', marginTop: 8 }}>Dropped: {r.DroppedReason}</p>}
+      {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
+    </div>
+  );
+};
+
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
-  { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
-  { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['hr', 'it', 'admin', 'employee'] },
-  { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['hr', 'it', 'manager', 'admin', 'employee'] },
+  { id: 'preonboarding', title: 'Pre-Onboarding', desc: 'Prepare a new joiner before day one — documents, checks, and ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
+  { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['admin'] },
+  { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['it', 'admin', 'employee'] },
+  { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['it', 'manager', 'admin', 'employee'] },
   { id: 'overview', title: 'Employee Overview', desc: 'Search employees, view assets & rights, export to Excel.', grad: 'linear-gradient(135deg,#07212b,#0e7490)', roles: ['hr', 'it', 'admin'] },
   { id: 'matrix', title: 'Approval & Rights Matrix', desc: 'Admin-only. Assign or change any rights for anyone.', grad: 'linear-gradient(135deg,#2a0a0a,#b91c1c)', roles: ['admin'] },
   { id: 'directory', title: 'Directory Management', desc: 'Admin-only. Add or remove employees, with a full change log.', grad: 'linear-gradient(135deg,#0a2540,#1d4ed8)', roles: ['admin'] },
@@ -1157,6 +1559,7 @@ const UserRightsAssets = () => {
     </div>
   ) : null;
 
+  if (view === 'preonboarding') return <>{banner}<PreOnboardingView onBack={() => setView('home')} /></>;
   if (view === 'onboarding') return <><div style={{ padding: '0 0 0' }}>{banner}</div><OnboardingView onBack={() => setView('home')} /></>;
   if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;

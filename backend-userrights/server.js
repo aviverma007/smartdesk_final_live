@@ -23,8 +23,8 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 const app = express();
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'OPTIONS'], allowedHeaders: ['Content-Type', 'x-user-role', 'x-user-id'] }));
-app.use(express.json({ limit: '1mb' }));
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'x-user-role', 'x-user-id'] }));
+app.use(express.json({ limit: '25mb' }));
 
 // ── SQL Server config ─────────────────────────────────────────────────────────
 const dbConfig = {
@@ -211,6 +211,33 @@ CREATE TABLE dbo.DirectoryLog (
   ActedBy NVARCHAR(80) NULL,
   ActedAt DATETIME NOT NULL DEFAULT(GETDATE())
 );
+IF OBJECT_ID('dbo.PreOnboarding','U') IS NULL
+CREATE TABLE dbo.PreOnboarding (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  CandidateName NVARCHAR(200) NOT NULL,
+  Role NVARCHAR(150) NULL,
+  Grade NVARCHAR(80) NULL,
+  Department NVARCHAR(150) NULL,
+  HiringManager NVARCHAR(200) NULL,
+  Phone NVARCHAR(60) NULL,
+  Email NVARCHAR(200) NULL,
+  MrfRef NVARCHAR(100) NULL,
+  JoiningDate DATE NULL,
+  OfferAcceptedDate DATE NULL,
+  ResignationAcceptedDate DATE NULL,
+  Documents NVARCHAR(MAX) NULL,
+  AssignedEmpId NVARCHAR(40) NULL,
+  Notes NVARCHAR(MAX) NULL,
+  Status NVARCHAR(30) NOT NULL DEFAULT('offer_accepted'),
+  DroppedReason NVARCHAR(300) NULL,
+  CreatedBy NVARCHAR(80) NULL,
+  CreatedAt DATETIME NOT NULL DEFAULT(GETDATE()),
+  UpdatedAt DATETIME NOT NULL DEFAULT(GETDATE())
+);
+IF COL_LENGTH('dbo.PreOnboarding','DeleteRequested') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequested BIT NOT NULL DEFAULT(0);
+IF COL_LENGTH('dbo.PreOnboarding','DeleteReason') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteReason NVARCHAR(300) NULL;
+IF COL_LENGTH('dbo.PreOnboarding','DeleteRequestedBy') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequestedBy NVARCHAR(80) NULL;
+IF COL_LENGTH('dbo.PreOnboarding','DeleteRequestedAt') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequestedAt DATETIME NULL;
   `);
   console.log('   ✓ Tables ready');
 }
@@ -751,6 +778,200 @@ app.get('/api/directory/log', async (req, res) => {
     const p = await getPool();
     const rows = await p.request().query(`SELECT TOP 500 * FROM dbo.DirectoryLog ORDER BY ActedAt DESC`);
     res.json({ success: true, records: rows.recordset });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ HR PRE-ONBOARDING ═════════════════════════════════ */
+const fs = require('fs');
+const pathmod = require('path');
+const PRE_DIR = pathmod.join(__dirname, 'uploads', 'preonboarding');
+const DOC_CHECKLIST = [
+  { key: 'idProof', label: 'ID proof' },
+  { key: 'addressProof', label: 'Address proof' },
+  { key: 'education', label: 'Education certificates' },
+  { key: 'relieving', label: 'Relieving / experience letter' },
+  { key: 'bank', label: 'Bank details' },
+  { key: 'photo', label: 'Photograph' },
+];
+const freshDocs = () => DOC_CHECKLIST.map(d => ({ key: d.key, label: d.label, received: false, fileName: null }));
+
+// Create a candidate record
+app.post('/api/preonboarding', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.candidateName) return res.status(400).json({ success: false, error: 'Candidate name is required.' });
+    const p = await getPool();
+    const r = await p.request()
+      .input('Name', sql.NVarChar, b.candidateName)
+      .input('Role', sql.NVarChar, b.role || null)
+      .input('Grade', sql.NVarChar, b.grade || null)
+      .input('Dept', sql.NVarChar, b.department || null)
+      .input('HM', sql.NVarChar, b.hiringManager || null)
+      .input('Phone', sql.NVarChar, b.phone || null)
+      .input('Email', sql.NVarChar, b.email || null)
+      .input('Mrf', sql.NVarChar, b.mrfRef || null)
+      .input('JD', sql.Date, b.joiningDate || null)
+      .input('Docs', sql.NVarChar, JSON.stringify(freshDocs()))
+      .input('By', sql.NVarChar, actor(req))
+      .query(`INSERT INTO dbo.PreOnboarding
+        (CandidateName,Role,Grade,Department,HiringManager,Phone,Email,MrfRef,JoiningDate,Documents,CreatedBy)
+        OUTPUT INSERTED.* VALUES
+        (@Name,@Role,@Grade,@Dept,@HM,@Phone,@Email,@Mrf,@JD,@Docs,@By)`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// List (HR/admin)
+app.get('/api/preonboarding', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const p = await getPool();
+    const rows = await p.request().query(`SELECT * FROM dbo.PreOnboarding ORDER BY
+      CASE Status WHEN 'handed_over' THEN 2 WHEN 'dropped' THEN 3 ELSE 1 END, JoiningDate ASC, CreatedAt DESC`);
+    res.json({ success: true, records: rows.recordset, checklist: DOC_CHECKLIST });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Update fields / dates / checklist ticks / assigned ID / status / notes
+app.put('/api/preonboarding/:id', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const b = req.body || {};
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.PreOnboarding WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+
+    // requested status change is validated below
+    let status = b.status || cur.Status;
+    let docs = cur.Documents;
+    if (Array.isArray(b.documents)) docs = JSON.stringify(b.documents);
+
+    const allDocsIn = () => { try { return JSON.parse(docs || '[]').every(d => d.received); } catch { return false; } };
+    const assigned = b.assignedEmpId !== undefined ? b.assignedEmpId : cur.AssignedEmpId;
+    const offer = b.offerAcceptedDate !== undefined ? b.offerAcceptedDate : cur.OfferAcceptedDate;
+    const resign = b.resignationAcceptedDate !== undefined ? b.resignationAcceptedDate : cur.ResignationAcceptedDate;
+    const jd = b.joiningDate !== undefined ? b.joiningDate : cur.JoiningDate;
+
+    if (status === 'ready') {
+      if (!offer || !resign || !jd || !allDocsIn())
+        return res.status(400).json({ success: false, error: 'To mark Ready: offer acceptance, resignation acceptance, confirmed joining date, and all documents are required.' });
+    }
+
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('Name', sql.NVarChar, b.candidateName ?? cur.CandidateName)
+      .input('Role', sql.NVarChar, b.role ?? cur.Role)
+      .input('Grade', sql.NVarChar, b.grade ?? cur.Grade)
+      .input('Dept', sql.NVarChar, b.department ?? cur.Department)
+      .input('HM', sql.NVarChar, b.hiringManager ?? cur.HiringManager)
+      .input('Phone', sql.NVarChar, b.phone ?? cur.Phone)
+      .input('Email', sql.NVarChar, b.email ?? cur.Email)
+      .input('Mrf', sql.NVarChar, b.mrfRef ?? cur.MrfRef)
+      .input('JD', sql.Date, jd || null)
+      .input('Offer', sql.Date, offer || null)
+      .input('Resign', sql.Date, resign || null)
+      .input('Docs', sql.NVarChar, docs)
+      .input('Emp', sql.NVarChar, assigned || null)
+      .input('Notes', sql.NVarChar, b.notes ?? cur.Notes)
+      .input('Status', sql.NVarChar, status)
+      .input('Drop', sql.NVarChar, b.droppedReason ?? cur.DroppedReason)
+      .query(`UPDATE dbo.PreOnboarding SET CandidateName=@Name, Role=@Role, Grade=@Grade, Department=@Dept,
+        HiringManager=@HM, Phone=@Phone, Email=@Email, MrfRef=@Mrf, JoiningDate=@JD,
+        OfferAcceptedDate=@Offer, ResignationAcceptedDate=@Resign, Documents=@Docs, AssignedEmpId=@Emp,
+        Notes=@Notes, Status=@Status, DroppedReason=@Drop, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Optional document upload (base64 -> saved to disk), also ticks the item received
+app.post('/api/preonboarding/:id/upload', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.key || !b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT Documents FROM dbo.PreOnboarding WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const dir = pathmod.join(PRE_DIR, String(req.params.id));
+    fs.mkdirSync(dir, { recursive: true });
+    const safe = String(b.fileName || (b.key + '.bin')).replace(/[^A-Za-z0-9._-]/g, '_');
+    const fname = `${b.key}__${safe}`;
+    fs.writeFileSync(pathmod.join(dir, fname), Buffer.from(b.dataBase64.split(',').pop(), 'base64'));
+    let docs = []; try { docs = JSON.parse(cur.Documents || '[]'); } catch {}
+    docs = docs.map(d => d.key === b.key ? { ...d, received: true, fileName: b.fileName || safe } : d);
+    await p.request().input('Id', sql.Int, req.params.id).input('Docs', sql.NVarChar, JSON.stringify(docs))
+      .query(`UPDATE dbo.PreOnboarding SET Documents=@Docs, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Download an uploaded document
+app.get('/api/preonboarding/:id/file/:key', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const dir = pathmod.join(PRE_DIR, String(req.params.id));
+    if (!fs.existsSync(dir)) return res.status(404).send('Not found');
+    const f = fs.readdirSync(dir).find(n => n.startsWith(req.params.key + '__'));
+    if (!f) return res.status(404).send('Not found');
+    res.download(pathmod.join(dir, f), f.split('__').slice(1).join('__'));
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+// HR requests deletion of a candidate record -> goes to admin for approval
+app.post('/api/preonboarding/:id/request-delete', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .input('Reason', sql.NVarChar, (req.body || {}).reason || null)
+      .input('By', sql.NVarChar, actor(req))
+      .query(`UPDATE dbo.PreOnboarding SET DeleteRequested=1, DeleteReason=@Reason, DeleteRequestedBy=@By, DeleteRequestedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Admin approves the deletion -> record (and its files) are removed
+app.post('/api/preonboarding/:id/approve-delete', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id).query(`DELETE FROM dbo.PreOnboarding WHERE Id=@Id`);
+    try { fs.rmSync(pathmod.join(PRE_DIR, String(req.params.id)), { recursive: true, force: true }); } catch (_) {}
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Admin rejects the deletion -> clears the request
+app.post('/api/preonboarding/:id/reject-delete', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only
+  try {
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id)
+      .query(`UPDATE dbo.PreOnboarding SET DeleteRequested=0, DeleteReason=NULL, DeleteRequestedBy=NULL, DeleteRequestedAt=NULL, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Delete an uploaded document (wrong file) — removes the file and unticks it
+app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT Documents FROM dbo.PreOnboarding WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const dir = pathmod.join(PRE_DIR, String(req.params.id));
+    try {
+      if (fs.existsSync(dir)) {
+        const f = fs.readdirSync(dir).find(n => n.startsWith(req.params.key + '__'));
+        if (f) fs.rmSync(pathmod.join(dir, f), { force: true });
+      }
+    } catch (_) {}
+    let docs = []; try { docs = JSON.parse(cur.Documents || '[]'); } catch {}
+    docs = docs.map(d => d.key === req.params.key ? { ...d, received: false, fileName: null } : d);
+    await p.request().input('Id', sql.Int, req.params.id).input('Docs', sql.NVarChar, JSON.stringify(docs))
+      .query(`UPDATE dbo.PreOnboarding SET Documents=@Docs, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
