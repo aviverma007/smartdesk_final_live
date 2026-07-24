@@ -1155,6 +1155,17 @@ const PreOnboardingView = ({ onBack }) => {
     return isNaN(d) ? String(v) : d.toISOString().slice(0, 10);
   };
   const pick = (row, ...keys) => { for (const k of keys) { if (row[k] !== undefined && String(row[k]).trim() !== '') return String(row[k]).trim(); } return ''; };
+  const cleanName = (s) => String(s).replace(/^[=+\-@]+/, '').trim(); // neutralise CSV formula injection
+  const validRow = (c, i, all) => {
+    const errs = [];
+    if (c.joiningDate && !/^\d{4}-\d{2}-\d{2}$/.test(c.joiningDate)) errs.push('joining date not YYYY-MM-DD');
+    if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) errs.push('email looks invalid');
+    const dupExisting = list.some(r => (r.CandidateName || '').trim().toLowerCase() === c.candidateName.toLowerCase() && !['dropped'].includes(r.Status));
+    const dupInBatch = all.findIndex(x => x.candidateName.toLowerCase() === c.candidateName.toLowerCase()) !== i;
+    if (dupExisting) errs.push('already in the list');
+    else if (dupInBatch) errs.push('duplicate in this file');
+    return errs;
+  };
   const onUploadFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -1162,9 +1173,11 @@ const PreOnboardingView = ({ onBack }) => {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        let rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        // trim/normalise header keys so " Candidate Name " still matches
+        rows = rows.map(r => { const o = {}; Object.keys(r).forEach(k => { o[String(k).trim()] = r[k]; }); return o; });
         const mapped = rows.map(r => ({
-          candidateName: pick(r, 'Candidate Name', 'Candidate name', 'Name'),
+          candidateName: cleanName(pick(r, 'Candidate Name', 'Candidate name', 'Name')),
           role: pick(r, 'Role', 'Designation'),
           grade: pick(r, 'Grade', 'Band'),
           department: pick(r, 'Department', 'Dept'),
@@ -1174,10 +1187,12 @@ const PreOnboardingView = ({ onBack }) => {
           mrfRef: pick(r, 'MRF Reference', 'MRF Ref', 'MRF'),
           joiningDate: toISO(r['Joining Date (YYYY-MM-DD)'] || r['Joining Date'] || r['Joining'] || ''),
         })).filter(x => x.candidateName);
-        if (!mapped.length) { window.alert('No valid rows found. Make sure the "Candidate Name" column is filled in and matches the template.'); return; }
-        setStaged(mapped);
+        if (!mapped.length) { window.alert('No valid rows found. Make sure the first row has the column headers from the template (e.g. "Candidate Name") and that names are filled in.'); return; }
+        const withErrs = mapped.map((c, i, all) => ({ ...c, _errs: validRow(c, i, all) }));
+        setStaged(withErrs);
         setShowForm(false);
-        window.alert(`${mapped.length} candidate(s) read from the file. Review the list below and remove any wrong entries, then click "Save".`);
+        const bad = withErrs.filter(c => c._errs.length).length;
+        window.alert(`${withErrs.length} candidate(s) read from the file.` + (bad ? `\n\n${bad} row(s) have warnings — shown in red below. Fix them in the file and re-upload, or delete them before saving.` : '\n\nReview the list below and remove any wrong entries, then click "Save".'));
       } catch (err) {
         window.alert('Could not read that file. Please upload the .xlsx template (or a .csv with the same column headers).');
       }
@@ -1187,16 +1202,24 @@ const PreOnboardingView = ({ onBack }) => {
   const removeStaged = (i) => setStaged(s => s.filter((_, idx) => idx !== i));
   const saveStaged = async () => {
     if (!staged.length) return;
+    const blocked = staged.filter(c => c._errs && c._errs.length);
+    if (blocked.length) {
+      const ok = window.confirm(`${blocked.length} row(s) still have warnings and will be SKIPPED. Save the ${staged.length - blocked.length} clean row(s) anyway?`);
+      if (!ok) return;
+    }
+    const toSave = staged.filter(c => !(c._errs && c._errs.length));
+    if (!toSave.length) { window.alert('Nothing to save — every row has a warning. Delete or fix them first.'); return; }
     setSaving(true);
-    let ok = 0; const failed = [];
-    for (const c of staged) {
-      try { const d = await api('/preonboarding', 'POST', c); if (d.success) ok++; else failed.push(`${c.candidateName}: ${d.error || 'failed'}`); }
+    let okc = 0; const failed = [];
+    for (const c of toSave) {
+      const { _errs, ...payload } = c;
+      try { const d = await api('/preonboarding', 'POST', payload); if (d.success) okc++; else failed.push(`${c.candidateName}: ${d.error || 'failed'}`); }
       catch { failed.push(`${c.candidateName}: request failed`); }
     }
     setSaving(false);
     setStaged([]);
     load();
-    window.alert(`Added ${ok} candidate(s).` + (failed.length ? `\n\nCould not add ${failed.length}:\n\u2022 ${failed.join('\n\u2022 ')}` : ''));
+    window.alert(`Added ${okc} candidate(s).` + (failed.length ? `\n\nCould not add ${failed.length}:\n\u2022 ${failed.join('\n\u2022 ')}` : ''));
   };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -1246,10 +1269,11 @@ const PreOnboardingView = ({ onBack }) => {
           <h2 style={h2}>Review upload — {staged.length} candidate(s)</h2>
           <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: -4, marginBottom: 12 }}>Check the rows below. Remove anything uploaded by mistake, then save the rest.</p>
           {staged.map((c, i) => (
-            <div key={i} style={rowStyle}>
+            <div key={i} style={{ ...rowStyle, ...(c._errs && c._errs.length ? { border: '1px solid #dc2626', borderRadius: 8 } : {}) }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.candidateName}</div>
                 <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[c.role, c.department, c.joiningDate ? `joins ${c.joiningDate}` : '', c.email].filter(Boolean).join(' · ') || '—'}</div>
+                {c._errs && c._errs.length > 0 && <div style={{ fontSize: '.78rem', color: '#dc2626', marginTop: 3 }}>⚠ {c._errs.join(' · ')}</div>}
               </div>
               <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '6px 12px', fontSize: '.8rem' }} onClick={() => removeStaged(i)}>Delete</button>
             </div>
