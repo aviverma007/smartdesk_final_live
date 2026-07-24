@@ -743,10 +743,15 @@ const FilterBar = ({ search, setSearch, filter, setFilter, options, placeholder 
     <div style={{ display: 'flex', gap: 8 }}>
       {options.map(o => (
         <button key={o.key} onClick={() => setFilter(o.key)} style={{ padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
-          fontSize: '.82rem', fontFamily: "'DM Sans',sans-serif",
+          fontSize: '.82rem', fontFamily: "'DM Sans',sans-serif", display: 'inline-flex', alignItems: 'center', gap: 7,
           border: `1px solid ${filter === o.key ? 'var(--accent)' : 'var(--border)'}`,
           background: filter === o.key ? 'var(--accent)' : 'transparent',
-          color: filter === o.key ? '#fff' : 'var(--text-primary)' }}>{o.label}</button>
+          color: filter === o.key ? '#fff' : 'var(--text-primary)' }}>
+          {o.label}
+          {o.count != null && <span style={{ fontSize: '.72rem', fontWeight: 700, lineHeight: 1, padding: '2px 7px', borderRadius: 10,
+            background: filter === o.key ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--accent) 15%, transparent)',
+            color: filter === o.key ? '#fff' : 'var(--accent)' }}>{o.count}</span>}
+        </button>
       ))}
     </div>
   </div>
@@ -1310,7 +1315,12 @@ const PreOnboardingView = ({ onBack }) => {
         <h2 style={h2}>Candidates</h2>
         <FilterBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter}
           placeholder="Search by name, ID or department…"
-          options={[{ key: 'active', label: 'Active' }, { key: 'ready', label: 'Ready' }, { key: 'handed_over', label: 'Handed over' }, { key: 'all', label: 'All' }]} />
+          options={[
+            { key: 'active', label: 'Active', count: list.filter(x => !['ready', 'handed_over', 'dropped'].includes(x.Status)).length },
+            { key: 'ready', label: 'Ready', count: list.filter(x => x.Status === 'ready').length },
+            { key: 'handed_over', label: 'Handed over', count: list.filter(x => x.Status === 'handed_over').length },
+            { key: 'all', label: 'All', count: list.length },
+          ]} />
         {filtered.length === 0 && <Empty text="No candidates." />}
         {filtered.map(r => {
           const dd = deadlineDays(r);
