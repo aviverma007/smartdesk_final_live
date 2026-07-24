@@ -9,8 +9,8 @@ import FileChips from '../components/FileChips';
 // Exact column order from the reference prototype (checkbox, S.No, NFA No.,
 // Index, Work Type, Project, Description of Work, Vendor Name, Original
 // Order Value, PR Budget Value, Creator, NFA Initiated By, Review Date,
-// Downloadable Files, Status).
-const COLS = 15;
+// Downloadable Files, Status), plus an Action column for delete.
+const COLS = 16;
 
 export default function Page1() {
   const { reference } = useApp();
@@ -32,6 +32,7 @@ export default function Page1() {
 
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [resubComment, setResubComment] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [publishedPdfs, setPublishedPdfs] = useState([]);
   const [searchNfa, setSearchNfa] = useState('');
   const [searchResult, setSearchResult] = useState(null);
@@ -167,6 +168,15 @@ export default function Page1() {
     if (checked.length === 0) push('Nothing checked to submit', 'error');
   }
 
+  async function doDelete(entry) {
+    try {
+      await api.deleteEntry(entry.id);
+      push(`${entry.nfa} deleted`);
+      setDeleteTarget(null);
+      load();
+    } catch (e) { push(e.response?.data?.error || 'Delete failed', 'error'); }
+  }
+
   async function doSearch() {
     if (!searchNfa.trim()) return;
     try {
@@ -265,7 +275,7 @@ export default function Page1() {
                     <th></th><th>S.No</th><th>NFA No.</th><th>Index</th><th>Work Type</th><th>Project</th>
                     <th>Description of Work</th><th>Vendor Name</th><th>Original Order Value ₹L (incl. GST)</th>
                     <th>PR Budget Value ₹L</th><th>Creator</th><th>NFA Initiated By</th><th>Review Date</th>
-                    <th>Downloadable Files (QMS + uploads)</th><th>Status</th>
+                    <th>Downloadable Files (QMS + uploads)</th><th>Status</th><th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -279,6 +289,7 @@ export default function Page1() {
                       onToggleSelect={() => toggleSelect(e)}
                       onSubmit={(comment) => doSubmit(e, comment)}
                       onRefresh={load}
+                      onDeleteRequest={() => setDeleteTarget(e)}
                       reference={reference}
                       today={today}
                     />
@@ -483,6 +494,22 @@ export default function Page1() {
           <textarea className="inp" style={{ width: '100%', minHeight: 70 }} value={resubComment} onChange={(e) => setResubComment(e.target.value)} />
         </Modal>
       )}
+
+      {deleteTarget && (
+        <Modal
+          title="Delete this entry?"
+          onClose={() => setDeleteTarget(null)}
+          actions={<>
+            <button className="btn ghost" onClick={() => setDeleteTarget(null)}>Cancel</button>
+            <button className="btn danger" onClick={() => doDelete(deleteTarget)}>Delete</button>
+          </>}
+        >
+          <p>
+            NFA <b>{deleteTarget.nfa}</b> ({deleteTarget.f?.desc}) will be permanently removed from this list. This can't
+            be undone — if you need it again later, fetch it fresh from QMS.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -496,7 +523,7 @@ function statusCell(e) {
   return <span className={`st ${cls}`}>{e.status.toUpperCase()} · {fmtDMY(e.date)}</span>;
 }
 
-function PageOneRow({ entry: e, sno, expanded, onExpand, onToggleSelect, onSubmit, onRefresh, reference, today }) {
+function PageOneRow({ entry: e, sno, expanded, onExpand, onToggleSelect, onSubmit, onRefresh, onDeleteRequest, reference, today }) {
   const { push } = useToast();
   const editable = e.status === 'draft' || e.status === 'submitted';
   const locked = ['approved', 'hold', 'rejected', 'expired', 'presented'].includes(e.status);
@@ -543,6 +570,11 @@ function PageOneRow({ entry: e, sno, expanded, onExpand, onToggleSelect, onSubmi
         <td>{fmtDMY(dDate)}</td>
         <td><FileChips files={e.files} removable={editable} onRemove={removeFile} /></td>
         <td>{statusCell(e)}</td>
+        <td>
+          {editable && (
+            <button className="btn sm danger" onClick={onDeleteRequest} title="Delete this entry">Delete</button>
+          )}
+        </td>
       </tr>
       {expanded && (
         <tr className="editor-row">

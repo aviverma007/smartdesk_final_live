@@ -14,6 +14,7 @@ export const api = {
   fetchNfa: (payload) => client.post('/entries/fetch', payload),
   createModeB: (payload) => client.post('/entries/mode-b', payload).then((r) => r.data),
   selectEntry: (id, selected) => client.post(`/entries/${id}/select`, { selected }),
+  deleteEntry: (id) => client.delete(`/entries/${id}`),
   submitEntry: (id, comment) => client.post(`/entries/${id}/submit`, { comment }),
   updateField: (id, payload) => client.post(`/entries/${id}/field`, payload),
   updatePlainField: (id, field, value) => client.post(`/entries/${id}/plain-field`, { field, value }),

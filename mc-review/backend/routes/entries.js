@@ -367,6 +367,29 @@ module.exports = function entriesRoutes(getPool) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // ---- Delete an entry outright — only while it's still draft/submitted; --
+  // once presented/decided it's real workflow history and must not be
+  // removable (use Withdraw on Page 1 or a decision on Page 3 instead).
+  router.delete('/:id', async (req, res) => {
+    const { loginId } = currentUser(req);
+    const id = Number(req.params.id);
+    try {
+      const pool = await getPool();
+      const row = await getEntryRow(pool, id);
+      if (!row) return res.status(404).json({ error: 'Entry not found' });
+      if (!['draft', 'submitted'].includes(row.Status)) {
+        return res.status(409).json({ error: `Cannot delete a ${row.Status} entry — it's already part of workflow history` });
+      }
+      const pm = await findPendingMove(pool, id);
+      if (pm) {
+        await pool.request().input('id', pm.Id).query(`UPDATE dbo.MC_PendingMoves SET Status='cancelled' WHERE Id=@id`);
+      }
+      await pool.request().input('id', id).query('DELETE FROM dbo.MC_Entries WHERE Id=@id');
+      await audit(pool, loginId, 'Entry deleted', `${row.NfaNo} (was ${row.Status})`);
+      res.json({ deleted: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- Submit: pushes checked set to Page 2, applies pending moves --------
   router.post('/:id/submit', async (req, res) => {
     const { loginId } = currentUser(req);
