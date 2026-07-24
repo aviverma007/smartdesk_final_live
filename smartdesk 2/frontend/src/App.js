@@ -321,7 +321,8 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
           {NAV.filter(n => {
             if (isDashboard === true) return n.id === 'dashboard';
             if (isEmployee === true)  return ['home','directory','attendance','policies','holiday-calendar','user-rights'].includes(n.id);
-            if (isHr || isIt || isManager) return ['home','directory','user-rights'].includes(n.id);
+            if (isHr) return ['home','directory','attendance','policies','holiday-calendar','user-rights'].includes(n.id);
+            if (isIt || isManager) return ['home','directory','user-rights'].includes(n.id);
             return true; // admin sees all
           }).map(({ id, label, Icon }) => (
             <div key={id}
