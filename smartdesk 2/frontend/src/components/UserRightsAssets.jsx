@@ -1130,9 +1130,74 @@ const PreOnboardingView = ({ onBack }) => {
   const [msg, setMsg] = useState('');
   const blank = { candidateName: '', role: '', grade: '', department: '', hiringManager: '', phone: '', email: '', mrfRef: '', joiningDate: '' };
   const [form, setForm] = useState(blank);
+  const [staged, setStaged] = useState([]);   // candidates parsed from an upload, pending review
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => { const d = await api('/preonboarding'); if (d.success) setList(d.records); }, [api]);
   useEffect(() => { load(); }, [load]);
+
+  // ── Bulk uploader ──────────────────────────────────────────────
+  const TEMPLATE_COLS = ['Candidate Name', 'Role', 'Grade', 'Department', 'Hiring Manager', 'Phone', 'Email', 'MRF Reference', 'Joining Date (YYYY-MM-DD)'];
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      TEMPLATE_COLS,
+      ['Asha Rao', 'Sales Executive', 'M2', 'Sales', 'R. Mehta', '9876543210', 'asha@example.com', 'MRF-2026-014', '2026-08-18'],
+    ]);
+    ws['!cols'] = TEMPLATE_COLS.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+    XLSX.writeFile(wb, 'preonboarding_candidates_template.xlsx');
+  };
+  const toISO = (v) => {
+    if (!v) return '';
+    if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10);
+    const d = new Date(v);
+    return isNaN(d) ? String(v) : d.toISOString().slice(0, 10);
+  };
+  const pick = (row, ...keys) => { for (const k of keys) { if (row[k] !== undefined && String(row[k]).trim() !== '') return String(row[k]).trim(); } return ''; };
+  const onUploadFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        const mapped = rows.map(r => ({
+          candidateName: pick(r, 'Candidate Name', 'Candidate name', 'Name'),
+          role: pick(r, 'Role', 'Designation'),
+          grade: pick(r, 'Grade', 'Band'),
+          department: pick(r, 'Department', 'Dept'),
+          hiringManager: pick(r, 'Hiring Manager', 'Manager'),
+          phone: pick(r, 'Phone', 'Mobile', 'Contact'),
+          email: pick(r, 'Email', 'Email ID'),
+          mrfRef: pick(r, 'MRF Reference', 'MRF Ref', 'MRF'),
+          joiningDate: toISO(r['Joining Date (YYYY-MM-DD)'] || r['Joining Date'] || r['Joining'] || ''),
+        })).filter(x => x.candidateName);
+        if (!mapped.length) { window.alert('No valid rows found. Make sure the "Candidate Name" column is filled in and matches the template.'); return; }
+        setStaged(mapped);
+        setShowForm(false);
+        window.alert(`${mapped.length} candidate(s) read from the file. Review the list below and remove any wrong entries, then click "Save".`);
+      } catch (err) {
+        window.alert('Could not read that file. Please upload the .xlsx template (or a .csv with the same column headers).');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  const removeStaged = (i) => setStaged(s => s.filter((_, idx) => idx !== i));
+  const saveStaged = async () => {
+    if (!staged.length) return;
+    setSaving(true);
+    let ok = 0; const failed = [];
+    for (const c of staged) {
+      try { const d = await api('/preonboarding', 'POST', c); if (d.success) ok++; else failed.push(`${c.candidateName}: ${d.error || 'failed'}`); }
+      catch { failed.push(`${c.candidateName}: request failed`); }
+    }
+    setSaving(false);
+    setStaged([]);
+    load();
+    window.alert(`Added ${ok} candidate(s).` + (failed.length ? `\n\nCould not add ${failed.length}:\n\u2022 ${failed.join('\n\u2022 ')}` : ''));
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const create = async () => {
@@ -1165,7 +1230,35 @@ const PreOnboardingView = ({ onBack }) => {
       <BackBar onBack={onBack} title="Pre-Onboarding" subtitle="Prepare each accepted candidate before day one: acceptance, documents, ID, and handover." />
 
       {!showForm && (
-        <button style={{ ...primaryBtn, marginBottom: 16 }} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New candidate</button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New candidate</button>
+          <button style={ghostBtn} onClick={downloadTemplate}>Download uploader template</button>
+          <label style={{ ...ghostBtn, cursor: 'pointer', marginBottom: 0 }}>
+            Upload candidates
+            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
+              onChange={e => { onUploadFile(e.target.files[0]); e.target.value = ''; }} />
+          </label>
+        </div>
+      )}
+
+      {staged.length > 0 && (
+        <div style={{ ...card, border: '1px solid var(--accent)' }}>
+          <h2 style={h2}>Review upload — {staged.length} candidate(s)</h2>
+          <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: -4, marginBottom: 12 }}>Check the rows below. Remove anything uploaded by mistake, then save the rest.</p>
+          {staged.map((c, i) => (
+            <div key={i} style={rowStyle}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.candidateName}</div>
+                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{[c.role, c.department, c.joiningDate ? `joins ${c.joiningDate}` : '', c.email].filter(Boolean).join(' · ') || '—'}</div>
+              </div>
+              <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '6px 12px', fontSize: '.8rem' }} onClick={() => removeStaged(i)}>Delete</button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <button style={primaryBtn} disabled={saving} onClick={saveStaged}>{saving ? 'Saving…' : `Save ${staged.length} candidate(s)`}</button>
+            <button style={ghostBtn} disabled={saving} onClick={() => setStaged([])}>Discard upload</button>
+          </div>
+        </div>
       )}
       {showForm && (
         <div style={card}>
