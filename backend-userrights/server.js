@@ -953,6 +953,28 @@ app.post('/api/preonboarding/:id/reject-delete', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// Delete an uploaded document (wrong file) — removes the file and unticks it
+app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  try {
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT Documents FROM dbo.PreOnboarding WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const dir = pathmod.join(PRE_DIR, String(req.params.id));
+    try {
+      if (fs.existsSync(dir)) {
+        const f = fs.readdirSync(dir).find(n => n.startsWith(req.params.key + '__'));
+        if (f) fs.rmSync(pathmod.join(dir, f), { force: true });
+      }
+    } catch (_) {}
+    let docs = []; try { docs = JSON.parse(cur.Documents || '[]'); } catch {}
+    docs = docs.map(d => d.key === req.params.key ? { ...d, received: false, fileName: null } : d);
+    await p.request().input('Id', sql.Int, req.params.id).input('Docs', sql.NVarChar, JSON.stringify(docs))
+      .query(`UPDATE dbo.PreOnboarding SET Documents=@Docs, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 /* ═══════════════════════ APP-USER LOGIN ════════════════════════════════════ */
 // Verifies a password that an employee set via the set-password link.
 // Accepts either Employee ID or email as the identifier.

@@ -1340,12 +1340,32 @@ const PreOnboardingView = ({ onBack }) => {
 };
 
 const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [r, setR] = useState(record);
   const [msg, setMsg] = useState('');
   useEffect(() => { setR(record); }, [record]);
   const docs = (() => { try { return JSON.parse(r.Documents || '[]'); } catch { return PRE_DOCS.map(d => ({ ...d, received: false })); } })();
   const allDocs = docs.every(d => d.received);
+
+  // View an uploaded file: fetch WITH the role header (a plain link fails the role check), then open it.
+  const viewFile = async (key) => {
+    try {
+      const res = await fetch(`${URA_API}/preonboarding/${r.Id}/file/${key}`, {
+        headers: { 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' },
+      });
+      if (!res.ok) { window.alert('Could not open the document (' + res.status + ').'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch { window.alert('Could not reach the server to open the document.'); }
+  };
+  const deleteFile = async (key, label) => {
+    if (!window.confirm(`Remove the uploaded file for "${label}"? The item will be un-ticked so you can upload the correct file.`)) return;
+    const d = await api(`/preonboarding/${r.Id}/file/${key}`, 'DELETE');
+    if (d.success) { const fresh = await api('/preonboarding'); if (fresh.success) { const u = fresh.records.find(x => x.Id === r.Id); if (u) setR(u); } reload(); setMsg('File removed.'); }
+    else window.alert(d.error || 'Could not delete the file.');
+  };
 
   const save = async (patch) => {
     const d = await api(`/preonboarding/${r.Id}`, 'PUT', patch);
@@ -1422,9 +1442,11 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
           <label style={{ flex: 1, fontSize: '.86rem', color: 'var(--text-primary)' }}>
             <input type="checkbox" disabled={done} checked={!!d.received} onChange={() => toggleDoc(d.key)} style={{ marginRight: 8 }} />{d.label}
           </label>
-          {d.fileName && <a href={`${URA_API}/preonboarding/${r.Id}/file/${d.key}`} target="_blank" rel="noreferrer" style={{ fontSize: '.78rem', color: 'var(--accent)' }}>{d.fileName}</a>}
+          {d.fileName && <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.fileName}</span>}
+          {d.fileName && <button style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem', marginBottom: 0 }} onClick={() => viewFile(d.key)}>View</button>}
+          {d.fileName && !done && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '4px 10px', fontSize: '.76rem', marginBottom: 0 }} onClick={() => deleteFile(d.key, d.label)}>Delete file</button>}
           {!done && <label style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem', cursor: 'pointer', marginBottom: 0 }}>
-            Upload<input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && upload(d.key, e.target.files[0])} />
+            {d.fileName ? 'Replace' : 'Upload'}<input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && upload(d.key, e.target.files[0])} />
           </label>}
         </div>
       ))}
