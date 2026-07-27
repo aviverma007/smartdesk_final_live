@@ -272,6 +272,17 @@ CREATE TABLE dbo.RecruitmentCandidates (
   Documents NVARCHAR(MAX) NULL, EngagementNotes NVARCHAR(600) NULL,
   CreatedAt DATETIME NOT NULL DEFAULT(GETDATE())
 );
+IF COL_LENGTH('dbo.Recruitment','JdText') IS NULL ALTER TABLE dbo.Recruitment ADD JdText NVARCHAR(MAX) NULL;
+IF COL_LENGTH('dbo.Recruitment','JdFileName') IS NULL ALTER TABLE dbo.Recruitment ADD JdFileName NVARCHAR(255) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','CvFileName') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD CvFileName NVARCHAR(255) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','HodDecision') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD HodDecision NVARCHAR(20) NOT NULL DEFAULT('pending');
+IF COL_LENGTH('dbo.RecruitmentCandidates','HodRemark') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD HodRemark NVARCHAR(300) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewDate') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD InterviewDate DATE NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewTime') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD InterviewTime NVARCHAR(30) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewStatus') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD InterviewStatus NVARCHAR(20) NOT NULL DEFAULT('none');
+IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewerName') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD InterviewerName NVARCHAR(200) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','Assessment') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Assessment NVARCHAR(MAX) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','Outcome') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Outcome NVARCHAR(20) NULL;
   `);
   console.log('   ✓ Tables ready');
 }
@@ -1010,7 +1021,7 @@ app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
 });
 
 /* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
-const REC_STAGES = ['requisition', 'jd_kra', 'sourcing', 'screening', 'interviews', 'fitment', 'approval', 'offer', 'acceptance'];
+const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'offer', 'acceptance'];
 const REC_DOC_CHECKLIST = DOC_CHECKLIST; // reuse the same document list as pre-onboarding
 const recFreshDocs = () => REC_DOC_CHECKLIST.map(d => ({ key: d.key, label: d.label, received: false, fileName: null }));
 const REC_DIR = pathmod.join(__dirname, 'uploads', 'recruitment');
@@ -1057,17 +1068,6 @@ app.put('/api/recruitment/:id', async (req, res) => {
     const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.Recruitment WHERE Id=@Id`)).recordset[0];
     if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
     const stage = b.stage || cur.Stage;
-
-    // gate: leaving 'requisition' needs requisition approval; leaving 'approval' needs offer approval (unless HR override)
-    if (!b.override) {
-      const curIdx = REC_STAGES.indexOf(cur.Stage), nextIdx = REC_STAGES.indexOf(stage);
-      if (nextIdx > curIdx) {
-        if (cur.Stage === 'requisition' && cur.ReqApprovalStatus !== 'approved')
-          return res.status(400).json({ success: false, error: 'Requisition needs approval before moving on (or use HR override).' });
-        if (cur.Stage === 'approval' && cur.OfferApprovalStatus !== 'approved')
-          return res.status(400).json({ success: false, error: 'Offer approval is required before releasing the offer (or use HR override).' });
-      }
-    }
     const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
     await p.request()
       .input('Id', sql.Int, req.params.id)
@@ -1085,10 +1085,11 @@ app.put('/api/recruitment/:id', async (req, res) => {
       .input('FN', sql.NVarChar, g('fitmentNotes', 'FitmentNotes')).input('BOk', sql.Bit, (b.budgetOk !== undefined ? b.budgetOk : cur.BudgetOk) ? 1 : 0)
       .input('Sel', sql.Int, g('selectedCandidateId', 'SelectedCandidateId') || null)
       .input('ORD', sql.Date, g('offerReleasedDate', 'OfferReleasedDate') || null).input('ON', sql.NVarChar, g('offerNotes', 'OfferNotes'))
+      .input('JdText', sql.NVarChar, g('jdText', 'JdText'))
       .query(`UPDATE dbo.Recruitment SET Department=@Dept,Role=@Role,Grade=@Grade,Positions=@Pos,Justification=@Just,TargetDate=@TD,MrfRef=@Mrf,AopApproved=@Aop,
         Stage=@Stage,Status=@Status,DropReason=@Drop,JdConfirmed=@Jd,KraConfirmed=@Kra,SourcingChannels=@SC,SourcingNotes=@SN,
         NumScreened=@NS,NumShortlisted=@NSh,ScreeningNotes=@ScN,FitmentNotes=@FN,BudgetOk=@BOk,SelectedCandidateId=@Sel,
-        OfferReleasedDate=@ORD,OfferNotes=@ON,UpdatedAt=GETDATE() WHERE Id=@Id`);
+        OfferReleasedDate=@ORD,OfferNotes=@ON,JdText=@JdText,UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -1127,6 +1128,65 @@ app.post('/api/recruitment/:id/candidates', async (req, res) => {
     res.json({ success: true, record: r.recordset[0] });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
+// JD upload / view (on the requisition)
+const JD_DIR = pathmod.join(__dirname, 'uploads', 'recruitment_jd');
+app.post('/api/recruitment/:id/jd-upload', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
+    fs.mkdirSync(JD_DIR, { recursive: true });
+    const safe = String(b.fileName || 'jd.pdf').replace(/[^A-Za-z0-9._-]/g, '_');
+    const fname = `${req.params.id}__${safe}`;
+    // remove any previous JD for this req
+    try { fs.readdirSync(JD_DIR).filter(n => n.startsWith(req.params.id + '__')).forEach(n => fs.rmSync(pathmod.join(JD_DIR, n), { force: true })); } catch {}
+    fs.writeFileSync(pathmod.join(JD_DIR, fname), Buffer.from(b.dataBase64.split(',').pop(), 'base64'));
+    const p = await getPool();
+    await p.request().input('Id', sql.Int, req.params.id).input('F', sql.NVarChar, b.fileName || safe).query(`UPDATE dbo.Recruitment SET JdFileName=@F, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.get('/api/recruitment/:id/jd-file', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    if (!fs.existsSync(JD_DIR)) return res.status(404).send('Not found');
+    const f = fs.readdirSync(JD_DIR).find(n => n.startsWith(req.params.id + '__'));
+    if (!f) return res.status(404).send('Not found');
+    res.download(pathmod.join(JD_DIR, f), f.split('__').slice(1).join('__'));
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+// CV upload -> creates a candidate with the CV attached (HR)
+const CV_DIR = pathmod.join(__dirname, 'uploads', 'recruitment_cv');
+app.post('/api/recruitment/:id/cv', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
+    const name = b.name || (b.fileName ? b.fileName.replace(/\.[^.]+$/, '') : 'Candidate');
+    const p = await getPool();
+    const r = await p.request().input('ReqId', sql.Int, req.params.id)
+      .input('Name', sql.NVarChar, name).input('CvF', sql.NVarChar, b.fileName || null)
+      .input('Docs', sql.NVarChar, JSON.stringify(recFreshDocs()))
+      .query(`INSERT INTO dbo.RecruitmentCandidates (ReqId,Name,CvFileName,Documents) OUTPUT INSERTED.Id VALUES (@ReqId,@Name,@CvF,@Docs)`);
+    const cid = r.recordset[0].Id;
+    const dir = pathmod.join(CV_DIR, String(cid)); fs.mkdirSync(dir, { recursive: true });
+    const safe = String(b.fileName || 'cv.pdf').replace(/[^A-Za-z0-9._-]/g, '_');
+    fs.writeFileSync(pathmod.join(dir, safe), Buffer.from(b.dataBase64.split(',').pop(), 'base64'));
+    res.json({ success: true, id: cid });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.get('/api/recruitment/candidates/:cid/cv', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const dir = pathmod.join(CV_DIR, String(req.params.cid));
+    if (!fs.existsSync(dir)) return res.status(404).send('Not found');
+    const f = fs.readdirSync(dir)[0];
+    if (!f) return res.status(404).send('Not found');
+    res.download(pathmod.join(dir, f), f);
+  } catch (err) { res.status(500).send(err.message); }
+});
+
 app.put('/api/recruitment/candidates/:cid', async (req, res) => {
   if (!can(req, 'hr', 'manager')) return deny(res);
   try {
@@ -1145,8 +1205,14 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
       .input('JD', sql.Date, g('joiningDate', 'JoiningDate') || null)
       .input('Docs', sql.NVarChar, b.documents !== undefined ? JSON.stringify(b.documents) : cur.Documents)
       .input('EN', sql.NVarChar, g('engagementNotes', 'EngagementNotes'))
+      .input('Hod', sql.NVarChar, g('hodDecision', 'HodDecision')).input('HodR', sql.NVarChar, g('hodRemark', 'HodRemark'))
+      .input('ID', sql.Date, g('interviewDate', 'InterviewDate') || null).input('IT', sql.NVarChar, g('interviewTime', 'InterviewTime'))
+      .input('IS', sql.NVarChar, g('interviewStatus', 'InterviewStatus')).input('IN', sql.NVarChar, g('interviewerName', 'InterviewerName'))
+      .input('As', sql.NVarChar, b.assessment !== undefined ? JSON.stringify(b.assessment) : cur.Assessment)
+      .input('Out', sql.NVarChar, g('outcome', 'Outcome'))
       .query(`UPDATE dbo.RecruitmentCandidates SET Name=@Name,Phone=@Phone,Email=@Email,Source=@Source,CandStatus=@CS,Interviews=@Iv,
-        OfferAcceptedDate=@OAD,ResignationAcceptedDate=@RAD,JoiningDate=@JD,Documents=@Docs,EngagementNotes=@EN WHERE Id=@Id`);
+        OfferAcceptedDate=@OAD,ResignationAcceptedDate=@RAD,JoiningDate=@JD,Documents=@Docs,EngagementNotes=@EN,
+        HodDecision=@Hod,HodRemark=@HodR,InterviewDate=@ID,InterviewTime=@IT,InterviewStatus=@IS,InterviewerName=@IN,Assessment=@As,Outcome=@Out WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

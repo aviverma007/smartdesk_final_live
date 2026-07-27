@@ -39,15 +39,15 @@ const STATUS_META = {
   ready: { label: 'Ready for Handover', color: 'var(--accent-green)' },
   handed_over: { label: 'Handed Over', color: 'var(--text-muted)' },
   dropped: { label: 'Dropped', color: '#dc2626' },
-  requisition: { label: '1 · Requisition', color: 'var(--accent-sky)' },
-  jd_kra: { label: '2 · JD & KRA', color: 'var(--accent-sky)' },
-  sourcing: { label: '3 · Sourcing', color: 'var(--accent-teal)' },
-  screening: { label: '4 · Screening', color: 'var(--accent-teal)' },
-  interviews: { label: '5 · Interviews', color: 'var(--accent-orange)' },
-  fitment: { label: '6 · Fitment', color: 'var(--accent-orange)' },
-  approval: { label: '7 · Approval', color: 'var(--accent-purple)' },
-  offer: { label: '8 · Offer', color: 'var(--accent-purple)' },
-  acceptance: { label: '9 · Acceptance', color: 'var(--accent-green)' },
+  requisition: { label: '1 · JD', color: 'var(--accent-sky)' },
+  jd: { label: '1 · JD & Requirement', color: 'var(--accent-sky)' },
+  review_post: { label: '2 · Review & Post', color: 'var(--accent-sky)' },
+  cv_shortlist: { label: '3 · CV Shortlist', color: 'var(--accent-teal)' },
+  scheduling: { label: '4 · Scheduling', color: 'var(--accent-teal)' },
+  interview: { label: '5 · Interview', color: 'var(--accent-orange)' },
+  selection: { label: '6 · Selection', color: 'var(--accent-orange)' },
+  offer: { label: '7 · Offer', color: 'var(--accent-purple)' },
+  acceptance: { label: '8 · Acceptance', color: 'var(--accent-green)' },
   on_hold: { label: 'On Hold', color: 'var(--text-muted)' },
   closed: { label: 'Closed', color: 'var(--text-muted)' },
 };
@@ -1510,23 +1510,28 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
 };
 
 /* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
-const REC_STAGES = ['requisition', 'jd_kra', 'sourcing', 'screening', 'interviews', 'fitment', 'approval', 'offer', 'acceptance'];
+const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'offer', 'acceptance'];
 const REC_DOCS = [
   { key: 'idProof', label: 'ID proof' }, { key: 'addressProof', label: 'Address proof' },
   { key: 'education', label: 'Education certificates' }, { key: 'relieving', label: 'Relieving / experience letter' },
   { key: 'bank', label: 'Bank details' }, { key: 'photo', label: 'Photograph' },
 ];
-const SOURCING_CHANNELS = ['Internal posting', 'Referrals', 'Job portals', 'Empanelled consultants'];
+const POST_CHANNELS = ['Company website', 'Naukri', 'LinkedIn', 'Referrals', 'Consultants', 'Internal posting'];
+const ASSESS_CRITERIA = ['Education / Training', 'Work Experience', 'Technical skills', 'Personality', 'Communication Skills', 'Others'];
+const ASSESS_RATINGS = [{ v: 5, l: 'Excellent' }, { v: 4, l: 'Good' }, { v: 3, l: 'Average' }, { v: 2, l: 'Below Average' }];
+const OUTCOME_META = { Selected: 'var(--accent-green)', 'On Hold': 'var(--accent-orange)', 'Not Suitable': '#dc2626' };
+
+const readBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
 
 const RecruitmentView = ({ onBack }) => {
   const api = useApi();
   const { isManager } = useAuth();
   const [list, setList] = useState([]);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState(isManager ? 'approvals' : 'active');
+  const [filter, setFilter] = useState(isManager ? 'hod' : 'active');
   const [showForm, setShowForm] = useState(false);
   const [openId, setOpenId] = useState(null);
-  const blank = { department: '', role: '', grade: '', positions: 1, justification: '', targetDate: '', mrfRef: '', aopApproved: false };
+  const blank = { department: '', role: '', grade: '', positions: 1, justification: '', targetDate: '', mrfRef: '', jdText: '' };
   const [form, setForm] = useState(blank);
   const [msg, setMsg] = useState('');
 
@@ -1536,61 +1541,47 @@ const RecruitmentView = ({ onBack }) => {
   const create = async () => {
     if (!form.role && !form.department) return setMsg('Enter at least a role or department.');
     const d = await api('/recruitment', 'POST', form);
-    if (d.success) { setForm(blank); setShowForm(false); setMsg('Requisition created.'); load(); } else setMsg(d.error || 'Failed.');
+    if (d.success) { setForm(blank); setShowForm(false); setMsg('Requirement created.'); load(); } else setMsg(d.error || 'Failed.');
   };
-  const pendingApproval = (r) => (r.Stage === 'requisition' && r.ReqApprovalStatus === 'pending') || (r.Stage === 'approval' && r.OfferApprovalStatus === 'pending');
+  const needsHod = (r) => r.Stage === 'cv_shortlist' && (r.candidates || []).some(c => (c.HodDecision || 'pending') === 'pending');
   const filtered = list.filter(r => {
     const s = search.trim().toLowerCase();
     const ms = !s || [r.Role, r.Department, r.MrfRef].filter(Boolean).some(x => x.toLowerCase().includes(s));
-    const mf = filter === 'all' ? true
-      : filter === 'approvals' ? pendingApproval(r)
-      : filter === 'active' ? r.Status === 'active'
-      : filter === 'on_hold' ? r.Status === 'on_hold'
-      : r.Status === filter;
+    const mf = filter === 'all' ? true : filter === 'hod' ? needsHod(r) : filter === 'active' ? r.Status === 'active' : filter === 'on_hold' ? r.Status === 'on_hold' : r.Status === filter;
     return ms && mf;
   });
 
   return (
     <div>
-      <BackBar onBack={onBack} title="Recruitment" subtitle="Track each position from manpower requisition through to offer acceptance (stages 1–9)." />
-      {!showForm && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New requisition</button>
-        </div>
-      )}
+      <BackBar onBack={onBack} title="Recruitment" subtitle="JD to offer acceptance — HOD shares the JD, HR sources and schedules, the panel interviews, HR closes." />
+      {!showForm && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}><button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New requirement (JD)</button></div>}
       {showForm && (
         <div style={card}>
-          <h2 style={h2}>New manpower requisition (Stage 1)</h2>
+          <h2 style={h2}>New requirement — Stage 1 (JD)</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 8 }}>
             <Field l="Department"><input style={input} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
-            <Field l="Role"><input style={input} value={form.role} onChange={e => set('role', e.target.value)} /></Field>
+            <Field l="Role / position"><input style={input} value={form.role} onChange={e => set('role', e.target.value)} /></Field>
             <Field l="Grade / band"><input style={input} value={form.grade} onChange={e => set('grade', e.target.value)} /></Field>
             <Field l="No. of positions"><input type="number" min="1" style={input} value={form.positions} onChange={e => set('positions', e.target.value)} /></Field>
             <Field l="MRF reference"><input style={input} value={form.mrfRef} onChange={e => set('mrfRef', e.target.value)} /></Field>
             <Field l="Target date"><input type="date" style={input} value={form.targetDate} onChange={e => set('targetDate', e.target.value)} /></Field>
           </div>
-          <Field l="Justification"><textarea style={{ ...input, minHeight: 48 }} value={form.justification} onChange={e => set('justification', e.target.value)} /></Field>
-          <label style={{ fontSize: '.86rem', color: 'var(--text-primary)', display: 'block', margin: '4px 0 12px' }}>
-            <input type="checkbox" checked={form.aopApproved} onChange={e => set('aopApproved', e.target.checked)} style={{ marginRight: 8 }} />Validated against approved AOP / manpower plan (MO approved)
-          </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button style={primaryBtn} onClick={create}>Create requisition</button>
-            <button style={ghostBtn} onClick={() => { setShowForm(false); setMsg(''); }}>Cancel</button>
-          </div>
+          <Field l="Job description (JD)"><textarea style={{ ...input, minHeight: 70 }} value={form.jdText} onChange={e => set('jdText', e.target.value)} placeholder="Paste the JD here (you can also upload a JD file after creating)." /></Field>
+          <div style={{ display: 'flex', gap: 10 }}><button style={primaryBtn} onClick={create}>Create</button><button style={ghostBtn} onClick={() => { setShowForm(false); setMsg(''); }}>Cancel</button></div>
           {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
         </div>
       )}
       <div style={card}>
-        <h2 style={h2}>Requisitions</h2>
+        <h2 style={h2}>Requirements</h2>
         <FilterBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter}
           placeholder="Search by role, department or MRF…"
           options={[
             { key: 'active', label: 'Active', count: list.filter(r => r.Status === 'active').length },
-            { key: 'approvals', label: 'Pending approval', count: list.filter(pendingApproval).length },
+            { key: 'hod', label: 'HOD review', count: list.filter(needsHod).length },
             { key: 'on_hold', label: 'On hold', count: list.filter(r => r.Status === 'on_hold').length },
             { key: 'all', label: 'All', count: list.length },
           ]} />
-        {filtered.length === 0 && <Empty text="No requisitions." />}
+        {filtered.length === 0 && <Empty text="No requirements." />}
         {filtered.map(r => (
           <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1598,7 +1589,7 @@ const RecruitmentView = ({ onBack }) => {
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.Role || '(role)'} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.82rem' }}>· {r.Department || '—'}{r.Positions ? ` · ${r.Positions} pos` : ''}{r.MrfRef ? ` · ${r.MrfRef}` : ''}</span></div>
                 <div style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{(r.candidates || []).length} candidate(s){r.Status !== 'active' ? ` · ${STATUS_META[r.Status]?.label || r.Status}` : ''}</div>
               </div>
-              {pendingApproval(r) && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>Needs approval</span>}
+              {needsHod(r) && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>HOD review</span>}
               {r.DeleteRequested && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Delete requested</span>}
               <Pill status={r.Stage} />
               <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(openId === r.Id ? null : r.Id)}>{openId === r.Id ? 'Close' : 'Manage'}</button>
@@ -1615,46 +1606,39 @@ const RecruitmentView = ({ onBack }) => {
 const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const { isAdmin, isManager, user } = useAuth();
   const [r, setR] = useState(record);
-  const [override, setOverride] = useState(false);
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
+  const [assessFor, setAssessFor] = useState(null);
   const [msg, setMsg] = useState('');
   useEffect(() => { setR(record); }, [record]);
   const idx = REC_STAGES.indexOf(r.Stage);
   const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const cands = r.candidates || [];
 
-  const save = async (patch) => {
-    const d = await api(`/recruitment/${r.Id}`, 'PUT', { ...patch, override });
-    if (d.success) { await refresh(); setMsg('Saved.'); reload(); } else window.alert(d.error || 'Failed.');
-  };
   const refresh = async () => { const d = await api('/recruitment'); if (d.success) { const u = d.records.find(x => x.Id === r.Id); if (u) setR(u); } };
+  const save = async (patch) => { const d = await api(`/recruitment/${r.Id}`, 'PUT', patch); if (d.success) { await refresh(); setMsg('Saved.'); reload(); } else window.alert(d.error || 'Failed.'); };
   const goStage = (s) => save({ stage: s });
-  const setApproval = async (kind, decision) => {
-    const remark = window.prompt(`${decision === 'approve' ? 'Approve' : 'Reject'} — remark (optional):`) || '';
-    const d = await api(`/recruitment/${r.Id}/${kind}-approval`, 'POST', { decision, remark });
-    if (d.success) { await refresh(); reload(); } else window.alert(d.error || 'Failed.');
-  };
-  // candidates
-  const addCand = async () => { if (!cand.name.trim()) return; const d = await api(`/recruitment/${r.Id}/candidates`, 'POST', cand); if (d.success) { setCand({ name: '', phone: '', email: '', source: '' }); await refresh(); reload(); } else window.alert(d.error || 'Failed.'); };
   const saveCand = async (cid, patch) => { const d = await api(`/recruitment/candidates/${cid}`, 'PUT', patch); if (d.success) { await refresh(); reload(); } else window.alert(d.error || 'Failed.'); };
+  const addCand = async () => { if (!cand.name.trim()) return; const d = await api(`/recruitment/${r.Id}/candidates`, 'POST', cand); if (d.success) { setCand({ name: '', phone: '', email: '', source: '' }); await refresh(); reload(); } };
   const delCand = async (cid) => { if (!window.confirm('Remove this candidate?')) return; const d = await api(`/recruitment/candidates/${cid}`, 'DELETE'); if (d.success) { await refresh(); reload(); } };
-  // delete requisition (admin approval)
-  const requestDelete = async () => { const why = window.prompt('Delete this requisition? Reason goes to Admin for approval:'); if (why === null) return; const d = await api(`/recruitment/${r.Id}/request-delete`, 'POST', { reason: why }); if (d.success) { window.alert('Deletion requested — pending Admin approval.'); await refresh(); reload(); } };
-  const approveDelete = async () => { if (!window.confirm('Approve deletion? This permanently removes the requisition and its candidates.')) return; const d = await api(`/recruitment/${r.Id}/approve-delete`, 'POST', {}); if (d.success) { window.alert('Deleted.'); reload(); onClose && onClose(); } };
+  const uploadCVs = async (files) => { for (const f of files) { const b64 = await readBase64(f); await api(`/recruitment/${r.Id}/cv`, 'POST', { fileName: f.name, dataBase64: b64 }); } await refresh(); reload(); };
+  const uploadJd = async (file) => { const b64 = await readBase64(file); const d = await api(`/recruitment/${r.Id}/jd-upload`, 'POST', { fileName: file.name, dataBase64: b64 }); if (d.success) { await refresh(); reload(); } };
+  const viewServerFile = async (path) => { try { const res = await fetch(`${URA_API}${path}`, { headers: { 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' } }); if (!res.ok) return window.alert('Could not open (' + res.status + ').'); const b = await res.blob(); const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); } catch { window.alert('Could not reach server.'); } };
+
+  const requestDelete = async () => { const why = window.prompt('Delete this requirement? Reason goes to Admin for approval:'); if (why === null) return; const d = await api(`/recruitment/${r.Id}/request-delete`, 'POST', { reason: why }); if (d.success) { window.alert('Deletion requested — pending Admin approval.'); await refresh(); reload(); } };
+  const approveDelete = async () => { if (!window.confirm('Approve deletion? Permanently removes this requirement and its candidates.')) return; const d = await api(`/recruitment/${r.Id}/approve-delete`, 'POST', {}); if (d.success) { window.alert('Deleted.'); reload(); onClose && onClose(); } };
   const rejectDelete = async () => { const d = await api(`/recruitment/${r.Id}/reject-delete`, 'POST', {}); if (d.success) { await refresh(); reload(); } };
 
-  const cands = r.candidates || [];
   const channels = (() => { try { return JSON.parse(r.SourcingChannels || '[]'); } catch { return []; } })();
   const toggleChannel = (c) => { const nx = channels.includes(c) ? channels.filter(x => x !== c) : [...channels, c]; save({ sourcingChannels: nx }); };
-
   const box = { marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' };
+  const accepted = cands.filter(c => c.HodDecision === 'accepted');
+  const selectedCount = cands.filter(c => c.Outcome === 'Selected').length;
 
   return (
     <div style={box}>
-      {/* stage progress */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {REC_STAGES.map((s, i) => (
-          <button key={s} onClick={() => (isAdmin || i <= idx + 1) ? goStage(s) : null}
-            title={STATUS_META[s]?.label}
+          <button key={s} onClick={() => (isAdmin || i <= idx + 1) ? goStage(s) : null} title={STATUS_META[s]?.label}
             style={{ padding: '4px 9px', borderRadius: 14, fontSize: '.72rem', fontWeight: 700, cursor: 'pointer',
               border: `1px solid ${i === idx ? 'var(--accent)' : 'var(--border)'}`,
               background: i === idx ? 'var(--accent)' : i < idx ? 'color-mix(in srgb, var(--accent-green) 18%, transparent)' : 'transparent',
@@ -1672,95 +1656,140 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      {/* current-stage panel */}
-      {r.Stage === 'requisition' && (
+      {/* STAGE 1 — JD */}
+      {r.Stage === 'jd' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field l="Department"><input style={input} defaultValue={r.Department || ''} onBlur={e => save({ department: e.target.value })} /></Field>
             <Field l="Role"><input style={input} defaultValue={r.Role || ''} onBlur={e => save({ role: e.target.value })} /></Field>
             <Field l="Grade"><input style={input} defaultValue={r.Grade || ''} onBlur={e => save({ grade: e.target.value })} /></Field>
             <Field l="Positions"><input type="number" style={input} defaultValue={r.Positions || 1} onBlur={e => save({ positions: e.target.value })} /></Field>
-            <Field l="MRF ref"><input style={input} defaultValue={r.MrfRef || ''} onBlur={e => save({ mrfRef: e.target.value })} /></Field>
-            <Field l="Target date"><input type="date" style={input} defaultValue={dv(r.TargetDate)} onBlur={e => save({ targetDate: e.target.value })} /></Field>
           </div>
-          <label style={{ fontSize: '.84rem', color: 'var(--text-primary)', display: 'block', margin: '2px 0 10px' }}>
-            <input type="checkbox" checked={!!r.AopApproved} onChange={e => save({ aopApproved: e.target.checked })} style={{ marginRight: 8 }} />AOP / manpower plan approved (MO)</label>
-          <ApprovalBox r={r} kind="req" statusField="ReqApprovalStatus" byField="ReqApprovalBy" remarkField="ReqApprovalRemark" canAct={isManager} onAct={setApproval} label="Requisition approval" />
+          <Field l="Job description (text)"><textarea style={{ ...input, minHeight: 90 }} defaultValue={r.JdText || ''} onBlur={e => save({ jdText: e.target.value })} /></Field>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <label style={{ ...ghostBtn, cursor: 'pointer', marginBottom: 0 }}>{r.JdFileName ? 'Replace JD file' : 'Upload JD file'}<input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && uploadJd(e.target.files[0])} /></label>
+            {r.JdFileName && <button style={ghostBtn} onClick={() => viewServerFile(`/recruitment/${r.Id}/jd-file`)}>View JD ({r.JdFileName})</button>}
+          </div>
+          <p style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>HOD shares the JD here, then advances to hand it to HR.</p>
         </div>
       )}
-      {r.Stage === 'jd_kra' && (
+
+      {/* STAGE 2 — REVIEW & POST */}
+      {r.Stage === 'review_post' && (
         <div>
-          <label style={{ fontSize: '.88rem', color: 'var(--text-primary)', display: 'block', marginBottom: 8 }}><input type="checkbox" checked={!!r.JdConfirmed} onChange={e => save({ jdConfirmed: e.target.checked })} style={{ marginRight: 8 }} />Approved JD exists</label>
-          <label style={{ fontSize: '.88rem', color: 'var(--text-primary)', display: 'block' }}><input type="checkbox" checked={!!r.KraConfirmed} onChange={e => save({ kraConfirmed: e.target.checked })} style={{ marginRight: 8 }} />KRA confirmed</label>
-        </div>
-      )}
-      {r.Stage === 'sourcing' && (
-        <div>
-          <div style={label}>Sourcing channels used</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-            {SOURCING_CHANNELS.map(c => <span key={c} onClick={() => toggleChannel(c)} style={chip(channels.includes(c))}>{c}</span>)}
-          </div>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>HR reviews the requirement and posts the JD. Tick where it was posted.</p>
+          {r.JdFileName && <button style={{ ...ghostBtn, marginBottom: 10 }} onClick={() => viewServerFile(`/recruitment/${r.Id}/jd-file`)}>View JD ({r.JdFileName})</button>}
+          <div style={label}>Posted on</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>{POST_CHANNELS.map(c => <span key={c} onClick={() => toggleChannel(c)} style={chip(channels.includes(c))}>{c}</span>)}</div>
           <Field l="Notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.SourcingNotes || ''} onBlur={e => save({ sourcingNotes: e.target.value })} /></Field>
         </div>
       )}
-      {r.Stage === 'screening' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field l="No. screened"><input type="number" style={input} defaultValue={r.NumScreened || ''} onBlur={e => save({ numScreened: e.target.value })} /></Field>
-          <Field l="No. shortlisted"><input type="number" style={input} defaultValue={r.NumShortlisted || ''} onBlur={e => save({ numShortlisted: e.target.value })} /></Field>
-          <div style={{ gridColumn: '1 / -1' }}><Field l="Notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.ScreeningNotes || ''} onBlur={e => save({ screeningNotes: e.target.value })} /></Field></div>
-        </div>
-      )}
-      {r.Stage === 'interviews' && <p style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>Record interview rounds and outcomes on each candidate in the Candidates section below.</p>}
-      {r.Stage === 'fitment' && (
+
+      {/* STAGE 3 — CV SHORTLIST (HR uploads, HOD accept/reject) */}
+      {r.Stage === 'cv_shortlist' && (
         <div>
-          <Field l="Fitment notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.FitmentNotes || ''} onBlur={e => save({ fitmentNotes: e.target.value })} /></Field>
-          <label style={{ fontSize: '.86rem', color: 'var(--text-primary)', display: 'block', margin: '2px 0 10px' }}><input type="checkbox" checked={!!r.BudgetOk} onChange={e => save({ budgetOk: e.target.checked })} style={{ marginRight: 8 }} />Within budget as per MRF</label>
-          <Field l="Selected candidate">
-            <select style={input} value={r.SelectedCandidateId || ''} onChange={e => { const cid = e.target.value ? Number(e.target.value) : null; save({ selectedCandidateId: cid }); if (cid) saveCand(cid, { candStatus: 'selected' }); }}>
-              <option value="">— choose —</option>
-              {cands.map(c => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
-            </select>
-          </Field>
+          <label style={{ ...primaryBtn, cursor: 'pointer', display: 'inline-block' }}>+ Upload CVs (multiple)<input type="file" multiple style={{ display: 'none' }} onChange={e => { if (e.target.files.length) uploadCVs([...e.target.files]); e.target.value = ''; }} /></label>
+          <p style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>HR uploads CVs; the HOD (Manager) opens each and accepts or rejects.</p>
+          {cands.length === 0 && <Empty text="No CVs uploaded yet." />}
+          {cands.map(c => (
+            <div key={c.Id} style={{ ...rowStyle, alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <input style={{ ...input, marginBottom: 0, maxWidth: 220, padding: '5px 8px' }} defaultValue={c.Name} onBlur={e => saveCand(c.Id, { name: e.target.value })} />
+                {c.HodRemark && <div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>Remark: {c.HodRemark}</div>}
+              </div>
+              {c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => viewServerFile(`/recruitment/candidates/${c.Id}/cv`)}>View CV</button>}
+              <Pill status={c.HodDecision === 'accepted' ? 'approved' : c.HodDecision === 'rejected' ? 'rejected' : 'pending'} />
+              {isManager && c.HodDecision !== 'accepted' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { hodDecision: 'accepted' })}>Accept</button>}
+              {isManager && c.HodDecision !== 'rejected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const rm = window.prompt('Reject — remark (optional):') || ''; saveCand(c.Id, { hodDecision: 'rejected', hodRemark: rm }); }}>Reject</button>}
+              <button style={{ ...ghostBtn, padding: '5px 8px', fontSize: '.74rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => delCand(c.Id)}>✕</button>
+            </div>
+          ))}
         </div>
       )}
-      {r.Stage === 'approval' && (
-        <ApprovalBox r={r} kind="offer" statusField="OfferApprovalStatus" byField="OfferApprovalBy" remarkField="OfferApprovalRemark" canAct={isManager} onAct={setApproval} label="Offer approval (Approving Authority)" />
+
+      {/* STAGE 4 — SCHEDULING */}
+      {r.Stage === 'scheduling' && (
+        <div>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Call the HOD-accepted candidates, schedule interviews, then mark arrival.</p>
+          {accepted.length === 0 && <Empty text="No HOD-accepted candidates yet." />}
+          {accepted.map(c => (
+            <div key={c.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name} {c.InterviewStatus && c.InterviewStatus !== 'none' && <span style={{ fontSize: '.74rem', color: 'var(--text-muted)' }}>· {c.InterviewStatus}</span>}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+                <input type="date" style={{ ...input, marginBottom: 0, maxWidth: 150 }} defaultValue={dv(c.InterviewDate)} onBlur={e => saveCand(c.Id, { interviewDate: e.target.value, interviewStatus: c.InterviewStatus === 'none' ? 'scheduled' : c.InterviewStatus })} />
+                <input placeholder="Time" style={{ ...input, marginBottom: 0, maxWidth: 100 }} defaultValue={c.InterviewTime || ''} onBlur={e => saveCand(c.Id, { interviewTime: e.target.value })} />
+                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { interviewStatus: 'arrived' })}>Arrived</button>
+                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-orange)', borderColor: 'var(--accent-orange)' }} onClick={() => saveCand(c.Id, { interviewStatus: 'reschedule' })}>Reschedule</button>
+                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => saveCand(c.Id, { interviewStatus: 'no_show' })}>No-show</button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
+
+      {/* STAGE 5 — INTERVIEW & ASSESSMENT */}
+      {r.Stage === 'interview' && (
+        <div>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>For each interviewed candidate, the panel fills the assessment form and sets the outcome.</p>
+          {accepted.filter(c => c.InterviewStatus === 'arrived' || c.Assessment).length === 0 && <Empty text="Mark a candidate 'Arrived' at the Scheduling stage first." />}
+          {accepted.filter(c => c.InterviewStatus === 'arrived' || c.Assessment).map(c => (
+            <div key={c.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name}</div>
+                {c.Outcome && <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: OUTCOME_META[c.Outcome] || 'var(--text-muted)', borderRadius: 12, padding: '2px 9px' }}>{c.Outcome}</span>}
+                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssessFor(assessFor === c.Id ? null : c.Id)}>{assessFor === c.Id ? 'Close form' : (c.Assessment ? 'Edit assessment' : 'Fill assessment form')}</button>
+              </div>
+              {assessFor === c.Id && <AssessmentForm c={c} req={r} onSave={(patch) => { saveCand(c.Id, patch); setAssessFor(null); }} />}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* STAGE 6 — SELECTION */}
+      {r.Stage === 'selection' && (
+        <div>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Positions: {r.Positions || 1}. Selected so far: {selectedCount}. Choose who to take forward to offer.</p>
+          {cands.filter(c => c.Outcome).map(c => (
+            <div key={c.Id} style={{ ...rowStyle, alignItems: 'center', background: r.SelectedCandidateId === c.Id ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : undefined }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name}{r.SelectedCandidateId === c.Id ? ' ★' : ''}</div>
+                <div style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}>Interview outcome: {c.Outcome}{c.InterviewerName ? ` · by ${c.InterviewerName}` : ''}</div>
+              </div>
+              <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: OUTCOME_META[c.Outcome] || 'var(--text-muted)', borderRadius: 12, padding: '2px 9px' }}>{c.Outcome}</span>
+              {c.Outcome === 'Selected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => { save({ selectedCandidateId: c.Id }); saveCand(c.Id, { candStatus: 'selected' }); }}>Take forward</button>}
+            </div>
+          ))}
+          {cands.filter(c => c.Outcome).length === 0 && <Empty text="No interview outcomes yet." />}
+        </div>
+      )}
+
+      {/* STAGE 7 — OFFER */}
       {r.Stage === 'offer' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field l="Offer released date"><input type="date" style={input} defaultValue={dv(r.OfferReleasedDate)} onBlur={e => save({ offerReleasedDate: e.target.value })} /></Field>
           <div style={{ gridColumn: '1 / -1' }}><Field l="Offer notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.OfferNotes || ''} onBlur={e => save({ offerNotes: e.target.value })} /></Field></div>
         </div>
       )}
-      {r.Stage === 'acceptance' && (
-        (() => { const sel = cands.find(c => c.Id === r.SelectedCandidateId);
-          return sel ? <RecCandidateAcceptance c={sel} api={api} reload={async () => { await refresh(); reload(); }} user={user} />
-            : <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Select a candidate at the Fitment stage first.</p>; })()
+
+      {/* STAGE 8 — ACCEPTANCE */}
+      {r.Stage === 'acceptance' && ((() => { const sel = cands.find(c => c.Id === r.SelectedCandidateId);
+        return sel ? <RecCandidateAcceptance c={sel} api={api} reload={async () => { await refresh(); reload(); }} user={user} />
+          : <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Take a candidate forward at the Selection stage first.</p>; })())}
+
+      {/* manual add candidate (available pre-interview) */}
+      {['cv_shortlist', 'scheduling'].includes(r.Stage) && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+          <input placeholder="Add candidate name" style={{ ...input, marginBottom: 0, maxWidth: 180 }} value={cand.name} onChange={e => setCand(s => ({ ...s, name: e.target.value }))} />
+          <input placeholder="Email" style={{ ...input, marginBottom: 0, maxWidth: 170 }} value={cand.email} onChange={e => setCand(s => ({ ...s, email: e.target.value }))} />
+          <button style={ghostBtn} onClick={addCand}>+ Add manually</button>
+        </div>
       )}
 
-      {/* candidates section */}
-      <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-        <div style={label}>Candidates ({cands.length})</div>
-        {cands.map(c => (
-          <RecCandidateRow key={c.Id} c={c} isSelected={c.Id === r.SelectedCandidateId} stage={r.Stage}
-            onSave={(patch) => saveCand(c.Id, patch)} onDelete={() => delCand(c.Id)} />
-        ))}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-          <input placeholder="Name" style={{ ...input, marginBottom: 0, maxWidth: 160 }} value={cand.name} onChange={e => setCand(s => ({ ...s, name: e.target.value }))} />
-          <input placeholder="Phone" style={{ ...input, marginBottom: 0, maxWidth: 130 }} value={cand.phone} onChange={e => setCand(s => ({ ...s, phone: e.target.value }))} />
-          <input placeholder="Email" style={{ ...input, marginBottom: 0, maxWidth: 170 }} value={cand.email} onChange={e => setCand(s => ({ ...s, email: e.target.value }))} />
-          <input placeholder="Source" style={{ ...input, marginBottom: 0, maxWidth: 130 }} value={cand.source} onChange={e => setCand(s => ({ ...s, source: e.target.value }))} />
-          <button style={ghostBtn} onClick={addCand}>+ Add candidate</button>
-        </div>
-      </div>
-
-      {/* actions */}
       <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
         {idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
-        <label style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}><input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} style={{ marginRight: 6 }} />HR override (skip approval gate)</label>
         {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
-        <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing this requisition?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
+        <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
         {!r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
       </div>
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
@@ -1768,61 +1797,68 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   );
 };
 
-const ApprovalBox = ({ r, kind, statusField, byField, remarkField, canAct, onAct, label }) => {
-  const st = r[statusField] || 'pending';
-  const color = st === 'approved' ? 'var(--accent-green)' : st === 'rejected' ? '#dc2626' : 'var(--accent-orange)';
-  return (
-    <div style={{ marginTop: 12, padding: 12, borderRadius: 8, border: `1px solid ${color}`, background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
-      <div style={{ fontWeight: 700, fontSize: '.84rem', color }}>{label}: {st.charAt(0).toUpperCase() + st.slice(1)}{r[byField] ? ` (by ${r[byField]})` : ''}</div>
-      {r[remarkField] && <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 3 }}>Remark: {r[remarkField]}</div>}
-      {canAct && st === 'pending' && (
-        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          <button style={{ ...primaryBtn, background: 'var(--accent-green)' }} onClick={() => onAct(kind, 'approve')}>Approve</button>
-          <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => onAct(kind, 'reject')}>Reject</button>
-        </div>
-      )}
-      {!canAct && st === 'pending' && <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 4 }}>Awaiting the Approving Authority (Manager).</div>}
-    </div>
-  );
-};
+// Digitised Interview Assessment Form (matches the paper form)
+const AssessmentForm = ({ c, req, onSave }) => {
+  const init = (() => { try { return JSON.parse(c.Assessment || 'null'); } catch { return null; } })() || {
+    position: req.Role || '', department: req.Department || '', expectedCtc: '', currentCtc: '', noticePeriod: '', experience: '',
+    dob: '', qualification: '', maritalStatus: '', source: '', interviewedEarlier: 'No',
+    ratings: {}, comments: {}, knowledge: '', experienceInput: '', exposure: '', date: new Date().toISOString().slice(0, 10),
+  };
+  const [f, setF] = useState(init);
+  const [interviewer, setInterviewer] = useState(c.InterviewerName || '');
+  const [outcome, setOutcome] = useState(c.Outcome || '');
+  const set = (k, v) => setF(s => ({ ...s, [k]: v }));
+  const setRating = (crit, v) => setF(s => ({ ...s, ratings: { ...s.ratings, [crit]: v } }));
+  const setComment = (crit, v) => setF(s => ({ ...s, comments: { ...s.comments, [crit]: v } }));
+  const submit = () => { if (!outcome) return window.alert('Please select a status (Selected / On Hold / Not Suitable).'); onSave({ assessment: f, interviewerName: interviewer, outcome, candStatus: outcome === 'Selected' ? 'selected' : outcome === 'Not Suitable' ? 'rejected' : 'interviewing' }); };
 
-const RecCandidateRow = ({ c, isSelected, stage, onSave, onDelete }) => {
-  const [open, setOpen] = useState(false);
-  const ivs = (() => { try { return JSON.parse(c.Interviews || '[]'); } catch { return []; } })();
-  const addRound = () => { const nx = [...ivs, { round: ivs.length + 1, date: '', panel: '', outcome: 'Pending', notes: '' }]; onSave({ interviews: nx }); };
-  const setRound = (i, patch) => { const nx = ivs.map((x, j) => j === i ? { ...x, ...patch } : x); onSave({ interviews: nx }); };
   return (
-    <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', background: isSelected ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : undefined }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name}{isSelected ? ' ★' : ''} <span style={{ fontWeight: 400, fontSize: '.78rem', color: 'var(--text-muted)' }}>{[c.Source, c.Email].filter(Boolean).join(' · ')}</span></div>
-        </div>
-        <select style={{ ...input, marginBottom: 0, maxWidth: 140, padding: '5px 8px', fontSize: '.78rem' }} value={c.CandStatus} onChange={e => onSave({ candStatus: e.target.value })}>
-          {['shortlisted', 'interviewing', 'selected', 'rejected'].map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.76rem' }} onClick={() => setOpen(o => !o)}>{open ? 'Hide' : 'Interviews'}</button>
-        <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '5px 10px', fontSize: '.76rem' }} onClick={onDelete}>Delete</button>
+    <div style={{ marginTop: 10, padding: 14, borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+      <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Interview Assessment — {c.Name}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        <Field l="Position"><input style={input} value={f.position} onChange={e => set('position', e.target.value)} /></Field>
+        <Field l="Department"><input style={input} value={f.department} onChange={e => set('department', e.target.value)} /></Field>
+        <Field l="Qualification"><input style={input} value={f.qualification} onChange={e => set('qualification', e.target.value)} /></Field>
+        <Field l="Experience"><input style={input} value={f.experience} onChange={e => set('experience', e.target.value)} /></Field>
+        <Field l="Current CTC"><input style={input} value={f.currentCtc} onChange={e => set('currentCtc', e.target.value)} /></Field>
+        <Field l="Expected CTC"><input style={input} value={f.expectedCtc} onChange={e => set('expectedCtc', e.target.value)} /></Field>
+        <Field l="Notice period"><input style={input} value={f.noticePeriod} onChange={e => set('noticePeriod', e.target.value)} /></Field>
+        <Field l="DOB"><input type="date" style={input} value={f.dob} onChange={e => set('dob', e.target.value)} /></Field>
+        <Field l="Marital status"><input style={input} value={f.maritalStatus} onChange={e => set('maritalStatus', e.target.value)} /></Field>
+        <Field l="Source / reference"><input style={input} value={f.source} onChange={e => set('source', e.target.value)} /></Field>
+        <Field l="Interviewed earlier?"><select style={input} value={f.interviewedEarlier} onChange={e => set('interviewedEarlier', e.target.value)}><option>No</option><option>Yes</option></select></Field>
       </div>
-      {open && (
-        <div style={{ marginTop: 8 }}>
-          {ivs.map((iv, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', minWidth: 54 }}>Round {iv.round}</span>
-              <input type="date" style={{ ...input, marginBottom: 0, maxWidth: 140, padding: '4px 8px' }} defaultValue={iv.date} onBlur={e => setRound(i, { date: e.target.value })} />
-              <input placeholder="Panel" style={{ ...input, marginBottom: 0, maxWidth: 130, padding: '4px 8px' }} defaultValue={iv.panel} onBlur={e => setRound(i, { panel: e.target.value })} />
-              <select style={{ ...input, marginBottom: 0, maxWidth: 120, padding: '4px 8px' }} value={iv.outcome} onChange={e => setRound(i, { outcome: e.target.value })}>
-                {['Pending', 'Selected', 'Rejected', 'On hold'].map(o => <option key={o}>{o}</option>)}
-              </select>
-            </div>
+      <div style={label}>Evaluation (mark one rating per criterion)</div>
+      {ASSESS_CRITERIA.map(crit => (
+        <div key={crit} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+          <span style={{ minWidth: 150, fontSize: '.82rem', color: 'var(--text-primary)' }}>{crit}</span>
+          {ASSESS_RATINGS.map(rt => (
+            <label key={rt.v} style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>
+              <input type="radio" name={`r-${c.Id}-${crit}`} checked={f.ratings[crit] === rt.v} onChange={() => setRating(crit, rt.v)} style={{ marginRight: 3 }} />{rt.l} ({rt.v})
+            </label>
           ))}
-          <button style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem' }} onClick={addRound}>+ Add round</button>
+          <input placeholder="Comment" style={{ ...input, marginBottom: 0, maxWidth: 150, padding: '4px 8px' }} value={f.comments[crit] || ''} onChange={e => setComment(crit, e.target.value)} />
         </div>
-      )}
+      ))}
+      <Field l="Knowledge"><textarea style={{ ...input, minHeight: 38 }} value={f.knowledge} onChange={e => set('knowledge', e.target.value)} /></Field>
+      <Field l="Experience"><textarea style={{ ...input, minHeight: 38 }} value={f.experienceInput} onChange={e => set('experienceInput', e.target.value)} /></Field>
+      <Field l="Exposure"><textarea style={{ ...input, minHeight: 38 }} value={f.exposure} onChange={e => set('exposure', e.target.value)} /></Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field l="Interviewer name"><input style={input} value={interviewer} onChange={e => setInterviewer(e.target.value)} /></Field>
+        <Field l="Date"><input type="date" style={input} value={f.date} onChange={e => set('date', e.target.value)} /></Field>
+      </div>
+      <div style={label}>Status</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {['Selected', 'On Hold', 'Not Suitable'].map(o => (
+          <span key={o} onClick={() => setOutcome(o)} style={{ ...chip(outcome === o), borderColor: outcome === o ? (OUTCOME_META[o]) : 'var(--border)', color: outcome === o ? '#fff' : 'var(--text-primary)', background: outcome === o ? OUTCOME_META[o] : 'var(--bg-base)' }}>{o}</span>
+        ))}
+      </div>
+      <button style={primaryBtn} onClick={submit}>Save assessment</button>
     </div>
   );
 };
 
-// Stage-9 acceptance for the selected candidate (documents + acceptance dates)
+// Stage-8 acceptance for the selected candidate (documents + acceptance dates)
 const RecCandidateAcceptance = ({ c, api, reload, user }) => {
   const docs = (() => { try { return JSON.parse(c.Documents || '[]'); } catch { return REC_DOCS.map(d => ({ ...d, received: false })); } })();
   const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
