@@ -238,6 +238,40 @@ IF COL_LENGTH('dbo.PreOnboarding','DeleteRequested') IS NULL ALTER TABLE dbo.Pre
 IF COL_LENGTH('dbo.PreOnboarding','DeleteReason') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteReason NVARCHAR(300) NULL;
 IF COL_LENGTH('dbo.PreOnboarding','DeleteRequestedBy') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequestedBy NVARCHAR(80) NULL;
 IF COL_LENGTH('dbo.PreOnboarding','DeleteRequestedAt') IS NULL ALTER TABLE dbo.PreOnboarding ADD DeleteRequestedAt DATETIME NULL;
+
+IF OBJECT_ID('dbo.Recruitment','U') IS NULL
+CREATE TABLE dbo.Recruitment (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  Department NVARCHAR(150) NULL, Role NVARCHAR(150) NULL, Grade NVARCHAR(80) NULL,
+  Positions INT NULL, Justification NVARCHAR(600) NULL, TargetDate DATE NULL, MrfRef NVARCHAR(100) NULL,
+  AopApproved BIT NOT NULL DEFAULT(0),
+  Stage NVARCHAR(30) NOT NULL DEFAULT('requisition'),
+  Status NVARCHAR(20) NOT NULL DEFAULT('active'),  -- active | on_hold | dropped | closed
+  DropReason NVARCHAR(300) NULL,
+  JdConfirmed BIT NOT NULL DEFAULT(0), KraConfirmed BIT NOT NULL DEFAULT(0),
+  SourcingChannels NVARCHAR(MAX) NULL, SourcingNotes NVARCHAR(600) NULL,
+  NumScreened INT NULL, NumShortlisted INT NULL, ScreeningNotes NVARCHAR(600) NULL,
+  FitmentNotes NVARCHAR(600) NULL, BudgetOk BIT NOT NULL DEFAULT(0), SelectedCandidateId INT NULL,
+  OfferReleasedDate DATE NULL, OfferNotes NVARCHAR(600) NULL,
+  ReqApproverRole NVARCHAR(30) NULL, ReqApprovalStatus NVARCHAR(20) NOT NULL DEFAULT('pending'),
+  ReqApprovalBy NVARCHAR(80) NULL, ReqApprovalAt DATETIME NULL, ReqApprovalRemark NVARCHAR(300) NULL,
+  OfferApprovalStatus NVARCHAR(20) NOT NULL DEFAULT('pending'),
+  OfferApprovalBy NVARCHAR(80) NULL, OfferApprovalAt DATETIME NULL, OfferApprovalRemark NVARCHAR(300) NULL,
+  DeleteRequested BIT NOT NULL DEFAULT(0), DeleteReason NVARCHAR(300) NULL, DeleteRequestedBy NVARCHAR(80) NULL, DeleteRequestedAt DATETIME NULL,
+  CreatedBy NVARCHAR(80) NULL, CreatedByRole NVARCHAR(30) NULL,
+  CreatedAt DATETIME NOT NULL DEFAULT(GETDATE()), UpdatedAt DATETIME NOT NULL DEFAULT(GETDATE())
+);
+IF OBJECT_ID('dbo.RecruitmentCandidates','U') IS NULL
+CREATE TABLE dbo.RecruitmentCandidates (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  ReqId INT NOT NULL,
+  Name NVARCHAR(200) NOT NULL, Phone NVARCHAR(60) NULL, Email NVARCHAR(200) NULL, Source NVARCHAR(120) NULL,
+  CandStatus NVARCHAR(20) NOT NULL DEFAULT('shortlisted'), -- shortlisted | interviewing | selected | rejected
+  Interviews NVARCHAR(MAX) NULL,  -- JSON [{round,date,panel,outcome,notes}]
+  OfferAcceptedDate DATE NULL, ResignationAcceptedDate DATE NULL, JoiningDate DATE NULL,
+  Documents NVARCHAR(MAX) NULL, EngagementNotes NVARCHAR(600) NULL,
+  CreatedAt DATETIME NOT NULL DEFAULT(GETDATE())
+);
   `);
   console.log('   ✓ Tables ready');
 }
@@ -973,6 +1007,214 @@ app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
       .query(`UPDATE dbo.PreOnboarding SET Documents=@Docs, UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
+const REC_STAGES = ['requisition', 'jd_kra', 'sourcing', 'screening', 'interviews', 'fitment', 'approval', 'offer', 'acceptance'];
+const REC_DOC_CHECKLIST = DOC_CHECKLIST; // reuse the same document list as pre-onboarding
+const recFreshDocs = () => REC_DOC_CHECKLIST.map(d => ({ key: d.key, label: d.label, received: false, fileName: null }));
+const REC_DIR = pathmod.join(__dirname, 'uploads', 'recruitment');
+
+// create requisition (hr OR manager)
+app.post('/api/recruitment', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.role && !b.department) return res.status(400).json({ success: false, error: 'Role or department is required.' });
+    const p = await getPool();
+    const r = await p.request()
+      .input('Dept', sql.NVarChar, b.department || null).input('Role', sql.NVarChar, b.role || null)
+      .input('Grade', sql.NVarChar, b.grade || null).input('Pos', sql.Int, b.positions || 1)
+      .input('Just', sql.NVarChar, b.justification || null).input('TD', sql.Date, b.targetDate || null)
+      .input('Mrf', sql.NVarChar, b.mrfRef || null).input('Aop', sql.Bit, b.aopApproved ? 1 : 0)
+      .input('By', sql.NVarChar, actor(req)).input('ByRole', sql.NVarChar, role(req))
+      .query(`INSERT INTO dbo.Recruitment (Department,Role,Grade,Positions,Justification,TargetDate,MrfRef,AopApproved,CreatedBy,CreatedByRole)
+              OUTPUT INSERTED.* VALUES (@Dept,@Role,@Grade,@Pos,@Just,@TD,@Mrf,@Aop,@By,@ByRole)`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// list (hr/manager/admin). Managers primarily act on approvals but can see all.
+app.get('/api/recruitment', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const p = await getPool();
+    const reqs = (await p.request().query(`SELECT * FROM dbo.Recruitment ORDER BY
+      CASE Status WHEN 'active' THEN 0 ELSE 1 END, UpdatedAt DESC`)).recordset;
+    const cands = (await p.request().query(`SELECT * FROM dbo.RecruitmentCandidates ORDER BY CreatedAt`)).recordset;
+    const byReq = {}; cands.forEach(c => { (byReq[c.ReqId] = byReq[c.ReqId] || []).push(c); });
+    reqs.forEach(r => r.candidates = byReq[r.Id] || []);
+    res.json({ success: true, records: reqs, stages: REC_STAGES, checklist: REC_DOC_CHECKLIST });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// update requisition fields + stage (hr; manager may update the requisition they raised)
+app.put('/api/recruitment/:id', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.Recruitment WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const stage = b.stage || cur.Stage;
+
+    // gate: leaving 'requisition' needs requisition approval; leaving 'approval' needs offer approval (unless HR override)
+    if (!b.override) {
+      const curIdx = REC_STAGES.indexOf(cur.Stage), nextIdx = REC_STAGES.indexOf(stage);
+      if (nextIdx > curIdx) {
+        if (cur.Stage === 'requisition' && cur.ReqApprovalStatus !== 'approved')
+          return res.status(400).json({ success: false, error: 'Requisition needs approval before moving on (or use HR override).' });
+        if (cur.Stage === 'approval' && cur.OfferApprovalStatus !== 'approved')
+          return res.status(400).json({ success: false, error: 'Offer approval is required before releasing the offer (or use HR override).' });
+      }
+    }
+    const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
+    await p.request()
+      .input('Id', sql.Int, req.params.id)
+      .input('Dept', sql.NVarChar, g('department', 'Department')).input('Role', sql.NVarChar, g('role', 'Role'))
+      .input('Grade', sql.NVarChar, g('grade', 'Grade')).input('Pos', sql.Int, g('positions', 'Positions'))
+      .input('Just', sql.NVarChar, g('justification', 'Justification')).input('TD', sql.Date, g('targetDate', 'TargetDate') || null)
+      .input('Mrf', sql.NVarChar, g('mrfRef', 'MrfRef')).input('Aop', sql.Bit, (b.aopApproved !== undefined ? b.aopApproved : cur.AopApproved) ? 1 : 0)
+      .input('Stage', sql.NVarChar, stage).input('Status', sql.NVarChar, g('status', 'Status')).input('Drop', sql.NVarChar, g('dropReason', 'DropReason'))
+      .input('Jd', sql.Bit, (b.jdConfirmed !== undefined ? b.jdConfirmed : cur.JdConfirmed) ? 1 : 0)
+      .input('Kra', sql.Bit, (b.kraConfirmed !== undefined ? b.kraConfirmed : cur.KraConfirmed) ? 1 : 0)
+      .input('SC', sql.NVarChar, b.sourcingChannels !== undefined ? JSON.stringify(b.sourcingChannels) : cur.SourcingChannels)
+      .input('SN', sql.NVarChar, g('sourcingNotes', 'SourcingNotes'))
+      .input('NS', sql.Int, g('numScreened', 'NumScreened')).input('NSh', sql.Int, g('numShortlisted', 'NumShortlisted'))
+      .input('ScN', sql.NVarChar, g('screeningNotes', 'ScreeningNotes'))
+      .input('FN', sql.NVarChar, g('fitmentNotes', 'FitmentNotes')).input('BOk', sql.Bit, (b.budgetOk !== undefined ? b.budgetOk : cur.BudgetOk) ? 1 : 0)
+      .input('Sel', sql.Int, g('selectedCandidateId', 'SelectedCandidateId') || null)
+      .input('ORD', sql.Date, g('offerReleasedDate', 'OfferReleasedDate') || null).input('ON', sql.NVarChar, g('offerNotes', 'OfferNotes'))
+      .query(`UPDATE dbo.Recruitment SET Department=@Dept,Role=@Role,Grade=@Grade,Positions=@Pos,Justification=@Just,TargetDate=@TD,MrfRef=@Mrf,AopApproved=@Aop,
+        Stage=@Stage,Status=@Status,DropReason=@Drop,JdConfirmed=@Jd,KraConfirmed=@Kra,SourcingChannels=@SC,SourcingNotes=@SN,
+        NumScreened=@NS,NumShortlisted=@NSh,ScreeningNotes=@ScN,FitmentNotes=@FN,BudgetOk=@BOk,SelectedCandidateId=@Sel,
+        OfferReleasedDate=@ORD,OfferNotes=@ON,UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// approvals — requisition & offer — actioned by manager (Approving Authority) or admin
+async function setApproval(req, res, kind) {
+  if (!can(req, 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    const decision = b.decision === 'approve' ? 'approved' : 'rejected';
+    const p = await getPool();
+    const cols = kind === 'req'
+      ? 'ReqApprovalStatus=@D, ReqApprovalBy=@By, ReqApprovalAt=GETDATE(), ReqApprovalRemark=@R'
+      : 'OfferApprovalStatus=@D, OfferApprovalBy=@By, OfferApprovalAt=GETDATE(), OfferApprovalRemark=@R';
+    await p.request().input('Id', sql.Int, req.params.id).input('D', sql.NVarChar, decision)
+      .input('By', sql.NVarChar, actor(req)).input('R', sql.NVarChar, b.remark || null)
+      .query(`UPDATE dbo.Recruitment SET ${cols}, UpdatedAt=GETDATE() WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+}
+app.post('/api/recruitment/:id/req-approval', (req, res) => setApproval(req, res, 'req'));
+app.post('/api/recruitment/:id/offer-approval', (req, res) => setApproval(req, res, 'offer'));
+
+// candidates
+app.post('/api/recruitment/:id/candidates', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.name) return res.status(400).json({ success: false, error: 'Candidate name is required.' });
+    const p = await getPool();
+    const r = await p.request().input('ReqId', sql.Int, req.params.id)
+      .input('Name', sql.NVarChar, b.name).input('Phone', sql.NVarChar, b.phone || null)
+      .input('Email', sql.NVarChar, b.email || null).input('Source', sql.NVarChar, b.source || null)
+      .input('Docs', sql.NVarChar, JSON.stringify(recFreshDocs()))
+      .query(`INSERT INTO dbo.RecruitmentCandidates (ReqId,Name,Phone,Email,Source,Documents) OUTPUT INSERTED.* VALUES (@ReqId,@Name,@Phone,@Email,@Source,@Docs)`);
+    res.json({ success: true, record: r.recordset[0] });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.put('/api/recruitment/candidates/:cid', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.cid).query(`SELECT * FROM dbo.RecruitmentCandidates WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
+    await p.request().input('Id', sql.Int, req.params.cid)
+      .input('Name', sql.NVarChar, g('name', 'Name')).input('Phone', sql.NVarChar, g('phone', 'Phone'))
+      .input('Email', sql.NVarChar, g('email', 'Email')).input('Source', sql.NVarChar, g('source', 'Source'))
+      .input('CS', sql.NVarChar, g('candStatus', 'CandStatus'))
+      .input('Iv', sql.NVarChar, b.interviews !== undefined ? JSON.stringify(b.interviews) : cur.Interviews)
+      .input('OAD', sql.Date, g('offerAcceptedDate', 'OfferAcceptedDate') || null)
+      .input('RAD', sql.Date, g('resignationAcceptedDate', 'ResignationAcceptedDate') || null)
+      .input('JD', sql.Date, g('joiningDate', 'JoiningDate') || null)
+      .input('Docs', sql.NVarChar, b.documents !== undefined ? JSON.stringify(b.documents) : cur.Documents)
+      .input('EN', sql.NVarChar, g('engagementNotes', 'EngagementNotes'))
+      .query(`UPDATE dbo.RecruitmentCandidates SET Name=@Name,Phone=@Phone,Email=@Email,Source=@Source,CandStatus=@CS,Interviews=@Iv,
+        OfferAcceptedDate=@OAD,ResignationAcceptedDate=@RAD,JoiningDate=@JD,Documents=@Docs,EngagementNotes=@EN WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.delete('/api/recruitment/candidates/:cid', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.cid).query(`DELETE FROM dbo.RecruitmentCandidates WHERE Id=@Id`); res.json({ success: true }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// stage-9 documents on a candidate (upload / view / delete) — mirrors pre-onboarding
+app.post('/api/recruitment/candidates/:cid/upload', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const b = req.body || {};
+    if (!b.key || !b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.cid).query(`SELECT Documents FROM dbo.RecruitmentCandidates WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const dir = pathmod.join(REC_DIR, String(req.params.cid)); fs.mkdirSync(dir, { recursive: true });
+    const safe = String(b.fileName || (b.key + '.bin')).replace(/[^A-Za-z0-9._-]/g, '_');
+    fs.writeFileSync(pathmod.join(dir, `${b.key}__${safe}`), Buffer.from(b.dataBase64.split(',').pop(), 'base64'));
+    let docs = []; try { docs = JSON.parse(cur.Documents || '[]'); } catch {}
+    docs = docs.map(d => d.key === b.key ? { ...d, received: true, fileName: b.fileName || safe } : d);
+    await p.request().input('Id', sql.Int, req.params.cid).input('Docs', sql.NVarChar, JSON.stringify(docs)).query(`UPDATE dbo.RecruitmentCandidates SET Documents=@Docs WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.get('/api/recruitment/candidates/:cid/file/:key', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const dir = pathmod.join(REC_DIR, String(req.params.cid));
+    if (!fs.existsSync(dir)) return res.status(404).send('Not found');
+    const f = fs.readdirSync(dir).find(n => n.startsWith(req.params.key + '__'));
+    if (!f) return res.status(404).send('Not found');
+    res.download(pathmod.join(dir, f), f.split('__').slice(1).join('__'));
+  } catch (err) { res.status(500).send(err.message); }
+});
+app.delete('/api/recruitment/candidates/:cid/file/:key', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try {
+    const p = await getPool();
+    const cur = (await p.request().input('Id', sql.Int, req.params.cid).query(`SELECT Documents FROM dbo.RecruitmentCandidates WHERE Id=@Id`)).recordset[0];
+    if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    const dir = pathmod.join(REC_DIR, String(req.params.cid));
+    try { if (fs.existsSync(dir)) { const f = fs.readdirSync(dir).find(n => n.startsWith(req.params.key + '__')); if (f) fs.rmSync(pathmod.join(dir, f), { force: true }); } } catch {}
+    let docs = []; try { docs = JSON.parse(cur.Documents || '[]'); } catch {}
+    docs = docs.map(d => d.key === req.params.key ? { ...d, received: false, fileName: null } : d);
+    await p.request().input('Id', sql.Int, req.params.cid).input('Docs', sql.NVarChar, JSON.stringify(docs)).query(`UPDATE dbo.RecruitmentCandidates SET Documents=@Docs WHERE Id=@Id`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// admin-approved delete of a whole requisition
+app.post('/api/recruitment/:id/request-delete', async (req, res) => {
+  if (!can(req, 'hr', 'manager')) return deny(res);
+  try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.id).input('R', sql.NVarChar, (req.body || {}).reason || null).input('By', sql.NVarChar, actor(req))
+    .query(`UPDATE dbo.Recruitment SET DeleteRequested=1, DeleteReason=@R, DeleteRequestedBy=@By, DeleteRequestedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`); res.json({ success: true }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.post('/api/recruitment/:id/approve-delete', async (req, res) => {
+  if (!can(req)) return deny(res);
+  try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.id).query(`DELETE FROM dbo.RecruitmentCandidates WHERE ReqId=@Id; DELETE FROM dbo.Recruitment WHERE Id=@Id`); res.json({ success: true }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.post('/api/recruitment/:id/reject-delete', async (req, res) => {
+  if (!can(req)) return deny(res);
+  try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.id).query(`UPDATE dbo.Recruitment SET DeleteRequested=0, DeleteReason=NULL, DeleteRequestedBy=NULL, DeleteRequestedAt=NULL WHERE Id=@Id`); res.json({ success: true }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 /* ═══════════════════════ APP-USER LOGIN ════════════════════════════════════ */

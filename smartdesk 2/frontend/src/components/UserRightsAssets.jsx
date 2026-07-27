@@ -39,6 +39,17 @@ const STATUS_META = {
   ready: { label: 'Ready for Handover', color: 'var(--accent-green)' },
   handed_over: { label: 'Handed Over', color: 'var(--text-muted)' },
   dropped: { label: 'Dropped', color: '#dc2626' },
+  requisition: { label: '1 · Requisition', color: 'var(--accent-sky)' },
+  jd_kra: { label: '2 · JD & KRA', color: 'var(--accent-sky)' },
+  sourcing: { label: '3 · Sourcing', color: 'var(--accent-teal)' },
+  screening: { label: '4 · Screening', color: 'var(--accent-teal)' },
+  interviews: { label: '5 · Interviews', color: 'var(--accent-orange)' },
+  fitment: { label: '6 · Fitment', color: 'var(--accent-orange)' },
+  approval: { label: '7 · Approval', color: 'var(--accent-purple)' },
+  offer: { label: '8 · Offer', color: 'var(--accent-purple)' },
+  acceptance: { label: '9 · Acceptance', color: 'var(--accent-green)' },
+  on_hold: { label: 'On Hold', color: 'var(--text-muted)' },
+  closed: { label: 'Closed', color: 'var(--text-muted)' },
 };
 const Pill = ({ status }) => {
   const m = STATUS_META[status] || { label: status, color: 'var(--text-muted)' };
@@ -1498,9 +1509,355 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
   );
 };
 
+/* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
+const REC_STAGES = ['requisition', 'jd_kra', 'sourcing', 'screening', 'interviews', 'fitment', 'approval', 'offer', 'acceptance'];
+const REC_DOCS = [
+  { key: 'idProof', label: 'ID proof' }, { key: 'addressProof', label: 'Address proof' },
+  { key: 'education', label: 'Education certificates' }, { key: 'relieving', label: 'Relieving / experience letter' },
+  { key: 'bank', label: 'Bank details' }, { key: 'photo', label: 'Photograph' },
+];
+const SOURCING_CHANNELS = ['Internal posting', 'Referrals', 'Job portals', 'Empanelled consultants'];
+
+const RecruitmentView = ({ onBack }) => {
+  const api = useApi();
+  const { isManager } = useAuth();
+  const [list, setList] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState(isManager ? 'approvals' : 'active');
+  const [showForm, setShowForm] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const blank = { department: '', role: '', grade: '', positions: 1, justification: '', targetDate: '', mrfRef: '', aopApproved: false };
+  const [form, setForm] = useState(blank);
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(async () => { const d = await api('/recruitment'); if (d.success) setList(d.records); }, [api]);
+  useEffect(() => { load(); }, [load]);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const create = async () => {
+    if (!form.role && !form.department) return setMsg('Enter at least a role or department.');
+    const d = await api('/recruitment', 'POST', form);
+    if (d.success) { setForm(blank); setShowForm(false); setMsg('Requisition created.'); load(); } else setMsg(d.error || 'Failed.');
+  };
+  const pendingApproval = (r) => (r.Stage === 'requisition' && r.ReqApprovalStatus === 'pending') || (r.Stage === 'approval' && r.OfferApprovalStatus === 'pending');
+  const filtered = list.filter(r => {
+    const s = search.trim().toLowerCase();
+    const ms = !s || [r.Role, r.Department, r.MrfRef].filter(Boolean).some(x => x.toLowerCase().includes(s));
+    const mf = filter === 'all' ? true
+      : filter === 'approvals' ? pendingApproval(r)
+      : filter === 'active' ? r.Status === 'active'
+      : filter === 'on_hold' ? r.Status === 'on_hold'
+      : r.Status === filter;
+    return ms && mf;
+  });
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Recruitment" subtitle="Track each position from manpower requisition through to offer acceptance (stages 1–9)." />
+      {!showForm && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New requisition</button>
+        </div>
+      )}
+      {showForm && (
+        <div style={card}>
+          <h2 style={h2}>New manpower requisition (Stage 1)</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 8 }}>
+            <Field l="Department"><input style={input} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
+            <Field l="Role"><input style={input} value={form.role} onChange={e => set('role', e.target.value)} /></Field>
+            <Field l="Grade / band"><input style={input} value={form.grade} onChange={e => set('grade', e.target.value)} /></Field>
+            <Field l="No. of positions"><input type="number" min="1" style={input} value={form.positions} onChange={e => set('positions', e.target.value)} /></Field>
+            <Field l="MRF reference"><input style={input} value={form.mrfRef} onChange={e => set('mrfRef', e.target.value)} /></Field>
+            <Field l="Target date"><input type="date" style={input} value={form.targetDate} onChange={e => set('targetDate', e.target.value)} /></Field>
+          </div>
+          <Field l="Justification"><textarea style={{ ...input, minHeight: 48 }} value={form.justification} onChange={e => set('justification', e.target.value)} /></Field>
+          <label style={{ fontSize: '.86rem', color: 'var(--text-primary)', display: 'block', margin: '4px 0 12px' }}>
+            <input type="checkbox" checked={form.aopApproved} onChange={e => set('aopApproved', e.target.checked)} style={{ marginRight: 8 }} />Validated against approved AOP / manpower plan (MO approved)
+          </label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={primaryBtn} onClick={create}>Create requisition</button>
+            <button style={ghostBtn} onClick={() => { setShowForm(false); setMsg(''); }}>Cancel</button>
+          </div>
+          {msg && <span style={{ marginLeft: 12, fontSize: '.84rem', color: 'var(--text-muted)' }}>{msg}</span>}
+        </div>
+      )}
+      <div style={card}>
+        <h2 style={h2}>Requisitions</h2>
+        <FilterBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter}
+          placeholder="Search by role, department or MRF…"
+          options={[
+            { key: 'active', label: 'Active', count: list.filter(r => r.Status === 'active').length },
+            { key: 'approvals', label: 'Pending approval', count: list.filter(pendingApproval).length },
+            { key: 'on_hold', label: 'On hold', count: list.filter(r => r.Status === 'on_hold').length },
+            { key: 'all', label: 'All', count: list.length },
+          ]} />
+        {filtered.length === 0 && <Empty text="No requisitions." />}
+        {filtered.map(r => (
+          <div key={r.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.Role || '(role)'} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '.82rem' }}>· {r.Department || '—'}{r.Positions ? ` · ${r.Positions} pos` : ''}{r.MrfRef ? ` · ${r.MrfRef}` : ''}</span></div>
+                <div style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{(r.candidates || []).length} candidate(s){r.Status !== 'active' ? ` · ${STATUS_META[r.Status]?.label || r.Status}` : ''}</div>
+              </div>
+              {pendingApproval(r) && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>Needs approval</span>}
+              {r.DeleteRequested && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Delete requested</span>}
+              <Pill status={r.Stage} />
+              <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(openId === r.Id ? null : r.Id)}>{openId === r.Id ? 'Close' : 'Manage'}</button>
+            </div>
+            {openId === r.Id && <RecruitmentDetail record={r} api={api} reload={load} onClose={() => setOpenId(null)} />}
+          </div>
+        ))}
+        {msg && !showForm && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
+      </div>
+    </div>
+  );
+};
+
+const RecruitmentDetail = ({ record, api, reload, onClose }) => {
+  const { isAdmin, isManager, user } = useAuth();
+  const [r, setR] = useState(record);
+  const [override, setOverride] = useState(false);
+  const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
+  const [msg, setMsg] = useState('');
+  useEffect(() => { setR(record); }, [record]);
+  const idx = REC_STAGES.indexOf(r.Stage);
+  const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+
+  const save = async (patch) => {
+    const d = await api(`/recruitment/${r.Id}`, 'PUT', { ...patch, override });
+    if (d.success) { await refresh(); setMsg('Saved.'); reload(); } else window.alert(d.error || 'Failed.');
+  };
+  const refresh = async () => { const d = await api('/recruitment'); if (d.success) { const u = d.records.find(x => x.Id === r.Id); if (u) setR(u); } };
+  const goStage = (s) => save({ stage: s });
+  const setApproval = async (kind, decision) => {
+    const remark = window.prompt(`${decision === 'approve' ? 'Approve' : 'Reject'} — remark (optional):`) || '';
+    const d = await api(`/recruitment/${r.Id}/${kind}-approval`, 'POST', { decision, remark });
+    if (d.success) { await refresh(); reload(); } else window.alert(d.error || 'Failed.');
+  };
+  // candidates
+  const addCand = async () => { if (!cand.name.trim()) return; const d = await api(`/recruitment/${r.Id}/candidates`, 'POST', cand); if (d.success) { setCand({ name: '', phone: '', email: '', source: '' }); await refresh(); reload(); } else window.alert(d.error || 'Failed.'); };
+  const saveCand = async (cid, patch) => { const d = await api(`/recruitment/candidates/${cid}`, 'PUT', patch); if (d.success) { await refresh(); reload(); } else window.alert(d.error || 'Failed.'); };
+  const delCand = async (cid) => { if (!window.confirm('Remove this candidate?')) return; const d = await api(`/recruitment/candidates/${cid}`, 'DELETE'); if (d.success) { await refresh(); reload(); } };
+  // delete requisition (admin approval)
+  const requestDelete = async () => { const why = window.prompt('Delete this requisition? Reason goes to Admin for approval:'); if (why === null) return; const d = await api(`/recruitment/${r.Id}/request-delete`, 'POST', { reason: why }); if (d.success) { window.alert('Deletion requested — pending Admin approval.'); await refresh(); reload(); } };
+  const approveDelete = async () => { if (!window.confirm('Approve deletion? This permanently removes the requisition and its candidates.')) return; const d = await api(`/recruitment/${r.Id}/approve-delete`, 'POST', {}); if (d.success) { window.alert('Deleted.'); reload(); onClose && onClose(); } };
+  const rejectDelete = async () => { const d = await api(`/recruitment/${r.Id}/reject-delete`, 'POST', {}); if (d.success) { await refresh(); reload(); } };
+
+  const cands = r.candidates || [];
+  const channels = (() => { try { return JSON.parse(r.SourcingChannels || '[]'); } catch { return []; } })();
+  const toggleChannel = (c) => { const nx = channels.includes(c) ? channels.filter(x => x !== c) : [...channels, c]; save({ sourcingChannels: nx }); };
+
+  const box = { marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' };
+
+  return (
+    <div style={box}>
+      {/* stage progress */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        {REC_STAGES.map((s, i) => (
+          <button key={s} onClick={() => (isAdmin || i <= idx + 1) ? goStage(s) : null}
+            title={STATUS_META[s]?.label}
+            style={{ padding: '4px 9px', borderRadius: 14, fontSize: '.72rem', fontWeight: 700, cursor: 'pointer',
+              border: `1px solid ${i === idx ? 'var(--accent)' : 'var(--border)'}`,
+              background: i === idx ? 'var(--accent)' : i < idx ? 'color-mix(in srgb, var(--accent-green) 18%, transparent)' : 'transparent',
+              color: i === idx ? '#fff' : i < idx ? 'var(--accent-green)' : 'var(--text-muted)' }}>{i + 1}</button>
+        ))}
+        <span style={{ marginLeft: 6, alignSelf: 'center', fontSize: '.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{STATUS_META[r.Stage]?.label}</span>
+      </div>
+
+      {r.DeleteRequested && (
+        <div style={{ padding: 12, borderRadius: 8, background: 'color-mix(in srgb,#dc2626 8%,transparent)', border: '1px solid #dc2626', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '.84rem' }}>Deletion requested{r.DeleteRequestedBy ? ` by ${r.DeleteRequestedBy}` : ''}</div>
+          {r.DeleteReason && <div style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>Reason: {r.DeleteReason}</div>}
+          {isAdmin ? <div style={{ display: 'flex', gap: 10, marginTop: 8 }}><button style={{ ...primaryBtn, background: '#dc2626' }} onClick={approveDelete}>Approve deletion</button><button style={ghostBtn} onClick={rejectDelete}>Reject</button></div>
+            : <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 4 }}>Awaiting Admin approval.</div>}
+        </div>
+      )}
+
+      {/* current-stage panel */}
+      {r.Stage === 'requisition' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field l="Department"><input style={input} defaultValue={r.Department || ''} onBlur={e => save({ department: e.target.value })} /></Field>
+            <Field l="Role"><input style={input} defaultValue={r.Role || ''} onBlur={e => save({ role: e.target.value })} /></Field>
+            <Field l="Grade"><input style={input} defaultValue={r.Grade || ''} onBlur={e => save({ grade: e.target.value })} /></Field>
+            <Field l="Positions"><input type="number" style={input} defaultValue={r.Positions || 1} onBlur={e => save({ positions: e.target.value })} /></Field>
+            <Field l="MRF ref"><input style={input} defaultValue={r.MrfRef || ''} onBlur={e => save({ mrfRef: e.target.value })} /></Field>
+            <Field l="Target date"><input type="date" style={input} defaultValue={dv(r.TargetDate)} onBlur={e => save({ targetDate: e.target.value })} /></Field>
+          </div>
+          <label style={{ fontSize: '.84rem', color: 'var(--text-primary)', display: 'block', margin: '2px 0 10px' }}>
+            <input type="checkbox" checked={!!r.AopApproved} onChange={e => save({ aopApproved: e.target.checked })} style={{ marginRight: 8 }} />AOP / manpower plan approved (MO)</label>
+          <ApprovalBox r={r} kind="req" statusField="ReqApprovalStatus" byField="ReqApprovalBy" remarkField="ReqApprovalRemark" canAct={isManager} onAct={setApproval} label="Requisition approval" />
+        </div>
+      )}
+      {r.Stage === 'jd_kra' && (
+        <div>
+          <label style={{ fontSize: '.88rem', color: 'var(--text-primary)', display: 'block', marginBottom: 8 }}><input type="checkbox" checked={!!r.JdConfirmed} onChange={e => save({ jdConfirmed: e.target.checked })} style={{ marginRight: 8 }} />Approved JD exists</label>
+          <label style={{ fontSize: '.88rem', color: 'var(--text-primary)', display: 'block' }}><input type="checkbox" checked={!!r.KraConfirmed} onChange={e => save({ kraConfirmed: e.target.checked })} style={{ marginRight: 8 }} />KRA confirmed</label>
+        </div>
+      )}
+      {r.Stage === 'sourcing' && (
+        <div>
+          <div style={label}>Sourcing channels used</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            {SOURCING_CHANNELS.map(c => <span key={c} onClick={() => toggleChannel(c)} style={chip(channels.includes(c))}>{c}</span>)}
+          </div>
+          <Field l="Notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.SourcingNotes || ''} onBlur={e => save({ sourcingNotes: e.target.value })} /></Field>
+        </div>
+      )}
+      {r.Stage === 'screening' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field l="No. screened"><input type="number" style={input} defaultValue={r.NumScreened || ''} onBlur={e => save({ numScreened: e.target.value })} /></Field>
+          <Field l="No. shortlisted"><input type="number" style={input} defaultValue={r.NumShortlisted || ''} onBlur={e => save({ numShortlisted: e.target.value })} /></Field>
+          <div style={{ gridColumn: '1 / -1' }}><Field l="Notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.ScreeningNotes || ''} onBlur={e => save({ screeningNotes: e.target.value })} /></Field></div>
+        </div>
+      )}
+      {r.Stage === 'interviews' && <p style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>Record interview rounds and outcomes on each candidate in the Candidates section below.</p>}
+      {r.Stage === 'fitment' && (
+        <div>
+          <Field l="Fitment notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.FitmentNotes || ''} onBlur={e => save({ fitmentNotes: e.target.value })} /></Field>
+          <label style={{ fontSize: '.86rem', color: 'var(--text-primary)', display: 'block', margin: '2px 0 10px' }}><input type="checkbox" checked={!!r.BudgetOk} onChange={e => save({ budgetOk: e.target.checked })} style={{ marginRight: 8 }} />Within budget as per MRF</label>
+          <Field l="Selected candidate">
+            <select style={input} value={r.SelectedCandidateId || ''} onChange={e => { const cid = e.target.value ? Number(e.target.value) : null; save({ selectedCandidateId: cid }); if (cid) saveCand(cid, { candStatus: 'selected' }); }}>
+              <option value="">— choose —</option>
+              {cands.map(c => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
+            </select>
+          </Field>
+        </div>
+      )}
+      {r.Stage === 'approval' && (
+        <ApprovalBox r={r} kind="offer" statusField="OfferApprovalStatus" byField="OfferApprovalBy" remarkField="OfferApprovalRemark" canAct={isManager} onAct={setApproval} label="Offer approval (Approving Authority)" />
+      )}
+      {r.Stage === 'offer' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field l="Offer released date"><input type="date" style={input} defaultValue={dv(r.OfferReleasedDate)} onBlur={e => save({ offerReleasedDate: e.target.value })} /></Field>
+          <div style={{ gridColumn: '1 / -1' }}><Field l="Offer notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.OfferNotes || ''} onBlur={e => save({ offerNotes: e.target.value })} /></Field></div>
+        </div>
+      )}
+      {r.Stage === 'acceptance' && (
+        (() => { const sel = cands.find(c => c.Id === r.SelectedCandidateId);
+          return sel ? <RecCandidateAcceptance c={sel} api={api} reload={async () => { await refresh(); reload(); }} user={user} />
+            : <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Select a candidate at the Fitment stage first.</p>; })()
+      )}
+
+      {/* candidates section */}
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+        <div style={label}>Candidates ({cands.length})</div>
+        {cands.map(c => (
+          <RecCandidateRow key={c.Id} c={c} isSelected={c.Id === r.SelectedCandidateId} stage={r.Stage}
+            onSave={(patch) => saveCand(c.Id, patch)} onDelete={() => delCand(c.Id)} />
+        ))}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          <input placeholder="Name" style={{ ...input, marginBottom: 0, maxWidth: 160 }} value={cand.name} onChange={e => setCand(s => ({ ...s, name: e.target.value }))} />
+          <input placeholder="Phone" style={{ ...input, marginBottom: 0, maxWidth: 130 }} value={cand.phone} onChange={e => setCand(s => ({ ...s, phone: e.target.value }))} />
+          <input placeholder="Email" style={{ ...input, marginBottom: 0, maxWidth: 170 }} value={cand.email} onChange={e => setCand(s => ({ ...s, email: e.target.value }))} />
+          <input placeholder="Source" style={{ ...input, marginBottom: 0, maxWidth: 130 }} value={cand.source} onChange={e => setCand(s => ({ ...s, source: e.target.value }))} />
+          <button style={ghostBtn} onClick={addCand}>+ Add candidate</button>
+        </div>
+      </div>
+
+      {/* actions */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        {idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
+        {idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
+        <label style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}><input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} style={{ marginRight: 6 }} />HR override (skip approval gate)</label>
+        {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
+        <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing this requisition?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
+        {!r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
+      </div>
+      {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
+    </div>
+  );
+};
+
+const ApprovalBox = ({ r, kind, statusField, byField, remarkField, canAct, onAct, label }) => {
+  const st = r[statusField] || 'pending';
+  const color = st === 'approved' ? 'var(--accent-green)' : st === 'rejected' ? '#dc2626' : 'var(--accent-orange)';
+  return (
+    <div style={{ marginTop: 12, padding: 12, borderRadius: 8, border: `1px solid ${color}`, background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
+      <div style={{ fontWeight: 700, fontSize: '.84rem', color }}>{label}: {st.charAt(0).toUpperCase() + st.slice(1)}{r[byField] ? ` (by ${r[byField]})` : ''}</div>
+      {r[remarkField] && <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 3 }}>Remark: {r[remarkField]}</div>}
+      {canAct && st === 'pending' && (
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <button style={{ ...primaryBtn, background: 'var(--accent-green)' }} onClick={() => onAct(kind, 'approve')}>Approve</button>
+          <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => onAct(kind, 'reject')}>Reject</button>
+        </div>
+      )}
+      {!canAct && st === 'pending' && <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 4 }}>Awaiting the Approving Authority (Manager).</div>}
+    </div>
+  );
+};
+
+const RecCandidateRow = ({ c, isSelected, stage, onSave, onDelete }) => {
+  const [open, setOpen] = useState(false);
+  const ivs = (() => { try { return JSON.parse(c.Interviews || '[]'); } catch { return []; } })();
+  const addRound = () => { const nx = [...ivs, { round: ivs.length + 1, date: '', panel: '', outcome: 'Pending', notes: '' }]; onSave({ interviews: nx }); };
+  const setRound = (i, patch) => { const nx = ivs.map((x, j) => j === i ? { ...x, ...patch } : x); onSave({ interviews: nx }); };
+  return (
+    <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', background: isSelected ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : undefined }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name}{isSelected ? ' ★' : ''} <span style={{ fontWeight: 400, fontSize: '.78rem', color: 'var(--text-muted)' }}>{[c.Source, c.Email].filter(Boolean).join(' · ')}</span></div>
+        </div>
+        <select style={{ ...input, marginBottom: 0, maxWidth: 140, padding: '5px 8px', fontSize: '.78rem' }} value={c.CandStatus} onChange={e => onSave({ candStatus: e.target.value })}>
+          {['shortlisted', 'interviewing', 'selected', 'rejected'].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.76rem' }} onClick={() => setOpen(o => !o)}>{open ? 'Hide' : 'Interviews'}</button>
+        <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626', padding: '5px 10px', fontSize: '.76rem' }} onClick={onDelete}>Delete</button>
+      </div>
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          {ivs.map((iv, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', minWidth: 54 }}>Round {iv.round}</span>
+              <input type="date" style={{ ...input, marginBottom: 0, maxWidth: 140, padding: '4px 8px' }} defaultValue={iv.date} onBlur={e => setRound(i, { date: e.target.value })} />
+              <input placeholder="Panel" style={{ ...input, marginBottom: 0, maxWidth: 130, padding: '4px 8px' }} defaultValue={iv.panel} onBlur={e => setRound(i, { panel: e.target.value })} />
+              <select style={{ ...input, marginBottom: 0, maxWidth: 120, padding: '4px 8px' }} value={iv.outcome} onChange={e => setRound(i, { outcome: e.target.value })}>
+                {['Pending', 'Selected', 'Rejected', 'On hold'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          ))}
+          <button style={{ ...ghostBtn, padding: '4px 10px', fontSize: '.76rem' }} onClick={addRound}>+ Add round</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Stage-9 acceptance for the selected candidate (documents + acceptance dates)
+const RecCandidateAcceptance = ({ c, api, reload, user }) => {
+  const docs = (() => { try { return JSON.parse(c.Documents || '[]'); } catch { return REC_DOCS.map(d => ({ ...d, received: false })); } })();
+  const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const save = (patch) => api(`/recruitment/candidates/${c.Id}`, 'PUT', patch).then(d => { if (d.success) reload(); else window.alert(d.error || 'Failed.'); });
+  const toggleDoc = (key) => save({ documents: docs.map(d => d.key === key ? { ...d, received: !d.received } : d) });
+  const upload = (key, file) => { const rd = new FileReader(); rd.onload = async () => { const d = await api(`/recruitment/candidates/${c.Id}/upload`, 'POST', { key, fileName: file.name, dataBase64: rd.result }); if (d.success) reload(); else window.alert(d.error || 'Upload failed.'); }; rd.readAsDataURL(file); };
+  const viewFile = async (key) => { try { const res = await fetch(`${URA_API}/recruitment/candidates/${c.Id}/file/${key}`, { headers: { 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' } }); if (!res.ok) return window.alert('Could not open (' + res.status + ').'); const b = await res.blob(); const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); } catch { window.alert('Could not reach server.'); } };
+  const delFile = async (key, lbl) => { if (!window.confirm(`Remove the file for "${lbl}"?`)) return; const d = await api(`/recruitment/candidates/${c.Id}/file/${key}`, 'DELETE'); if (d.success) reload(); };
+  return (
+    <div>
+      <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Acceptance & Pre-Onboarding — {c.Name}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+        <Field l="Offer acceptance"><input type="date" style={input} defaultValue={dv(c.OfferAcceptedDate)} onBlur={e => save({ offerAcceptedDate: e.target.value })} /></Field>
+        <Field l="Resignation acceptance"><input type="date" style={input} defaultValue={dv(c.ResignationAcceptedDate)} onBlur={e => save({ resignationAcceptedDate: e.target.value })} /></Field>
+        <Field l="Joining date"><input type="date" style={input} defaultValue={dv(c.JoiningDate)} onBlur={e => save({ joiningDate: e.target.value })} /></Field>
+      </div>
+      {c.JoiningDate && <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 0 }}>Document deadline (7 days before joining): <strong>{new Date(new Date(c.JoiningDate).getTime() - 7 * 86400000).toISOString().slice(0, 10)}</strong></p>}
+      <div style={label}>Documents (tick when received; upload optional)</div>
+      {docs.map(d => (
+        <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+          <label style={{ flex: 1, fontSize: '.85rem', color: 'var(--text-primary)' }}><input type="checkbox" checked={!!d.received} onChange={() => toggleDoc(d.key)} style={{ marginRight: 8 }} />{d.label}</label>
+          {d.fileName && <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.fileName}</span>}
+          {d.fileName && <button style={{ ...ghostBtn, padding: '3px 9px', fontSize: '.74rem', marginBottom: 0 }} onClick={() => viewFile(d.key)}>View</button>}
+          {d.fileName && <button style={{ ...ghostBtn, padding: '3px 9px', fontSize: '.74rem', marginBottom: 0, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => delFile(d.key, d.label)}>Delete</button>}
+          <label style={{ ...ghostBtn, padding: '3px 9px', fontSize: '.74rem', cursor: 'pointer', marginBottom: 0 }}>{d.fileName ? 'Replace' : 'Upload'}<input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && upload(d.key, e.target.files[0])} /></label>
+        </div>
+      ))}
+      <Field l="Engagement notes"><textarea style={{ ...input, minHeight: 44, marginTop: 8 }} defaultValue={c.EngagementNotes || ''} onBlur={e => save({ engagementNotes: e.target.value })} /></Field>
+    </div>
+  );
+};
+
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
-  { id: 'preonboarding', title: 'Pre-Onboarding', desc: 'Prepare a new joiner before day one — documents, checks, and ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'admin'] },
+  { id: 'recruitment', title: 'Recruitment', desc: 'Full hiring pipeline — requisition through offer acceptance.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'manager', 'admin'] },
   { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['admin'] },
   { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['it', 'admin', 'employee'] },
   { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['it', 'manager', 'admin', 'employee'] },
@@ -1559,7 +1916,7 @@ const UserRightsAssets = () => {
     </div>
   ) : null;
 
-  if (view === 'preonboarding') return <>{banner}<PreOnboardingView onBack={() => setView('home')} /></>;
+  if (view === 'recruitment') return <>{banner}<RecruitmentView onBack={() => setView('home')} /></>;
   if (view === 'onboarding') return <><div style={{ padding: '0 0 0' }}>{banner}</div><OnboardingView onBack={() => setView('home')} /></>;
   if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
