@@ -1621,10 +1621,10 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const { isAdmin, isManager, isHod, isInterviewer, isHr, user } = useAuth();
   // Rights matrix: which roles may ACT on each stage (admin can always act).
   const STAGE_ACT = {
-    jd: ['hod', 'hr'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr'],
+    jd: ['hod', 'hr'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr', 'interviewer'],
     interview: ['interviewer'], selection: ['hr'], offer: ['hr'], acceptance: ['hr'],
   };
-  const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'HR', interview: 'Interviewer', selection: 'HR', offer: 'HR', acceptance: 'HR' };
+  const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'Interviewer + HR', interview: 'Interviewer', selection: 'HR', offer: 'HR', acceptance: 'HR' };
   const myRole = user?.role;
   const canActStage = (st) => isAdmin || (STAGE_ACT[st] || []).includes(myRole);
   const [r, setR] = useState(record);
@@ -1735,40 +1735,26 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      {/* STAGE 4 — SCHEDULING */}
+      {/* STAGE 4 — SCHEDULING (interviewer proposes a time, HR approves/edits) */}
       {r.Stage === 'scheduling' && (
         <div>
-          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Call the HOD-accepted candidates, schedule interviews, then mark arrival.</p>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>The interviewer proposes a time; HR approves or edits it. The interview then starts automatically at the approved time.</p>
           {accepted.length === 0 && <Empty text="No HOD-accepted candidates yet." />}
           {accepted.map(c => (
-            <div key={c.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name} {c.InterviewStatus && c.InterviewStatus !== 'none' && <span style={{ fontSize: '.74rem', color: 'var(--text-muted)' }}>· {c.InterviewStatus}</span>}</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
-                <input type="date" style={{ ...input, marginBottom: 0, maxWidth: 150 }} defaultValue={dv(c.InterviewDate)} onBlur={e => saveCand(c.Id, { interviewDate: e.target.value, interviewStatus: c.InterviewStatus === 'none' ? 'scheduled' : c.InterviewStatus })} />
-                <input placeholder="Time" style={{ ...input, marginBottom: 0, maxWidth: 100 }} defaultValue={c.InterviewTime || ''} onBlur={e => saveCand(c.Id, { interviewTime: e.target.value })} />
-                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { interviewStatus: 'arrived' })}>Arrived</button>
-                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-orange)', borderColor: 'var(--accent-orange)' }} onClick={() => saveCand(c.Id, { interviewStatus: 'reschedule' })}>Reschedule</button>
-                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => saveCand(c.Id, { interviewStatus: 'no_show' })}>No-show</button>
-              </div>
-            </div>
+            <InterviewLifecycle key={c.Id} c={c} phase="schedule" api={api} reload={async () => { await refresh(); reload(); }}
+              save={(patch) => saveCand(c.Id, patch)} isHr={isHr} isInterviewer={isInterviewer} isAdmin={isAdmin} req={r} />
           ))}
         </div>
       )}
 
-      {/* STAGE 5 — INTERVIEW & ASSESSMENT */}
+      {/* STAGE 5 — INTERVIEW (auto/manual start; interviewer marks arrival & fills the form) */}
       {r.Stage === 'interview' && (
         <div>
-          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>For each interviewed candidate, the panel fills the assessment form and sets the outcome.</p>
-          {accepted.filter(c => c.InterviewStatus === 'arrived' || c.Assessment).length === 0 && <Empty text="Mark a candidate 'Arrived' at the Scheduling stage first." />}
-          {accepted.filter(c => c.InterviewStatus === 'arrived' || c.Assessment).map(c => (
-            <div key={c.Id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name}</div>
-                {c.Outcome && <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: OUTCOME_META[c.Outcome] || 'var(--text-muted)', borderRadius: 12, padding: '2px 9px' }}>{c.Outcome}</span>}
-                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssessFor(assessFor === c.Id ? null : c.Id)}>{assessFor === c.Id ? 'Close form' : (c.Assessment ? 'Edit assessment' : 'Fill assessment form')}</button>
-              </div>
-              {assessFor === c.Id && <AssessmentForm c={c} req={r} onSave={(patch) => { saveCand(c.Id, patch); setAssessFor(null); }} />}
-            </div>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Interviews start automatically at the scheduled time (or the interviewer can start manually). The interviewer marks Arrived / Reschedule / No-show — Reschedule and No-show reopen the ticket for a new time.</p>
+          {accepted.length === 0 && <Empty text="No scheduled candidates yet." />}
+          {accepted.map(c => (
+            <InterviewLifecycle key={c.Id} c={c} phase="interview" api={api} reload={async () => { await refresh(); reload(); }}
+              save={(patch) => saveCand(c.Id, patch)} isHr={isHr} isInterviewer={isInterviewer} isAdmin={isAdmin} req={r} />
           ))}
         </div>
       )}
@@ -1830,6 +1816,103 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
       </div>
+    </div>
+  );
+};
+
+// Per-candidate interview lifecycle: interviewer proposes time -> HR approves/edits ->
+// auto/manual start -> interviewer marks Arrived/Reschedule/No-show -> Arrived opens the form.
+const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin, req }) => {
+  const { user } = useAuth();
+  const [assess, setAssess] = useState(false);
+  const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+  const [d, setD] = useState(dv(c.InterviewDate));
+  const [t, setT] = useState(c.InterviewTime || '');
+  const [, tick] = useState(0);
+  useEffect(() => { setD(dv(c.InterviewDate)); setT(c.InterviewTime || ''); }, [c.Id, c.InterviewDate, c.InterviewTime]);
+  useEffect(() => { const iv = setInterval(() => tick(x => x + 1), 20000); return () => clearInterval(iv); }, []); // re-check auto-start
+  const st = c.InterviewStatus || 'none';
+  const schedDT = c.InterviewDate && c.InterviewTime ? new Date(`${dv(c.InterviewDate)}T${c.InterviewTime}`) : (c.InterviewDate ? new Date(dv(c.InterviewDate)) : null);
+  const due = schedDT && !isNaN(schedDT) && Date.now() >= schedDT.getTime();
+  const live = st === 'in_progress' || (st === 'scheduled' && due);
+  const canPropose = isInterviewer || isAdmin;
+  const canApprove = isHr || isAdmin;
+  const canRun = isInterviewer || isAdmin;
+
+  const badge = (txt, col) => <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: col, borderRadius: 12, padding: '2px 9px' }}>{txt}</span>;
+  const row = { ...rowStyle, flexDirection: 'column', alignItems: 'stretch' };
+  const fld = { ...input, marginBottom: 0, maxWidth: 150, padding: '5px 8px' };
+  const sb = (txt, col, on) => <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: col, borderColor: col }} onClick={on}>{txt}</button>;
+
+  return (
+    <div style={row}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, fontWeight: 700, color: 'var(--text-primary)' }}>{c.Name}</div>
+        {st === 'none' && badge('No time yet', 'var(--text-muted)')}
+        {st === 'time_proposed' && badge('Time proposed · awaiting HR', 'var(--accent-orange)')}
+        {st === 'scheduled' && !live && badge(`Scheduled · ${dv(c.InterviewDate)} ${c.InterviewTime || ''}`, 'var(--accent-sky)')}
+        {live && !['arrived'].includes(st) && !c.Outcome && badge('In progress', 'var(--accent-teal)')}
+        {st === 'arrived' && !c.Outcome && badge('Arrived · assessment pending', 'var(--accent-teal)')}
+        {st === 'reschedule' && badge('Rescheduled — needs new time', 'var(--accent-orange)')}
+        {st === 'no_show' && badge('No-show — needs new time', '#dc2626')}
+        {c.Outcome && badge(c.Outcome, OUTCOME_META[c.Outcome] || 'var(--text-muted)')}
+      </div>
+
+      {/* Needs a time: interviewer proposes */}
+      {['none', 'reschedule', 'no_show'].includes(st) && !c.Outcome && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+          {canPropose ? (<>
+            <input type="date" style={fld} value={d} onChange={e => setD(e.target.value)} />
+            <input placeholder="Time (e.g. 15:30)" style={{ ...fld, maxWidth: 120 }} value={t} onChange={e => setT(e.target.value)} />
+            {sb('Propose time → HR', 'var(--accent)', () => { if (!d) return window.alert('Pick a date.'); save({ interviewDate: d, interviewTime: t, interviewStatus: 'time_proposed' }); })}
+          </>) : <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Waiting for the interviewer to propose a time.</span>}
+        </div>
+      )}
+
+      {/* Proposed: HR edits/approves */}
+      {st === 'time_proposed' && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+          {canApprove ? (<>
+            <input type="date" style={fld} value={d} onChange={e => setD(e.target.value)} />
+            <input placeholder="Time" style={{ ...fld, maxWidth: 120 }} value={t} onChange={e => setT(e.target.value)} />
+            {sb('Approve time', 'var(--accent-green)', () => save({ interviewDate: d, interviewTime: t, interviewStatus: 'scheduled' }))}
+          </>) : <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Proposed {dv(c.InterviewDate)} {c.InterviewTime} — awaiting HR approval. {canPropose && '(You can re-propose above.)'}</span>}
+          {canPropose && !canApprove && <>
+            <input type="date" style={fld} value={d} onChange={e => setD(e.target.value)} />
+            <input placeholder="Time" style={{ ...fld, maxWidth: 120 }} value={t} onChange={e => setT(e.target.value)} />
+            {sb('Re-propose', 'var(--accent)', () => save({ interviewDate: d, interviewTime: t, interviewStatus: 'time_proposed' }))}
+          </>}
+        </div>
+      )}
+
+      {/* Scheduled but not yet due: auto-start note + manual start */}
+      {st === 'scheduled' && !live && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Starts automatically at {dv(c.InterviewDate)} {c.InterviewTime}.</span>
+          {canRun && sb('Start now', 'var(--accent-teal)', () => save({ interviewStatus: 'in_progress' }))}
+          {canApprove && sb('Edit time', 'var(--accent)', () => save({ interviewStatus: 'time_proposed' }))}
+        </div>
+      )}
+
+      {/* Live (auto-started or manually): interviewer marks outcome of attendance */}
+      {live && st !== 'arrived' && !c.Outcome && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+          {canRun ? (<>
+            {sb('Arrived', 'var(--accent-green)', () => save({ interviewStatus: 'arrived' }))}
+            {sb('Reschedule', 'var(--accent-orange)', () => { if (window.confirm('Reschedule reopens the ticket for a new time. Continue?')) save({ interviewStatus: 'reschedule', interviewDate: null, interviewTime: null }); })}
+            {sb('No-show', '#dc2626', () => { if (window.confirm('Mark No-show? This reopens the ticket for a new time.')) save({ interviewStatus: 'no_show', interviewDate: null, interviewTime: null }); })}
+          </>) : <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Interview in progress — the interviewer will mark the result.</span>}
+        </div>
+      )}
+
+      {/* Arrived: interviewer fills the assessment form */}
+      {(st === 'arrived' || c.Outcome) && (
+        <div style={{ marginTop: 8 }}>
+          {canRun && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssess(a => !a)}>{assess ? 'Close form' : (c.Assessment ? 'Edit assessment' : 'Fill assessment form')}</button>}
+          {!canRun && !c.Outcome && <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Awaiting the interviewer's assessment.</span>}
+          {assess && <AssessmentForm c={c} req={req} onSave={(patch) => { save(patch); setAssess(false); }} />}
+        </div>
+      )}
     </div>
   );
 };

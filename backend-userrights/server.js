@@ -1039,7 +1039,7 @@ function recForwardGate(cur, cands) {
       return OK;
     }
     case 'scheduling':
-      return cands.some(c => c.HodDecision === 'accepted' && c.InterviewStatus === 'arrived') ? OK : { ok: false, msg: 'Mark at least one accepted candidate as "Arrived" before the interview stage.' };
+      return cands.some(c => c.HodDecision === 'accepted' && c.InterviewStatus === 'scheduled') ? OK : { ok: false, msg: 'HR must approve at least one proposed interview time (status "Scheduled") before the interview stage.' };
     case 'interview':
       return cands.some(c => c.Outcome) ? OK : { ok: false, msg: 'Record at least one interview outcome (Selected / On Hold / Not Suitable) first.' };
     case 'selection':
@@ -1257,8 +1257,8 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the HOD can accept or reject CVs.' });
     if ((b.assessment !== undefined || b.outcome !== undefined) && !(adminR || rl === 'interviewer'))
       return res.status(403).json({ success: false, error: 'Only the Interviewer can fill the assessment and set the outcome.' });
-    if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr'))
-      return res.status(403).json({ success: false, error: 'Only HR can schedule interviews.' });
+    if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr' || rl === 'interviewer'))
+      return res.status(403).json({ success: false, error: 'Only HR or the Interviewer can set interview timing.' });
     const g = (k, col) => { const v = b[k] !== undefined ? b[k] : cur[col]; return v === undefined ? null : v; };
     // Only update the fields actually present in the request — so e.g. an Accept
     // (which sends just hodDecision) never touches InterviewTime and can't trip the
