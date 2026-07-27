@@ -1605,6 +1605,14 @@ const RecruitmentView = ({ onBack }) => {
 
 const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const { isAdmin, isManager, isHod, isInterviewer, isHr, user } = useAuth();
+  // Rights matrix: which roles may ACT on each stage (admin can always act).
+  const STAGE_ACT = {
+    jd: ['hod', 'hr'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr'],
+    interview: ['interviewer'], selection: ['hr'], offer: ['hr'], acceptance: ['hr'],
+  };
+  const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'HR', interview: 'Interviewer', selection: 'HR', offer: 'HR', acceptance: 'HR' };
+  const myRole = user?.role;
+  const canActStage = (st) => isAdmin || (STAGE_ACT[st] || []).includes(myRole);
   const [r, setR] = useState(record);
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
@@ -1657,6 +1665,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
+      {canActStage(r.Stage) ? (<>
       {/* STAGE 1 — JD */}
       {r.Stage === 'jd' && (
         <div>
@@ -1782,22 +1791,30 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         return sel ? <RecCandidateAcceptance c={sel} api={api} reload={async () => { await refresh(); reload(); }} user={user} />
           : <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Take a candidate forward at the Selection stage first.</p>; })())}
 
-      {/* manual add candidate (available pre-interview) */}
-      {['cv_shortlist', 'scheduling'].includes(r.Stage) && (
+      {/* manual add candidate (HR only, pre-interview) */}
+      {['cv_shortlist', 'scheduling'].includes(r.Stage) && (isHr || isAdmin) && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           <input placeholder="Add candidate name" style={{ ...input, marginBottom: 0, maxWidth: 180 }} value={cand.name} onChange={e => setCand(s => ({ ...s, name: e.target.value }))} />
           <input placeholder="Email" style={{ ...input, marginBottom: 0, maxWidth: 170 }} value={cand.email} onChange={e => setCand(s => ({ ...s, email: e.target.value }))} />
           <button style={ghostBtn} onClick={addCand}>+ Add manually</button>
         </div>
       )}
+      </>) : (
+        <div style={{ padding: 14, borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)', fontSize: '.86rem', color: 'var(--text-muted)' }}>
+          This step — <strong style={{ color: 'var(--text-primary)' }}>{STATUS_META[r.Stage]?.label}</strong> — is handled by <strong>{STAGE_OWNER[r.Stage]}</strong>. There's nothing for your role here; you'll see this requirement again when it reaches your step.
+        </div>
+      )}
 
-      {!isInterviewer && <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        {idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
-        {idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
-        {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
-        <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
-        {!r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
-      </div>}
+      {/* Orchestration bar: HR/admin drive the pipeline; the HOD only hands off the JD at stage 1 */}
+      {(isHr || isAdmin || (isHod && r.Stage === 'jd')) && (
+        <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          {(isHr || isAdmin) && idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
+          {idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
+          {(isHr || isAdmin) && (r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null)}
+          {(isHr || isAdmin) && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>}
+          {(isHr || isAdmin) && !r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
+        </div>
+      )}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
     </div>
   );

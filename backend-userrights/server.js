@@ -1103,6 +1103,9 @@ app.put('/api/recruitment/:id', async (req, res) => {
     if (stage !== cur.Stage) {
       const ci = REC_STAGES.indexOf(cur.Stage), ni = REC_STAGES.indexOf(stage);
       if (ni > ci) {
+        // who may advance: HR drives the pipeline; the HOD only hands off the JD (stage 1). Admin always.
+        const advancers = cur.Stage === 'jd' ? ['hr', 'hod'] : ['hr'];
+        if (!can(req, ...advancers)) return res.status(403).json({ success: false, error: 'Only ' + advancers.join(' / ').toUpperCase() + ' can advance this stage.' });
         const cands = (await p.request().input('R', sql.Int, req.params.id).query(`SELECT * FROM dbo.RecruitmentCandidates WHERE ReqId=@R`)).recordset;
         const gate = recForwardGate(cur, cands);
         if (!gate.ok) return res.status(400).json({ success: false, error: gate.msg });
@@ -1234,6 +1237,14 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
     const p = await getPool();
     const cur = (await p.request().input('Id', sql.Int, req.params.cid).query(`SELECT * FROM dbo.RecruitmentCandidates WHERE Id=@Id`)).recordset[0];
     if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
+    // Field-level rights: each role may only touch its own part of the workflow.
+    const rl = role(req), adminR = rl === 'admin';
+    if (b.hodDecision !== undefined && !(adminR || rl === 'hod' || rl === 'manager'))
+      return res.status(403).json({ success: false, error: 'Only the HOD can accept or reject CVs.' });
+    if ((b.assessment !== undefined || b.outcome !== undefined) && !(adminR || rl === 'interviewer'))
+      return res.status(403).json({ success: false, error: 'Only the Interviewer can fill the assessment and set the outcome.' });
+    if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr'))
+      return res.status(403).json({ success: false, error: 'Only HR can schedule interviews.' });
     const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
     await p.request().input('Id', sql.Int, req.params.cid)
       .input('Name', sql.NVarChar, g('name', 'Name')).input('Phone', sql.NVarChar, g('phone', 'Phone'))
