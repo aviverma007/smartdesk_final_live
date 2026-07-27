@@ -1067,8 +1067,9 @@ app.post('/api/recruitment', async (req, res) => {
       .input('Just', sql.NVarChar, b.justification || null).input('TD', sql.Date, b.targetDate || null)
       .input('Mrf', sql.NVarChar, b.mrfRef || null).input('Aop', sql.Bit, b.aopApproved ? 1 : 0)
       .input('By', sql.NVarChar, actor(req)).input('ByRole', sql.NVarChar, role(req))
-      .query(`INSERT INTO dbo.Recruitment (Department,Role,Grade,Positions,Justification,TargetDate,MrfRef,AopApproved,CreatedBy,CreatedByRole)
-              OUTPUT INSERTED.* VALUES (@Dept,@Role,@Grade,@Pos,@Just,@TD,@Mrf,@Aop,@By,@ByRole)`);
+      .input('JdText', sql.NVarChar, b.jdText || null)
+      .query(`INSERT INTO dbo.Recruitment (Department,Role,Grade,Positions,Justification,TargetDate,MrfRef,AopApproved,CreatedBy,CreatedByRole,JdText)
+              OUTPUT INSERTED.* VALUES (@Dept,@Role,@Grade,@Pos,@Just,@TD,@Mrf,@Aop,@By,@ByRole,@JdText)`);
     res.json({ success: true, record: r.recordset[0] });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
