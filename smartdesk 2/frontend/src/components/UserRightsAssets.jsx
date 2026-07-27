@@ -1536,7 +1536,7 @@ const RecruitmentView = ({ onBack }) => {
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => { const d = await api('/recruitment'); if (d.success) setList(d.records); }, [api]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const create = async () => {
     if (!form.role && !form.department) return setMsg('Enter at least a role or department.');
@@ -1572,7 +1572,10 @@ const RecruitmentView = ({ onBack }) => {
         </div>
       )}
       <div style={card}>
-        <h2 style={h2}>Requirements</h2>
+        <h2 style={{ ...h2, display: 'flex', alignItems: 'center', gap: 8 }}>Requirements
+          <span style={{ fontSize: '.68rem', fontWeight: 700, color: 'var(--accent-green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block' }} />LIVE · auto-updates</span>
+        </h2>
         <FilterBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter}
           placeholder="Search by role, department or MRF…"
           options={[
