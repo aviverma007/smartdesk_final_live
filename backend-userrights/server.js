@@ -1028,7 +1028,7 @@ const REC_DIR = pathmod.join(__dirname, 'uploads', 'recruitment');
 
 // create requisition (hr OR manager)
 app.post('/api/recruitment', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try {
     const b = req.body || {};
     if (!b.role && !b.department) return res.status(400).json({ success: false, error: 'Role or department is required.' });
@@ -1047,7 +1047,7 @@ app.post('/api/recruitment', async (req, res) => {
 
 // list (hr/manager/admin). Managers primarily act on approvals but can see all.
 app.get('/api/recruitment', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
   try {
     const p = await getPool();
     const reqs = (await p.request().query(`SELECT * FROM dbo.Recruitment ORDER BY
@@ -1061,7 +1061,7 @@ app.get('/api/recruitment', async (req, res) => {
 
 // update requisition fields + stage (hr; manager may update the requisition they raised)
 app.put('/api/recruitment/:id', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try {
     const b = req.body || {};
     const p = await getPool();
@@ -1115,7 +1115,7 @@ app.post('/api/recruitment/:id/offer-approval', (req, res) => setApproval(req, r
 
 // candidates
 app.post('/api/recruitment/:id/candidates', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try {
     const b = req.body || {};
     if (!b.name) return res.status(400).json({ success: false, error: 'Candidate name is required.' });
@@ -1131,7 +1131,7 @@ app.post('/api/recruitment/:id/candidates', async (req, res) => {
 // JD upload / view (on the requisition)
 const JD_DIR = pathmod.join(__dirname, 'uploads', 'recruitment_jd');
 app.post('/api/recruitment/:id/jd-upload', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try {
     const b = req.body || {};
     if (!b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
@@ -1147,7 +1147,7 @@ app.post('/api/recruitment/:id/jd-upload', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 app.get('/api/recruitment/:id/jd-file', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
   try {
     if (!fs.existsSync(JD_DIR)) return res.status(404).send('Not found');
     const f = fs.readdirSync(JD_DIR).find(n => n.startsWith(req.params.id + '__'));
@@ -1159,7 +1159,7 @@ app.get('/api/recruitment/:id/jd-file', async (req, res) => {
 // CV upload -> creates a candidate with the CV attached (HR)
 const CV_DIR = pathmod.join(__dirname, 'uploads', 'recruitment_cv');
 app.post('/api/recruitment/:id/cv', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try {
     const b = req.body || {};
     if (!b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
@@ -1177,7 +1177,7 @@ app.post('/api/recruitment/:id/cv', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 app.get('/api/recruitment/candidates/:cid/cv', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
   try {
     const dir = pathmod.join(CV_DIR, String(req.params.cid));
     if (!fs.existsSync(dir)) return res.status(404).send('Not found');
@@ -1188,7 +1188,7 @@ app.get('/api/recruitment/candidates/:cid/cv', async (req, res) => {
 });
 
 app.put('/api/recruitment/candidates/:cid', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
   try {
     const b = req.body || {};
     const p = await getPool();
@@ -1217,14 +1217,14 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 app.delete('/api/recruitment/candidates/:cid', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.cid).query(`DELETE FROM dbo.RecruitmentCandidates WHERE Id=@Id`); res.json({ success: true }); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 // stage-9 documents on a candidate (upload / view / delete) — mirrors pre-onboarding
 app.post('/api/recruitment/candidates/:cid/upload', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
   try {
     const b = req.body || {};
     if (!b.key || !b.dataBase64) return res.status(400).json({ success: false, error: 'Missing file.' });
@@ -1241,7 +1241,7 @@ app.post('/api/recruitment/candidates/:cid/upload', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 app.get('/api/recruitment/candidates/:cid/file/:key', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
   try {
     const dir = pathmod.join(REC_DIR, String(req.params.cid));
     if (!fs.existsSync(dir)) return res.status(404).send('Not found');
@@ -1267,7 +1267,7 @@ app.delete('/api/recruitment/candidates/:cid/file/:key', async (req, res) => {
 
 // admin-approved delete of a whole requisition
 app.post('/api/recruitment/:id/request-delete', async (req, res) => {
-  if (!can(req, 'hr', 'manager')) return deny(res);
+  if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
   try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.id).input('R', sql.NVarChar, (req.body || {}).reason || null).input('By', sql.NVarChar, actor(req))
     .query(`UPDATE dbo.Recruitment SET DeleteRequested=1, DeleteReason=@R, DeleteRequestedBy=@By, DeleteRequestedAt=GETDATE(), UpdatedAt=GETDATE() WHERE Id=@Id`); res.json({ success: true }); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }

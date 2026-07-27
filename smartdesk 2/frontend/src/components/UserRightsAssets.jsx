@@ -1525,7 +1525,7 @@ const readBase64 = (file) => new Promise((res, rej) => { const r = new FileReade
 
 const RecruitmentView = ({ onBack }) => {
   const api = useApi();
-  const { isManager } = useAuth();
+  const { isManager, isInterviewer } = useAuth();
   const [list, setList] = useState([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState(isManager ? 'hod' : 'active');
@@ -1554,7 +1554,7 @@ const RecruitmentView = ({ onBack }) => {
   return (
     <div>
       <BackBar onBack={onBack} title="Recruitment" subtitle="JD to offer acceptance — HOD shares the JD, HR sources and schedules, the panel interviews, HR closes." />
-      {!showForm && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}><button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New requirement (JD)</button></div>}
+      {!showForm && !isInterviewer && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}><button style={primaryBtn} onClick={() => { setForm(blank); setMsg(''); setShowForm(true); }}>+ New requirement (JD)</button></div>}
       {showForm && (
         <div style={card}>
           <h2 style={h2}>New requirement — Stage 1 (JD)</h2>
@@ -1604,7 +1604,7 @@ const RecruitmentView = ({ onBack }) => {
 };
 
 const RecruitmentDetail = ({ record, api, reload, onClose }) => {
-  const { isAdmin, isManager, user } = useAuth();
+  const { isAdmin, isManager, isHod, isInterviewer, user } = useAuth();
   const [r, setR] = useState(record);
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
@@ -1699,8 +1699,8 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
               </div>
               {c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => viewServerFile(`/recruitment/candidates/${c.Id}/cv`)}>View CV</button>}
               <Pill status={c.HodDecision === 'accepted' ? 'approved' : c.HodDecision === 'rejected' ? 'rejected' : 'pending'} />
-              {isManager && c.HodDecision !== 'accepted' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { hodDecision: 'accepted' })}>Accept</button>}
-              {isManager && c.HodDecision !== 'rejected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const rm = window.prompt('Reject — remark (optional):') || ''; saveCand(c.Id, { hodDecision: 'rejected', hodRemark: rm }); }}>Reject</button>}
+              {(isManager || isHod) && c.HodDecision !== 'accepted' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { hodDecision: 'accepted' })}>Accept</button>}
+              {(isManager || isHod) && c.HodDecision !== 'rejected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const rm = window.prompt('Reject — remark (optional):') || ''; saveCand(c.Id, { hodDecision: 'rejected', hodRemark: rm }); }}>Reject</button>}
               <button style={{ ...ghostBtn, padding: '5px 8px', fontSize: '.74rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => delCand(c.Id)}>✕</button>
             </div>
           ))}
@@ -1785,13 +1785,13 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+      {!isInterviewer && <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
         {idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
         {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
         <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
         {!r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
-      </div>
+      </div>}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
     </div>
   );
@@ -1893,7 +1893,7 @@ const RecCandidateAcceptance = ({ c, api, reload, user }) => {
 
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
-  { id: 'recruitment', title: 'Recruitment', desc: 'Full hiring pipeline — requisition through offer acceptance.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'manager', 'admin'] },
+  { id: 'recruitment', title: 'Recruitment', desc: 'Full hiring pipeline — requisition through offer acceptance.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'manager', 'hod', 'interviewer', 'admin'] },
   { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['admin'] },
   { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['it', 'admin', 'employee'] },
   { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['it', 'manager', 'admin', 'employee'] },
