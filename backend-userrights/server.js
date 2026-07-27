@@ -1073,6 +1073,17 @@ app.post('/api/recruitment', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// Lightweight change-fingerprint for fast polling (avoids re-fetching everything twice a second)
+app.get('/api/recruitment/version', async (req, res) => {
+  if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
+  try {
+    const p = await getPool();
+    const q = await p.request().query(`SELECT COUNT(*) AS c, CONVERT(VARCHAR(30), MAX(UpdatedAt), 126) AS u FROM dbo.Recruitment`);
+    const row = q.recordset[0] || {};
+    res.json({ success: true, version: `${row.c || 0}:${row.u || ''}` });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 // list (hr/manager/admin). Managers primarily act on approvals but can see all.
 app.get('/api/recruitment', async (req, res) => {
   if (!can(req, 'hr', 'manager', 'hod', 'interviewer')) return deny(res);
@@ -1168,6 +1179,7 @@ app.post('/api/recruitment/:id/candidates', async (req, res) => {
       .input('Email', sql.NVarChar, b.email || null).input('Source', sql.NVarChar, b.source || null)
       .input('Docs', sql.NVarChar, JSON.stringify(recFreshDocs()))
       .query(`INSERT INTO dbo.RecruitmentCandidates (ReqId,Name,Phone,Email,Source,Documents) OUTPUT INSERTED.* VALUES (@ReqId,@Name,@Phone,@Email,@Source,@Docs)`);
+    await p.request().input('R', sql.Int, req.params.id).query(`UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=@R`);
     res.json({ success: true, record: r.recordset[0] });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -1216,6 +1228,7 @@ app.post('/api/recruitment/:id/cv', async (req, res) => {
     const dir = pathmod.join(CV_DIR, String(cid)); fs.mkdirSync(dir, { recursive: true });
     const safe = String(b.fileName || 'cv.pdf').replace(/[^A-Za-z0-9._-]/g, '_');
     fs.writeFileSync(pathmod.join(dir, safe), Buffer.from(b.dataBase64.split(',').pop(), 'base64'));
+    await p.request().input('R', sql.Int, req.params.id).query(`UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=@R`);
     res.json({ success: true, id: cid });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -1263,13 +1276,14 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
       .input('Out', sql.NVarChar, g('outcome', 'Outcome'))
       .query(`UPDATE dbo.RecruitmentCandidates SET Name=@Name,Phone=@Phone,Email=@Email,Source=@Source,CandStatus=@CS,Interviews=@Iv,
         OfferAcceptedDate=@OAD,ResignationAcceptedDate=@RAD,JoiningDate=@JD,Documents=@Docs,EngagementNotes=@EN,
-        HodDecision=@Hod,HodRemark=@HodR,InterviewDate=@ID,InterviewTime=@IT,InterviewStatus=@IS,InterviewerName=@IN,Assessment=@As,Outcome=@Out WHERE Id=@Id`);
+        HodDecision=@Hod,HodRemark=@HodR,InterviewDate=@ID,InterviewTime=@IT,InterviewStatus=@IS,InterviewerName=@IN,Assessment=@As,Outcome=@Out WHERE Id=@Id;
+        UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=(SELECT ReqId FROM dbo.RecruitmentCandidates WHERE Id=@Id)`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 app.delete('/api/recruitment/candidates/:cid', async (req, res) => {
   if (!can(req, 'hr', 'manager', 'hod')) return deny(res);
-  try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.cid).query(`DELETE FROM dbo.RecruitmentCandidates WHERE Id=@Id`); res.json({ success: true }); }
+  try { const p = await getPool(); await p.request().input('Id', sql.Int, req.params.cid).query(`UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=(SELECT ReqId FROM dbo.RecruitmentCandidates WHERE Id=@Id); DELETE FROM dbo.RecruitmentCandidates WHERE Id=@Id`); res.json({ success: true }); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
@@ -1287,7 +1301,7 @@ app.post('/api/recruitment/candidates/:cid/upload', async (req, res) => {
     fs.writeFileSync(pathmod.join(dir, `${b.key}__${safe}`), Buffer.from(b.dataBase64.split(',').pop(), 'base64'));
     let docs = []; try { docs = JSON.parse(cur.Documents || '[]'); } catch {}
     docs = docs.map(d => d.key === b.key ? { ...d, received: true, fileName: b.fileName || safe } : d);
-    await p.request().input('Id', sql.Int, req.params.cid).input('Docs', sql.NVarChar, JSON.stringify(docs)).query(`UPDATE dbo.RecruitmentCandidates SET Documents=@Docs WHERE Id=@Id`);
+    await p.request().input('Id', sql.Int, req.params.cid).input('Docs', sql.NVarChar, JSON.stringify(docs)).query(`UPDATE dbo.RecruitmentCandidates SET Documents=@Docs WHERE Id=@Id; UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=(SELECT ReqId FROM dbo.RecruitmentCandidates WHERE Id=@Id)`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, URA_API } from '../context/AuthContext';
 import { employeeAPI } from '../services/api';
 import * as XLSX from 'xlsx';
@@ -1536,7 +1536,16 @@ const RecruitmentView = ({ onBack }) => {
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => { const d = await api('/recruitment'); if (d.success) setList(d.records); }, [api]);
-  useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
+  const verRef = useRef('');
+  useEffect(() => {
+    let alive = true;
+    load();
+    const t = setInterval(async () => {
+      const v = await api('/recruitment/version');
+      if (alive && v.success && v.version !== verRef.current) { verRef.current = v.version; load(); }
+    }, 500);
+    return () => { alive = false; clearInterval(t); };
+  }, [load, api]);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const create = async () => {
     if (!form.role && !form.department) return setMsg('Enter at least a role or department.');
@@ -1550,6 +1559,9 @@ const RecruitmentView = ({ onBack }) => {
     const mf = filter === 'all' ? true : filter === 'hod' ? needsHod(r) : filter === 'active' ? r.Status === 'active' : filter === 'on_hold' ? r.Status === 'on_hold' : r.Status === filter;
     return ms && mf;
   });
+
+  const openRec = openId ? list.find(x => x.Id === openId) : null;
+  if (openRec) return <div><RecruitmentDetail record={openRec} api={api} reload={load} onClose={() => setOpenId(null)} /></div>;
 
   return (
     <div>
@@ -1595,9 +1607,8 @@ const RecruitmentView = ({ onBack }) => {
               {needsHod(r) && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>HOD review</span>}
               {r.DeleteRequested && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Delete requested</span>}
               <Pill status={r.Stage} />
-              <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(openId === r.Id ? null : r.Id)}>{openId === r.Id ? 'Close' : 'Manage'}</button>
+              <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(r.Id)}>Open</button>
             </div>
-            {openId === r.Id && <RecruitmentDetail record={r} api={api} reload={load} onClose={() => setOpenId(null)} />}
           </div>
         ))}
         {msg && !showForm && <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginTop: 10 }}>{msg}</p>}
@@ -1641,23 +1652,22 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
 
   const channels = (() => { try { return JSON.parse(r.SourcingChannels || '[]'); } catch { return []; } })();
   const toggleChannel = (c) => { const nx = channels.includes(c) ? channels.filter(x => x !== c) : [...channels, c]; save({ sourcingChannels: nx }); };
-  const box = { marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)' };
+  const box = { padding: 0 };
   const accepted = cands.filter(c => c.HodDecision === 'accepted');
   const selectedCount = cands.filter(c => c.Outcome === 'Selected').length;
 
   return (
     <div style={box}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-        {REC_STAGES.map((s, i) => (
-          <button key={s} onClick={() => isAdmin ? goStage(s) : null} title={STATUS_META[s]?.label}
-            {...(isAdmin ? {} : { disabled: true })}
-            style={{ padding: '4px 9px', borderRadius: 14, fontSize: '.72rem', fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${i === idx ? 'var(--accent)' : 'var(--border)'}`,
-              background: i === idx ? 'var(--accent)' : i < idx ? 'color-mix(in srgb, var(--accent-green) 18%, transparent)' : 'transparent',
-              color: i === idx ? '#fff' : i < idx ? 'var(--accent-green)' : 'var(--text-muted)' }}>{i + 1}</button>
-        ))}
-        <span style={{ marginLeft: 6, alignSelf: 'center', fontSize: '.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{STATUS_META[r.Stage]?.label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={onClose}>← All requirements</button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{r.Role || '(role)'} — {STATUS_META[r.Stage]?.label}</div>
+          <div style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>{[r.Department, `${r.Positions || 1} position(s)`, `owned by ${STAGE_OWNER[r.Stage]}`, r.MrfRef].filter(Boolean).join('  ·  ')}</div>
+        </div>
+        <Pill status={r.Stage} />
       </div>
+
+      <div style={{ ...card }}>
 
       {r.DeleteRequested && (
         <div style={{ padding: 12, borderRadius: 8, background: 'color-mix(in srgb,#dc2626 8%,transparent)', border: '1px solid #dc2626', marginBottom: 12 }}>
@@ -1819,6 +1829,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
+      </div>
     </div>
   );
 };
