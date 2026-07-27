@@ -1022,6 +1022,34 @@ app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
 
 /* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
 const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'offer', 'acceptance'];
+// Gate for advancing OUT of the current stage. Returns {ok} or {ok:false,msg}.
+function recForwardGate(cur, cands) {
+  const OK = { ok: true };
+  const ch = (() => { try { return JSON.parse(cur.SourcingChannels || '[]'); } catch { return []; } })();
+  switch (cur.Stage) {
+    case 'jd':
+      return (cur.JdText && String(cur.JdText).trim()) || cur.JdFileName ? OK : { ok: false, msg: 'Add the JD (paste text or upload a file) before handing it to HR.' };
+    case 'review_post':
+      return ch.length ? OK : { ok: false, msg: 'Tick where the JD was posted before moving on.' };
+    case 'cv_shortlist': {
+      if (!cands.length) return { ok: false, msg: 'Upload at least one CV first.' };
+      const pending = cands.filter(c => (c.HodDecision || 'pending') === 'pending');
+      if (pending.length) return { ok: false, msg: `This step belongs to the HOD. ${pending.length} CV(s) are still awaiting the HOD's Accept/Reject — HR can proceed only once the HOD has reviewed every CV.` };
+      if (!cands.some(c => c.HodDecision === 'accepted')) return { ok: false, msg: 'The HOD has not accepted any candidate, so there is no one to interview.' };
+      return OK;
+    }
+    case 'scheduling':
+      return cands.some(c => c.HodDecision === 'accepted' && c.InterviewStatus === 'arrived') ? OK : { ok: false, msg: 'Mark at least one accepted candidate as "Arrived" before the interview stage.' };
+    case 'interview':
+      return cands.some(c => c.Outcome) ? OK : { ok: false, msg: 'Record at least one interview outcome (Selected / On Hold / Not Suitable) first.' };
+    case 'selection':
+      return cur.SelectedCandidateId ? OK : { ok: false, msg: 'Take a Selected candidate forward before the offer stage.' };
+    case 'offer':
+      return cur.OfferReleasedDate ? OK : { ok: false, msg: 'Enter the offer released date first.' };
+    default:
+      return OK;
+  }
+}
 const REC_DOC_CHECKLIST = DOC_CHECKLIST; // reuse the same document list as pre-onboarding
 const recFreshDocs = () => REC_DOC_CHECKLIST.map(d => ({ key: d.key, label: d.label, received: false, fileName: null }));
 const REC_DIR = pathmod.join(__dirname, 'uploads', 'recruitment');
@@ -1068,6 +1096,18 @@ app.put('/api/recruitment/:id', async (req, res) => {
     const cur = (await p.request().input('Id', sql.Int, req.params.id).query(`SELECT * FROM dbo.Recruitment WHERE Id=@Id`)).recordset[0];
     if (!cur) return res.status(404).json({ success: false, error: 'Not found.' });
     const stage = b.stage || cur.Stage;
+
+    // Enforce the workflow: a stage can only be advanced when its required work
+    // is complete. Critically, HR cannot move past CV shortlisting until the HOD
+    // has accepted/rejected every CV. Backward moves are always allowed.
+    if (stage !== cur.Stage) {
+      const ci = REC_STAGES.indexOf(cur.Stage), ni = REC_STAGES.indexOf(stage);
+      if (ni > ci) {
+        const cands = (await p.request().input('R', sql.Int, req.params.id).query(`SELECT * FROM dbo.RecruitmentCandidates WHERE ReqId=@R`)).recordset;
+        const gate = recForwardGate(cur, cands);
+        if (!gate.ok) return res.status(400).json({ success: false, error: gate.msg });
+      }
+    }
     const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
     await p.request()
       .input('Id', sql.Int, req.params.id)

@@ -1604,7 +1604,7 @@ const RecruitmentView = ({ onBack }) => {
 };
 
 const RecruitmentDetail = ({ record, api, reload, onClose }) => {
-  const { isAdmin, isManager, isHod, isInterviewer, user } = useAuth();
+  const { isAdmin, isManager, isHod, isInterviewer, isHr, user } = useAuth();
   const [r, setR] = useState(record);
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
@@ -1638,7 +1638,8 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
     <div style={box}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {REC_STAGES.map((s, i) => (
-          <button key={s} onClick={() => (isAdmin || i <= idx + 1) ? goStage(s) : null} title={STATUS_META[s]?.label}
+          <button key={s} onClick={() => isAdmin ? goStage(s) : null} title={STATUS_META[s]?.label}
+            {...(isAdmin ? {} : { disabled: true })}
             style={{ padding: '4px 9px', borderRadius: 14, fontSize: '.72rem', fontWeight: 700, cursor: 'pointer',
               border: `1px solid ${i === idx ? 'var(--accent)' : 'var(--border)'}`,
               background: i === idx ? 'var(--accent)' : i < idx ? 'color-mix(in srgb, var(--accent-green) 18%, transparent)' : 'transparent',
@@ -1688,8 +1689,13 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       {/* STAGE 3 — CV SHORTLIST (HR uploads, HOD accept/reject) */}
       {r.Stage === 'cv_shortlist' && (
         <div>
+          {(isHr || isAdmin) && (
+            <div style={{ padding: 10, borderRadius: 8, background: 'color-mix(in srgb, var(--accent-orange) 10%, transparent)', border: '1px solid var(--accent-orange)', marginBottom: 10, fontSize: '.82rem', color: 'var(--text-primary)' }}>
+              This step belongs to the <strong>HOD</strong>. Upload the CVs here — the HOD reviews each one and marks Accept / Reject. You can advance to Scheduling only once the HOD has reviewed <strong>every</strong> CV.
+            </div>
+          )}
           <label style={{ ...primaryBtn, cursor: 'pointer', display: 'inline-block' }}>+ Upload CVs (multiple)<input type="file" multiple style={{ display: 'none' }} onChange={e => { if (e.target.files.length) uploadCVs([...e.target.files]); e.target.value = ''; }} /></label>
-          <p style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>HR uploads CVs; the HOD (Manager) opens each and accepts or rejects.</p>
+          <p style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{isHod ? 'Open each CV and Accept or Reject it.' : 'HR uploads CVs; the HOD opens each and accepts or rejects.'}</p>
           {cands.length === 0 && <Empty text="No CVs uploaded yet." />}
           {cands.map(c => (
             <div key={c.Id} style={{ ...rowStyle, alignItems: 'center' }}>
