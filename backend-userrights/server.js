@@ -1260,25 +1260,32 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
     if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr'))
       return res.status(403).json({ success: false, error: 'Only HR can schedule interviews.' });
     const g = (k, col) => { const v = b[k] !== undefined ? b[k] : cur[col]; return v === undefined ? null : v; };
-    await p.request().input('Id', sql.Int, req.params.cid)
-      .input('Name', sql.NVarChar, g('name', 'Name')).input('Phone', sql.NVarChar, g('phone', 'Phone'))
-      .input('Email', sql.NVarChar, g('email', 'Email')).input('Source', sql.NVarChar, g('source', 'Source'))
-      .input('CS', sql.NVarChar, g('candStatus', 'CandStatus'))
-      .input('Iv', sql.NVarChar, b.interviews !== undefined ? JSON.stringify(b.interviews) : cur.Interviews)
-      .input('OAD', sql.Date, g('offerAcceptedDate', 'OfferAcceptedDate') || null)
-      .input('RAD', sql.Date, g('resignationAcceptedDate', 'ResignationAcceptedDate') || null)
-      .input('JD', sql.Date, g('joiningDate', 'JoiningDate') || null)
-      .input('Docs', sql.NVarChar, b.documents !== undefined ? JSON.stringify(b.documents) : cur.Documents)
-      .input('EN', sql.NVarChar, g('engagementNotes', 'EngagementNotes'))
-      .input('Hod', sql.NVarChar, g('hodDecision', 'HodDecision')).input('HodR', sql.NVarChar, g('hodRemark', 'HodRemark'))
-      .input('ID', sql.Date, g('interviewDate', 'InterviewDate') || null).input('IT', sql.NVarChar, g('interviewTime', 'InterviewTime'))
-      .input('IS', sql.NVarChar, g('interviewStatus', 'InterviewStatus')).input('IN', sql.NVarChar, g('interviewerName', 'InterviewerName'))
-      .input('As', sql.NVarChar, b.assessment !== undefined ? JSON.stringify(b.assessment) : cur.Assessment)
-      .input('Out', sql.NVarChar, g('outcome', 'Outcome'))
-      .query(`UPDATE dbo.RecruitmentCandidates SET Name=@Name,Phone=@Phone,Email=@Email,Source=@Source,CandStatus=@CS,Interviews=@Iv,
-        OfferAcceptedDate=@OAD,ResignationAcceptedDate=@RAD,JoiningDate=@JD,Documents=@Docs,EngagementNotes=@EN,
-        HodDecision=@Hod,HodRemark=@HodR,InterviewDate=@ID,InterviewTime=@IT,InterviewStatus=@IS,InterviewerName=@IN,Assessment=@As,Outcome=@Out WHERE Id=@Id;
-        UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=(SELECT ReqId FROM dbo.RecruitmentCandidates WHERE Id=@Id)`);
+    // Only update the fields actually present in the request — so e.g. an Accept
+    // (which sends just hodDecision) never touches InterviewTime and can't trip the
+    // "must declare @IT" error, and won't reference a column the request doesn't need.
+    const MAP = {
+      name: 'Name', phone: 'Phone', email: 'Email', source: 'Source', candStatus: 'CandStatus',
+      interviews: 'Interviews', offerAcceptedDate: 'OfferAcceptedDate', resignationAcceptedDate: 'ResignationAcceptedDate',
+      joiningDate: 'JoiningDate', documents: 'Documents', engagementNotes: 'EngagementNotes',
+      hodDecision: 'HodDecision', hodRemark: 'HodRemark', interviewDate: 'InterviewDate', interviewTime: 'InterviewTime',
+      interviewStatus: 'InterviewStatus', interviewerName: 'InterviewerName', assessment: 'Assessment', outcome: 'Outcome',
+    };
+    const JSON_FIELDS = new Set(['interviews', 'documents', 'assessment']);
+    const DATE_FIELDS = new Set(['offerAcceptedDate', 'resignationAcceptedDate', 'joiningDate', 'interviewDate']);
+    const rq = p.request().input('Id', sql.Int, req.params.cid);
+    const sets = []; let i = 0;
+    for (const [k, col] of Object.entries(MAP)) {
+      if (b[k] === undefined) continue;
+      const pn = 'p' + (i++);
+      let val = b[k];
+      if (JSON_FIELDS.has(k)) { val = JSON.stringify(val); rq.input(pn, sql.NVarChar, val); }
+      else if (DATE_FIELDS.has(k)) rq.input(pn, sql.Date, val || null);
+      else rq.input(pn, sql.NVarChar, val === undefined ? null : val);
+      sets.push(`${col}=@${pn}`);
+    }
+    if (!sets.length) return res.json({ success: true });
+    await rq.query(`UPDATE dbo.RecruitmentCandidates SET ${sets.join(', ')} WHERE Id=@Id;
+      UPDATE dbo.Recruitment SET UpdatedAt=GETDATE() WHERE Id=(SELECT ReqId FROM dbo.RecruitmentCandidates WHERE Id=@Id)`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
