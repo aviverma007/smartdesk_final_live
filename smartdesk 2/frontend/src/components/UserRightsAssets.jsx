@@ -1675,6 +1675,18 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       default: return null;
     }
   })();
+  const stagePending = (stage) => {
+    switch (stage) {
+      case 'jd': return ((r.JdText && String(r.JdText).trim()) || r.JdFileName) ? 0 : 1;
+      case 'review_post': return channels.length ? 0 : 1;
+      case 'cv_shortlist': return cands.filter(c => (c.HodDecision || 'pending') === 'pending').length;
+      case 'scheduling': return accepted.filter(c => !['scheduled', 'in_progress', 'arrived'].includes(c.InterviewStatus) && !c.Outcome).length;
+      case 'interview': return accepted.filter(c => ['scheduled', 'in_progress', 'arrived'].includes(c.InterviewStatus) && !c.Outcome).length;
+      case 'selection': return r.SelectedCandidateId ? 0 : cands.filter(c => c.Outcome === 'Selected').length;
+      case 'offer': return r.OfferReleasedDate ? 0 : 1;
+      default: return 0;
+    }
+  };
 
   return (
     <div style={box}>
@@ -1689,15 +1701,19 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
 
       {/* page selector — jump between the requirement's stage pages (● marks the current stage) */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12, overflowX: 'auto' }}>
-        {REC_STAGES.map((s, i) => (
+        {REC_STAGES.map((s, i) => {
+          const cnt = stagePending(s);
+          return (
           <button key={s} onClick={() => setViewStage(s)}
-            style={{ padding: '6px 11px', borderRadius: '8px 8px 0 0', fontSize: '.75rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+            style={{ position: 'relative', padding: '6px 11px', borderRadius: '8px 8px 0 0', fontSize: '.75rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
               border: '1px solid var(--border)', borderBottom: s === viewStage ? '3px solid var(--accent)' : '1px solid var(--border)',
               background: s === viewStage ? 'var(--bg-card)' : 'transparent',
               color: s === viewStage ? 'var(--accent)' : (s === r.Stage ? 'var(--text-primary)' : 'var(--text-muted)') }}>
             {i + 1}. {(STATUS_META[s]?.label || s).replace(/^\d+\s·\s/, '')}{s === r.Stage ? ' ●' : ''}
+            {cnt > 0 && <span style={{ marginLeft: 6, fontSize: '.64rem', fontWeight: 800, color: '#fff', background: '#dc2626', borderRadius: 9, padding: '1px 6px', minWidth: 15, display: 'inline-block', textAlign: 'center' }}>{cnt}</span>}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{ ...card }}>
