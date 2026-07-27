@@ -1122,7 +1122,7 @@ app.put('/api/recruitment/:id', async (req, res) => {
         if (!gate.ok) return res.status(400).json({ success: false, error: gate.msg });
       }
     }
-    const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
+    const g = (k, col) => { const v = b[k] !== undefined ? b[k] : cur[col]; return v === undefined ? null : v; };
     await p.request()
       .input('Id', sql.Int, req.params.id)
       .input('Dept', sql.NVarChar, g('department', 'Department')).input('Role', sql.NVarChar, g('role', 'Role'))
@@ -1258,7 +1258,7 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the Interviewer can fill the assessment and set the outcome.' });
     if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr'))
       return res.status(403).json({ success: false, error: 'Only HR can schedule interviews.' });
-    const g = (k, col) => b[k] !== undefined ? b[k] : cur[col];
+    const g = (k, col) => { const v = b[k] !== undefined ? b[k] : cur[col]; return v === undefined ? null : v; };
     await p.request().input('Id', sql.Int, req.params.cid)
       .input('Name', sql.NVarChar, g('name', 'Name')).input('Phone', sql.NVarChar, g('phone', 'Phone'))
       .input('Email', sql.NVarChar, g('email', 'Email')).input('Source', sql.NVarChar, g('source', 'Source'))
