@@ -1631,7 +1631,9 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
   const [msg, setMsg] = useState('');
+  const [viewStage, setViewStage] = useState(record.Stage);
   useEffect(() => { setR(record); }, [record]);
+  useEffect(() => { setViewStage(r.Stage); }, [r.Stage]);
   const idx = REC_STAGES.indexOf(r.Stage);
   const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
   const cands = r.candidates || [];
@@ -1655,6 +1657,24 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const box = { padding: 0 };
   const accepted = cands.filter(c => c.HodDecision === 'accepted');
   const selectedCount = cands.filter(c => c.Outcome === 'Selected').length;
+  const gateMsg = (() => {
+    switch (r.Stage) {
+      case 'jd': return (r.JdText && String(r.JdText).trim()) || r.JdFileName ? null : 'Add the JD (text or file).';
+      case 'review_post': return channels.length ? null : 'Tick where the JD was posted.';
+      case 'cv_shortlist': {
+        if (!cands.length) return 'Upload at least one CV.';
+        const pend = cands.filter(c => (c.HodDecision || 'pending') === 'pending');
+        if (pend.length) return `HOD must review ${pend.length} CV(s).`;
+        if (!cands.some(c => c.HodDecision === 'accepted')) return 'HOD has not accepted any candidate.';
+        return null;
+      }
+      case 'scheduling': return accepted.some(c => c.InterviewStatus === 'scheduled') ? null : 'HR must approve at least one interview time.';
+      case 'interview': return cands.some(c => c.Outcome) ? null : 'Record at least one interview outcome.';
+      case 'selection': return r.SelectedCandidateId ? null : 'Take a candidate forward.';
+      case 'offer': return r.OfferReleasedDate ? null : 'Enter the offer released date.';
+      default: return null;
+    }
+  })();
 
   return (
     <div style={box}>
@@ -1665,6 +1685,19 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
           <div style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>{[r.Department, `${r.Positions || 1} position(s)`, `owned by ${STAGE_OWNER[r.Stage]}`, r.MrfRef].filter(Boolean).join('  ·  ')}</div>
         </div>
         <Pill status={r.Stage} />
+      </div>
+
+      {/* page selector — jump between the requirement's stage pages (● marks the current stage) */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12, overflowX: 'auto' }}>
+        {REC_STAGES.map((s, i) => (
+          <button key={s} onClick={() => setViewStage(s)}
+            style={{ padding: '6px 11px', borderRadius: '8px 8px 0 0', fontSize: '.75rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+              border: '1px solid var(--border)', borderBottom: s === viewStage ? '3px solid var(--accent)' : '1px solid var(--border)',
+              background: s === viewStage ? 'var(--bg-card)' : 'transparent',
+              color: s === viewStage ? 'var(--accent)' : (s === r.Stage ? 'var(--text-primary)' : 'var(--text-muted)') }}>
+            {i + 1}. {(STATUS_META[s]?.label || s).replace(/^\d+\s·\s/, '')}{s === r.Stage ? ' ●' : ''}
+          </button>
+        ))}
       </div>
 
       <div style={{ ...card }}>
@@ -1678,9 +1711,9 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      {canActStage(r.Stage) ? (<>
+      {canActStage(viewStage) ? (<>
       {/* STAGE 1 — JD */}
-      {r.Stage === 'jd' && (
+      {viewStage === 'jd' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field l="Department"><input style={input} defaultValue={r.Department || ''} onBlur={e => save({ department: e.target.value })} /></Field>
@@ -1698,7 +1731,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 2 — REVIEW & POST */}
-      {r.Stage === 'review_post' && (
+      {viewStage === 'review_post' && (
         <div>
           <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>HR reviews the requirement and posts the JD. Tick where it was posted.</p>
           {r.JdFileName && <button style={{ ...ghostBtn, marginBottom: 10 }} onClick={() => viewServerFile(`/recruitment/${r.Id}/jd-file`)}>View JD ({r.JdFileName})</button>}
@@ -1709,7 +1742,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 3 — CV SHORTLIST (HR uploads, HOD accept/reject) */}
-      {r.Stage === 'cv_shortlist' && (
+      {viewStage === 'cv_shortlist' && (
         <div>
           {(isHr || isAdmin) && (
             <div style={{ padding: 10, borderRadius: 8, background: 'color-mix(in srgb, var(--accent-orange) 10%, transparent)', border: '1px solid var(--accent-orange)', marginBottom: 10, fontSize: '.82rem', color: 'var(--text-primary)' }}>
@@ -1736,7 +1769,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 4 — SCHEDULING (interviewer proposes a time, HR approves/edits) */}
-      {r.Stage === 'scheduling' && (
+      {viewStage === 'scheduling' && (
         <div>
           <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>The interviewer proposes a time; HR approves or edits it. The interview then starts automatically at the approved time.</p>
           {accepted.length === 0 && <Empty text="No HOD-accepted candidates yet." />}
@@ -1748,7 +1781,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 5 — INTERVIEW (auto/manual start; interviewer marks arrival & fills the form) */}
-      {r.Stage === 'interview' && (
+      {viewStage === 'interview' && (
         <div>
           <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Interviews start automatically at the scheduled time (or the interviewer can start manually). The interviewer marks Arrived / Reschedule / No-show — Reschedule and No-show reopen the ticket for a new time.</p>
           {accepted.length === 0 && <Empty text="No scheduled candidates yet." />}
@@ -1760,7 +1793,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 6 — SELECTION */}
-      {r.Stage === 'selection' && (
+      {viewStage === 'selection' && (
         <div>
           <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Positions: {r.Positions || 1}. Selected so far: {selectedCount}. Choose who to take forward to offer.</p>
           {cands.filter(c => c.Outcome).map(c => (
@@ -1778,7 +1811,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 7 — OFFER */}
-      {r.Stage === 'offer' && (
+      {viewStage === 'offer' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field l="Offer released date"><input type="date" style={input} defaultValue={dv(r.OfferReleasedDate)} onBlur={e => save({ offerReleasedDate: e.target.value })} /></Field>
           <div style={{ gridColumn: '1 / -1' }}><Field l="Offer notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.OfferNotes || ''} onBlur={e => save({ offerNotes: e.target.value })} /></Field></div>
@@ -1786,12 +1819,12 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
 
       {/* STAGE 8 — ACCEPTANCE */}
-      {r.Stage === 'acceptance' && ((() => { const sel = cands.find(c => c.Id === r.SelectedCandidateId);
+      {viewStage === 'acceptance' && ((() => { const sel = cands.find(c => c.Id === r.SelectedCandidateId);
         return sel ? <RecCandidateAcceptance c={sel} api={api} reload={async () => { await refresh(); reload(); }} user={user} />
           : <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Take a candidate forward at the Selection stage first.</p>; })())}
 
       {/* manual add candidate (HR only, pre-interview) */}
-      {['cv_shortlist', 'scheduling'].includes(r.Stage) && (isHr || isAdmin) && (
+      {['cv_shortlist', 'scheduling'].includes(viewStage) && (isHr || isAdmin) && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           <input placeholder="Add candidate name" style={{ ...input, marginBottom: 0, maxWidth: 180 }} value={cand.name} onChange={e => setCand(s => ({ ...s, name: e.target.value }))} />
           <input placeholder="Email" style={{ ...input, marginBottom: 0, maxWidth: 170 }} value={cand.email} onChange={e => setCand(s => ({ ...s, email: e.target.value }))} />
@@ -1800,7 +1833,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       )}
       </>) : (
         <div style={{ padding: 14, borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)', fontSize: '.86rem', color: 'var(--text-muted)' }}>
-          This step — <strong style={{ color: 'var(--text-primary)' }}>{STATUS_META[r.Stage]?.label}</strong> — is handled by <strong>{STAGE_OWNER[r.Stage]}</strong>. There's nothing for your role here; you'll see this requirement again when it reaches your step.
+          This step — <strong style={{ color: 'var(--text-primary)' }}>{STATUS_META[viewStage]?.label}</strong> — is handled by <strong>{STAGE_OWNER[viewStage]}</strong>. There's nothing for your role here; you'll see this requirement again when it reaches your step.
         </div>
       )}
 
@@ -1812,6 +1845,10 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
           {(isHr || isAdmin) && (r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null)}
           {(isHr || isAdmin) && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>}
           {(isHr || isAdmin) && !r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
+          {idx < REC_STAGES.length - 1 && (gateMsg
+            ? <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-orange)' }}>⚠ Pending to advance: {gateMsg}</span>
+            : <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-green)' }}>✓ Ready to advance</span>)}
+          {viewStage !== r.Stage && <span style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>· Viewing {STATUS_META[viewStage]?.label} (current: {STATUS_META[r.Stage]?.label})</span>}
         </div>
       )}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
