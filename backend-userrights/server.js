@@ -283,6 +283,7 @@ IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewStatus') IS NULL ALTER TABLE
 IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewerName') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD InterviewerName NVARCHAR(200) NULL;
 IF COL_LENGTH('dbo.RecruitmentCandidates','Assessment') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Assessment NVARCHAR(MAX) NULL;
 IF COL_LENGTH('dbo.RecruitmentCandidates','Outcome') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Outcome NVARCHAR(20) NULL;
+UPDATE dbo.Recruitment SET Stage='jd' WHERE Stage='requisition';
   `);
   console.log('   ✓ Tables ready');
 }
@@ -1066,8 +1067,8 @@ app.post('/api/recruitment', async (req, res) => {
       .input('Mrf', sql.NVarChar, b.mrfRef || null).input('Aop', sql.Bit, b.aopApproved ? 1 : 0)
       .input('By', sql.NVarChar, actor(req)).input('ByRole', sql.NVarChar, role(req))
       .input('JdText', sql.NVarChar, b.jdText || null)
-      .query(`INSERT INTO dbo.Recruitment (Department,Role,Grade,Positions,Justification,TargetDate,MrfRef,AopApproved,CreatedBy,CreatedByRole,JdText)
-              OUTPUT INSERTED.* VALUES (@Dept,@Role,@Grade,@Pos,@Just,@TD,@Mrf,@Aop,@By,@ByRole,@JdText)`);
+      .query(`INSERT INTO dbo.Recruitment (Department,Role,Grade,Positions,Justification,TargetDate,MrfRef,AopApproved,CreatedBy,CreatedByRole,JdText,Stage)
+              OUTPUT INSERTED.* VALUES (@Dept,@Role,@Grade,@Pos,@Just,@TD,@Mrf,@Aop,@By,@ByRole,@JdText,'jd')`);
     res.json({ success: true, record: r.recordset[0] });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

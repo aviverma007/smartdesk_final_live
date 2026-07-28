@@ -1512,6 +1512,7 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
 
 /* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
 const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'joining'];
+const recNormStage = (st) => REC_STAGES.includes(st) ? st : (st === 'offer' || st === 'acceptance' ? 'joining' : 'jd');
 const REC_DOCS = [
   { key: 'idProof', label: 'ID proof' }, { key: 'addressProof', label: 'Address proof' },
   { key: 'education', label: 'Education certificates' }, { key: 'relieving', label: 'Relieving / experience letter' },
@@ -1634,10 +1635,10 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
   const [msg, setMsg] = useState('');
-  const [viewStage, setViewStage] = useState(REC_STAGES.includes(record.Stage) ? record.Stage : 'joining');
+  const [viewStage, setViewStage] = useState(recNormStage(record.Stage));
   useEffect(() => { setR(record); }, [record]);
-  useEffect(() => { setViewStage(REC_STAGES.includes(r.Stage) ? r.Stage : 'joining'); }, [r.Stage]);
-  const idx = Math.max(0, REC_STAGES.indexOf(REC_STAGES.includes(r.Stage) ? r.Stage : 'joining'));
+  useEffect(() => { setViewStage(recNormStage(r.Stage)); }, [r.Stage]);
+  const idx = Math.max(0, REC_STAGES.indexOf(recNormStage(r.Stage)));
   const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
   const cands = r.candidates || [];
 
