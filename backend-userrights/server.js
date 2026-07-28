@@ -284,6 +284,7 @@ IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewerName') IS NULL ALTER TABLE
 IF COL_LENGTH('dbo.RecruitmentCandidates','Assessment') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Assessment NVARCHAR(MAX) NULL;
 IF COL_LENGTH('dbo.RecruitmentCandidates','Outcome') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Outcome NVARCHAR(20) NULL;
 UPDATE dbo.Recruitment SET Stage='jd' WHERE Stage='requisition';
+IF COL_LENGTH('dbo.Recruitment','CvSentForSelection') IS NULL ALTER TABLE dbo.Recruitment ADD CvSentForSelection BIT NOT NULL DEFAULT(0);
   `);
   console.log('   ✓ Tables ready');
 }
@@ -1034,6 +1035,7 @@ function recForwardGate(cur, cands) {
       return ch.length ? OK : { ok: false, msg: 'Tick where the JD was posted before moving on.' };
     case 'cv_shortlist': {
       if (!cands.length) return { ok: false, msg: 'Upload at least one CV first.' };
+      if (!cur.CvSentForSelection) return { ok: false, msg: 'Click "Send for CV selection" so the HOD can review the CVs first.' };
       const pending = cands.filter(c => (c.HodDecision || 'pending') === 'pending');
       if (pending.length) return { ok: false, msg: `This step belongs to the HOD. ${pending.length} CV(s) are still awaiting the HOD's Accept/Reject — HR can proceed only once the HOD has reviewed every CV.` };
       if (!cands.some(c => c.HodDecision === 'accepted')) return { ok: false, msg: 'The HOD has not accepted any candidate, so there is no one to interview.' };
@@ -1140,10 +1142,11 @@ app.put('/api/recruitment/:id', async (req, res) => {
       .input('Sel', sql.Int, g('selectedCandidateId', 'SelectedCandidateId') || null)
       .input('ORD', sql.Date, g('offerReleasedDate', 'OfferReleasedDate') || null).input('ON', sql.NVarChar, g('offerNotes', 'OfferNotes'))
       .input('JdText', sql.NVarChar, g('jdText', 'JdText'))
+      .input('CvSent', sql.Bit, (b.cvSentForSelection !== undefined ? b.cvSentForSelection : cur.CvSentForSelection) ? 1 : 0)
       .query(`UPDATE dbo.Recruitment SET Department=@Dept,Role=@Role,Grade=@Grade,Positions=@Pos,Justification=@Just,TargetDate=@TD,MrfRef=@Mrf,AopApproved=@Aop,
         Stage=@Stage,Status=@Status,DropReason=@Drop,JdConfirmed=@Jd,KraConfirmed=@Kra,SourcingChannels=@SC,SourcingNotes=@SN,
         NumScreened=@NS,NumShortlisted=@NSh,ScreeningNotes=@ScN,FitmentNotes=@FN,BudgetOk=@BOk,SelectedCandidateId=@Sel,
-        OfferReleasedDate=@ORD,OfferNotes=@ON,JdText=@JdText,UpdatedAt=GETDATE() WHERE Id=@Id`);
+        OfferReleasedDate=@ORD,OfferNotes=@ON,JdText=@JdText,CvSentForSelection=@CvSent,UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

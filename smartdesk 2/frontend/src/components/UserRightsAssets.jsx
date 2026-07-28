@@ -1770,32 +1770,55 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      {/* STAGE 3 — CV SHORTLIST (HR uploads, HOD accept/reject) */}
-      {viewStage === 'cv_shortlist' && (
+      {/* STAGE 3 — CV SHORTLIST (HR uploads -> Send for selection -> HOD selects -> Send for scheduling) */}
+      {viewStage === 'cv_shortlist' && (() => {
+        const sent = !!r.CvSentForSelection;
+        const allReviewed = cands.length > 0 && cands.every(c => (c.HodDecision || 'pending') !== 'pending');
+        const anyAccepted = cands.some(c => c.HodDecision === 'accepted');
+        return (
         <div>
-          {(isHr || isAdmin) && (
-            <div style={{ padding: 10, borderRadius: 8, background: 'color-mix(in srgb, var(--accent-orange) 10%, transparent)', border: '1px solid var(--accent-orange)', marginBottom: 10, fontSize: '.82rem', color: 'var(--text-primary)' }}>
-              This step belongs to the <strong>HOD</strong>. Upload the CVs here — the HOD reviews each one and marks Accept / Reject. You can advance to Scheduling only once the HOD has reviewed <strong>every</strong> CV.
+          <div style={{ padding: 10, borderRadius: 8, background: 'color-mix(in srgb, var(--accent-orange) 10%, transparent)', border: '1px solid var(--accent-orange)', marginBottom: 12, fontSize: '.82rem', color: 'var(--text-primary)' }}>
+            {!sent ? <>HR uploads the CVs, then clicks <strong>Send for CV selection</strong>. The HOD then accepts/rejects each CV, after which HR clicks <strong>Send for interview scheduling</strong>.</>
+              : <>CVs sent to the <strong>HOD</strong> for selection. Once the HOD has reviewed every CV, HR sends the accepted ones for interview scheduling.</>}
+          </div>
+
+          {/* HR: upload + send for selection (before it's sent) */}
+          {(isHr || isAdmin) && !sent && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+              <label style={{ ...primaryBtn, cursor: 'pointer', marginBottom: 0 }}>+ Upload CVs (multiple)<input type="file" multiple style={{ display: 'none' }} onChange={e => { if (e.target.files.length) uploadCVs([...e.target.files]); e.target.value = ''; }} /></label>
+              <button style={{ ...primaryBtn, background: 'var(--accent-teal)' }} disabled={cands.length === 0} onClick={() => { if (window.confirm(`Send ${cands.length} CV(s) to the HOD for selection?`)) save({ cvSentForSelection: true }); }}>Send for CV selection →</button>
             </div>
           )}
-          <label style={{ ...primaryBtn, cursor: 'pointer', display: 'inline-block' }}>+ Upload CVs (multiple)<input type="file" multiple style={{ display: 'none' }} onChange={e => { if (e.target.files.length) uploadCVs([...e.target.files]); e.target.value = ''; }} /></label>
-          <p style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{isHod ? 'Open each CV and Accept or Reject it.' : 'HR uploads CVs; the HOD opens each and accepts or rejects.'}</p>
+          {(isHr || isAdmin) && sent && <p style={{ fontSize: '.82rem', color: 'var(--accent-teal)', fontWeight: 600 }}>✓ Sent to HOD — {allReviewed ? (anyAccepted ? 'review complete.' : 'no CV accepted yet.') : `${cands.filter(c => (c.HodDecision || 'pending') === 'pending').length} awaiting HOD review.`}</p>}
+          {isHod && !sent && <p style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>Waiting for HR to send the CVs for selection.</p>}
+          {isHod && sent && <p style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>Open each CV and Accept or Reject it.</p>}
+
           {cands.length === 0 && <Empty text="No CVs uploaded yet." />}
           {cands.map(c => (
             <div key={c.Id} style={{ ...rowStyle, alignItems: 'center' }}>
               <div style={{ flex: 1 }}>
-                <input style={{ ...input, marginBottom: 0, maxWidth: 220, padding: '5px 8px' }} defaultValue={c.Name} onBlur={e => saveCand(c.Id, { name: e.target.value })} />
+                <input style={{ ...input, marginBottom: 0, maxWidth: 220, padding: '5px 8px' }} defaultValue={c.Name} disabled={sent} onBlur={e => saveCand(c.Id, { name: e.target.value })} />
                 {c.HodRemark && <div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>Remark: {c.HodRemark}</div>}
               </div>
               {c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => viewServerFile(`/recruitment/candidates/${c.Id}/cv`)}>View CV</button>}
               <Pill status={c.HodDecision === 'accepted' ? 'approved' : c.HodDecision === 'rejected' ? 'rejected' : 'pending'} />
-              {(isManager || isHod) && c.HodDecision !== 'accepted' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { hodDecision: 'accepted' })}>Accept</button>}
-              {(isManager || isHod) && c.HodDecision !== 'rejected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const rm = window.prompt('Reject — remark (optional):') || ''; saveCand(c.Id, { hodDecision: 'rejected', hodRemark: rm }); }}>Reject</button>}
-              <button style={{ ...ghostBtn, padding: '5px 8px', fontSize: '.74rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => delCand(c.Id)}>✕</button>
+              {sent && (isManager || isHod || isAdmin) && c.HodDecision !== 'accepted' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={() => saveCand(c.Id, { hodDecision: 'accepted' })}>Accept</button>}
+              {sent && (isManager || isHod || isAdmin) && c.HodDecision !== 'rejected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const rm = window.prompt('Reject — remark (optional):') || ''; saveCand(c.Id, { hodDecision: 'rejected', hodRemark: rm }); }}>Reject</button>}
+              {!sent && (isHr || isAdmin) && <button style={{ ...ghostBtn, padding: '5px 8px', fontSize: '.74rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={() => delCand(c.Id)}>✕</button>}
             </div>
           ))}
+
+          {/* HR: send for interview scheduling (after HOD review) */}
+          {(isHr || isAdmin) && sent && (
+            <div style={{ marginTop: 12 }}>
+              <button style={{ ...primaryBtn, background: 'var(--accent-teal)' }} disabled={!(allReviewed && anyAccepted)} onClick={() => goStage('scheduling')}>Send for interview scheduling →</button>
+              {!(allReviewed && anyAccepted) && <span style={{ marginLeft: 10, fontSize: '.78rem', color: 'var(--accent-orange)' }}>{!allReviewed ? 'HOD must review every CV first.' : 'HOD must accept at least one CV.'}</span>}
+              <button style={{ ...ghostBtn, marginLeft: 10, fontSize: '.78rem', padding: '6px 10px' }} onClick={() => { if (window.confirm('Reopen uploads? This lets HR add/remove CVs again before the HOD selects.')) save({ cvSentForSelection: false }); }}>Reopen uploads</button>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {/* STAGE 4 — SCHEDULING (interviewer proposes a time, HR approves/edits) */}
       {viewStage === 'scheduling' && (
@@ -1879,7 +1902,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       {(isAdmin || (r.Stage === 'jd' ? isHod : isHr)) && (
         <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           {viewStage === r.Stage && idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
-          {viewStage === r.Stage && idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
+          {viewStage === r.Stage && idx < REC_STAGES.length - 1 && r.Stage !== 'cv_shortlist' && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>{r.Stage === 'jd' ? 'Send to HR (Review & Post) →' : `Advance to ${STATUS_META[REC_STAGES[idx + 1]]?.label} →`}</button>}
           {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
           <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
           {isAdmin ? <button style={{ ...ghostBtn, color: '#fff', background: '#dc2626', borderColor: '#dc2626' }} onClick={deleteNow}>Delete entry</button>
