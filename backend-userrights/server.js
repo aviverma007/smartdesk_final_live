@@ -1021,7 +1021,7 @@ app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
 });
 
 /* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
-const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'offer', 'acceptance'];
+const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'joining'];
 // Gate for advancing OUT of the current stage. Returns {ok} or {ok:false,msg}.
 function recForwardGate(cur, cands) {
   const OK = { ok: true };
@@ -1043,9 +1043,7 @@ function recForwardGate(cur, cands) {
     case 'interview':
       return cands.some(c => c.Outcome) ? OK : { ok: false, msg: 'Record at least one interview outcome (Selected / On Hold / Not Suitable) first.' };
     case 'selection':
-      return cur.SelectedCandidateId ? OK : { ok: false, msg: 'Take a Selected candidate forward before the offer stage.' };
-    case 'offer':
-      return cur.OfferReleasedDate ? OK : { ok: false, msg: 'Enter the offer released date first.' };
+      return cur.SelectedCandidateId ? OK : { ok: false, msg: 'Take a Selected candidate forward before the joining stage.' };
     default:
       return OK;
   }
@@ -1259,6 +1257,8 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the Interviewer can fill the assessment and set the outcome.' });
     if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr' || rl === 'interviewer'))
       return res.status(403).json({ success: false, error: 'Only HR or the Interviewer can set interview timing.' });
+    if (b.joiningDate !== undefined && !(adminR || rl === 'hr'))
+      return res.status(403).json({ success: false, error: 'Only HR can set the joining date.' });
     const g = (k, col) => { const v = b[k] !== undefined ? b[k] : cur[col]; return v === undefined ? null : v; };
     // Only update the fields actually present in the request — so e.g. an Accept
     // (which sends just hodDecision) never touches InterviewTime and can't trip the

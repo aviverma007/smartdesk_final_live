@@ -47,7 +47,8 @@ const STATUS_META = {
   interview: { label: '5 · Interview', color: 'var(--accent-orange)' },
   selection: { label: '6 · Selection', color: 'var(--accent-orange)' },
   offer: { label: '7 · Offer', color: 'var(--accent-purple)' },
-  acceptance: { label: '8 · Acceptance', color: 'var(--accent-green)' },
+  acceptance: { label: 'Acceptance', color: 'var(--accent-green)' },
+  joining: { label: '7 · Joining', color: 'var(--accent-green)' },
   on_hold: { label: 'On Hold', color: 'var(--text-muted)' },
   closed: { label: 'Closed', color: 'var(--text-muted)' },
 };
@@ -1510,7 +1511,7 @@ const PreOnboardingDetail = ({ record, api, reload, onClose }) => {
 };
 
 /* ═══════════════════════ RECRUITMENT (stages 1–9) ══════════════════════════ */
-const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'offer', 'acceptance'];
+const REC_STAGES = ['jd', 'review_post', 'cv_shortlist', 'scheduling', 'interview', 'selection', 'joining'];
 const REC_DOCS = [
   { key: 'idProof', label: 'ID proof' }, { key: 'addressProof', label: 'Address proof' },
   { key: 'education', label: 'Education certificates' }, { key: 'relieving', label: 'Relieving / experience letter' },
@@ -1622,19 +1623,19 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   // Rights matrix: which roles may ACT on each stage (admin can always act).
   const STAGE_ACT = {
     jd: ['hod', 'hr'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr', 'interviewer'],
-    interview: ['interviewer'], selection: ['hr'], offer: ['hr'], acceptance: ['hr'],
+    interview: ['interviewer'], selection: ['hr'], joining: ['hr'],
   };
-  const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'Interviewer + HR', interview: 'Interviewer', selection: 'HR', offer: 'HR', acceptance: 'HR' };
+  const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'Interviewer + HR', interview: 'Interviewer', selection: 'HR', joining: 'HR' };
   const myRole = user?.role;
   const canActStage = (st) => isAdmin || (STAGE_ACT[st] || []).includes(myRole);
   const [r, setR] = useState(record);
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
   const [msg, setMsg] = useState('');
-  const [viewStage, setViewStage] = useState(record.Stage);
+  const [viewStage, setViewStage] = useState(REC_STAGES.includes(record.Stage) ? record.Stage : 'joining');
   useEffect(() => { setR(record); }, [record]);
-  useEffect(() => { setViewStage(r.Stage); }, [r.Stage]);
-  const idx = REC_STAGES.indexOf(r.Stage);
+  useEffect(() => { setViewStage(REC_STAGES.includes(r.Stage) ? r.Stage : 'joining'); }, [r.Stage]);
+  const idx = Math.max(0, REC_STAGES.indexOf(REC_STAGES.includes(r.Stage) ? r.Stage : 'joining'));
   const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
   const cands = r.candidates || [];
 
@@ -1671,7 +1672,6 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       case 'scheduling': return accepted.some(c => c.InterviewStatus === 'scheduled') ? null : 'HR must approve at least one interview time.';
       case 'interview': return cands.some(c => c.Outcome) ? null : 'Record at least one interview outcome.';
       case 'selection': return r.SelectedCandidateId ? null : 'Take a candidate forward.';
-      case 'offer': return r.OfferReleasedDate ? null : 'Enter the offer released date.';
       default: return null;
     }
   })();
@@ -1683,7 +1683,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       case 'scheduling': return accepted.filter(c => !['scheduled', 'in_progress', 'arrived'].includes(c.InterviewStatus) && !c.Outcome).length;
       case 'interview': return accepted.filter(c => ['scheduled', 'in_progress', 'arrived'].includes(c.InterviewStatus) && !c.Outcome).length;
       case 'selection': return r.SelectedCandidateId ? 0 : cands.filter(c => c.Outcome === 'Selected').length;
-      case 'offer': return r.OfferReleasedDate ? 0 : 1;
+      case 'joining': return r.Status === 'closed' ? 0 : 1;
       default: return 0;
     }
   };
@@ -1826,21 +1826,34 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      {/* STAGE 7 — OFFER */}
-      {viewStage === 'offer' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field l="Offer released date"><input type="date" style={input} defaultValue={dv(r.OfferReleasedDate)} onBlur={e => save({ offerReleasedDate: e.target.value })} /></Field>
-          <div style={{ gridColumn: '1 / -1' }}><Field l="Offer notes"><textarea style={{ ...input, minHeight: 44 }} defaultValue={r.OfferNotes || ''} onBlur={e => save({ offerNotes: e.target.value })} /></Field></div>
-        </div>
-      )}
+      {/* STAGE 7 — JOINING (HR sets joining date; Arrived closes the ticket) */}
+      {viewStage === 'joining' && ((() => {
+        const sel = cands.find(c => c.Id === r.SelectedCandidateId);
+        if (!sel) return <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Take a candidate forward at the Selection stage first.</p>;
+        const closed = r.Status === 'closed';
+        return (
+          <div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{sel.Name}</div>
+            <div style={{ maxWidth: 240 }}>
+              <Field l="Joining date (HR)"><input type="date" style={input} disabled={closed} defaultValue={dv(sel.JoiningDate)} onBlur={e => saveCand(sel.Id, { joiningDate: e.target.value })} /></Field>
+            </div>
+            {closed ? (
+              <p style={{ fontSize: '.9rem', color: 'var(--accent-green)', fontWeight: 700 }}>✓ Candidate joined — ticket closed{sel.JoiningDate ? ` (joined ${dv(sel.JoiningDate)})` : ''}.</p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                  <button style={{ ...primaryBtn, background: 'var(--accent-green)' }} disabled={!sel.JoiningDate} onClick={() => { if (window.confirm('Mark the candidate as arrived / joined? This closes the ticket.')) save({ status: 'closed' }); }}>Arrived — close ticket</button>
+                  <button style={{ ...ghostBtn, color: 'var(--accent-orange)', borderColor: 'var(--accent-orange)' }} onClick={() => { if (window.confirm("Candidate didn't join. Keep the ticket open and pick another candidate / add more?")) save({ selectedCandidateId: null }); }}>Didn't join — keep open</button>
+                </div>
+                <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 8 }}>If they don't join, the ticket stays open — take another candidate forward on the <strong>Selection</strong> tab, or add more candidates below.</p>
+              </>
+            )}
+          </div>
+        );
+      })())}
 
-      {/* STAGE 8 — ACCEPTANCE */}
-      {viewStage === 'acceptance' && ((() => { const sel = cands.find(c => c.Id === r.SelectedCandidateId);
-        return sel ? <RecCandidateAcceptance c={sel} api={api} reload={async () => { await refresh(); reload(); }} user={user} />
-          : <p style={{ fontSize: '.85rem', color: '#dc2626' }}>Take a candidate forward at the Selection stage first.</p>; })())}
-
-      {/* manual add candidate (HR only, pre-interview) */}
-      {['cv_shortlist', 'scheduling'].includes(viewStage) && (isHr || isAdmin) && (
+      {/* manual add candidate (HR) — pre-interview or to backfill if a joiner drops out */}
+      {['cv_shortlist', 'scheduling', 'selection', 'joining'].includes(viewStage) && (isHr || isAdmin) && r.Status !== 'closed' && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           <input placeholder="Add candidate name" style={{ ...input, marginBottom: 0, maxWidth: 180 }} value={cand.name} onChange={e => setCand(s => ({ ...s, name: e.target.value }))} />
           <input placeholder="Email" style={{ ...input, marginBottom: 0, maxWidth: 170 }} value={cand.email} onChange={e => setCand(s => ({ ...s, email: e.target.value }))} />
