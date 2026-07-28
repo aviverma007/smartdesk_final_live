@@ -1114,7 +1114,7 @@ app.put('/api/recruitment/:id', async (req, res) => {
       const ci = REC_STAGES.indexOf(cur.Stage), ni = REC_STAGES.indexOf(stage);
       if (ni > ci) {
         // who may advance: HR drives the pipeline; the HOD only hands off the JD (stage 1). Admin always.
-        const advancers = cur.Stage === 'jd' ? ['hr', 'hod'] : ['hr'];
+        const advancers = cur.Stage === 'jd' ? ['hod'] : ['hr'];
         if (!can(req, ...advancers)) return res.status(403).json({ success: false, error: 'Only ' + advancers.join(' / ').toUpperCase() + ' can advance this stage.' });
         const cands = (await p.request().input('R', sql.Int, req.params.id).query(`SELECT * FROM dbo.RecruitmentCandidates WHERE ReqId=@R`)).recordset;
         const gate = recForwardGate(cur, cands);

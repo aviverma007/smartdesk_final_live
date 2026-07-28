@@ -1622,7 +1622,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const { isAdmin, isManager, isHod, isInterviewer, isHr, user } = useAuth();
   // Rights matrix: which roles may ACT on each stage (admin can always act).
   const STAGE_ACT = {
-    jd: ['hod', 'hr'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr', 'interviewer'],
+    jd: ['hod'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr', 'interviewer'],
     interview: ['interviewer'], selection: ['hr'], joining: ['hr'],
   };
   const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'Interviewer + HR', interview: 'Interviewer', selection: 'HR', joining: 'HR' };
@@ -1687,6 +1687,11 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       default: return 0;
     }
   };
+  const canActView = canActStage(viewStage);
+  const editable = canActView && viewStage === r.Stage && !['closed', 'dropped'].includes(r.Status);
+  const viewReason = !canActView ? `This step is handled by ${STAGE_OWNER[viewStage]} — view only for you.`
+    : viewStage !== r.Stage ? `Earlier step — view only. The live step is ${STATUS_META[r.Stage]?.label || r.Stage}.`
+    : ['closed', 'dropped'].includes(r.Status) ? 'This requirement is closed — view only.' : '';
 
   return (
     <div style={box}>
@@ -1730,7 +1735,8 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         </div>
       )}
 
-      {canActStage(viewStage) ? (<>
+      {viewReason && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)', fontSize: '.82rem', color: 'var(--text-muted)', marginBottom: 10 }}>🔒 {viewReason}</div>}
+      <div style={{ opacity: editable ? 1 : 0.5, pointerEvents: editable ? 'auto' : 'none' }}>
       {/* STAGE 1 — JD */}
       {viewStage === 'jd' && (
         <div>
@@ -1863,20 +1869,16 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
           <button style={ghostBtn} onClick={addCand}>+ Add manually</button>
         </div>
       )}
-      </>) : (
-        <div style={{ padding: 14, borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)', fontSize: '.86rem', color: 'var(--text-muted)' }}>
-          This step — <strong style={{ color: 'var(--text-primary)' }}>{STATUS_META[viewStage]?.label}</strong> — is handled by <strong>{STAGE_OWNER[viewStage]}</strong>. There's nothing for your role here; you'll see this requirement again when it reaches your step.
-        </div>
-      )}
+      </div>
 
-      {/* Orchestration bar: HR/admin drive the pipeline; the HOD only hands off the JD at stage 1 */}
-      {(isHr || isAdmin || (isHod && r.Stage === 'jd')) && (
+      {/* Orchestration bar: goes to whoever owns the current stage (HOD at JD, HR otherwise) */}
+      {(isAdmin || (r.Stage === 'jd' ? isHod : isHr)) && (
         <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-          {(isHr || isAdmin) && viewStage === r.Stage && idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
+          {viewStage === r.Stage && idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
           {viewStage === r.Stage && idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
-          {(isHr || isAdmin) && (r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null)}
-          {(isHr || isAdmin) && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>}
-          {(isHr || isAdmin) && !r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
+          {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
+          <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
+          {!r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
           {viewStage === r.Stage && idx < REC_STAGES.length - 1 && (gateMsg
             ? <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-orange)' }}>⚠ Pending to advance: {gateMsg}</span>
             : <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-green)' }}>✓ Ready to advance</span>)}
