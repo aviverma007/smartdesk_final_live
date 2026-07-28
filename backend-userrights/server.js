@@ -1039,7 +1039,7 @@ function recForwardGate(cur, cands) {
       return OK;
     }
     case 'scheduling':
-      return cands.some(c => c.HodDecision === 'accepted' && c.InterviewStatus === 'scheduled') ? OK : { ok: false, msg: 'HR must approve at least one proposed interview time (status "Scheduled") before the interview stage.' };
+      return cands.some(c => c.HodDecision === 'accepted' && (['scheduled', 'in_progress', 'arrived'].includes(c.InterviewStatus) || c.Outcome)) ? OK : { ok: false, msg: 'HR must approve at least one proposed interview time (status "Scheduled") before the interview stage.' };
     case 'interview':
       return cands.some(c => c.Outcome) ? OK : { ok: false, msg: 'Record at least one interview outcome (Selected / On Hold / Not Suitable) first.' };
     case 'selection':

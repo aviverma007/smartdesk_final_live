@@ -1669,7 +1669,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
         if (!cands.some(c => c.HodDecision === 'accepted')) return 'HOD has not accepted any candidate.';
         return null;
       }
-      case 'scheduling': return accepted.some(c => c.InterviewStatus === 'scheduled') ? null : 'HR must approve at least one interview time.';
+      case 'scheduling': return accepted.some(c => ['scheduled', 'in_progress', 'arrived'].includes(c.InterviewStatus) || c.Outcome) ? null : 'HR must approve at least one interview time.';
       case 'interview': return cands.some(c => c.Outcome) ? null : 'Record at least one interview outcome.';
       case 'selection': return r.SelectedCandidateId ? null : 'Take a candidate forward.';
       default: return null;
@@ -1703,18 +1703,21 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12, overflowX: 'auto' }}>
         {REC_STAGES.map((s, i) => {
           const cnt = stagePending(s);
+          const locked = i > idx;
           return (
-          <button key={s} onClick={() => setViewStage(s)}
-            style={{ position: 'relative', padding: '6px 11px', borderRadius: '8px 8px 0 0', fontSize: '.75rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+          <button key={s} disabled={locked} onClick={() => !locked && setViewStage(s)}
+            title={locked ? 'Unlocks after the previous step is completed' : (STATUS_META[s]?.label)}
+            style={{ position: 'relative', padding: '6px 11px', borderRadius: '8px 8px 0 0', fontSize: '.75rem', fontWeight: 700, cursor: locked ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: locked ? 0.4 : 1,
               border: '1px solid var(--border)', borderBottom: s === viewStage ? '3px solid var(--accent)' : '1px solid var(--border)',
               background: s === viewStage ? 'var(--bg-card)' : 'transparent',
-              color: s === viewStage ? 'var(--accent)' : (s === r.Stage ? 'var(--text-primary)' : 'var(--text-muted)') }}>
-            {i + 1}. {(STATUS_META[s]?.label || s).replace(/^\d+\s·\s/, '')}{s === r.Stage ? ' ●' : ''}
-            {cnt > 0 && <span style={{ marginLeft: 6, fontSize: '.64rem', fontWeight: 800, color: '#fff', background: '#dc2626', borderRadius: 9, padding: '1px 6px', minWidth: 15, display: 'inline-block', textAlign: 'center' }}>{cnt}</span>}
+              color: locked ? 'var(--text-muted)' : (s === viewStage ? 'var(--accent)' : (s === r.Stage ? 'var(--text-primary)' : 'var(--text-muted)')) }}>
+            {locked ? '🔒 ' : ''}{i + 1}. {(STATUS_META[s]?.label || s).replace(/^\d+\s·\s/, '')}{s === r.Stage ? ' ●' : ''}
+            {!locked && cnt > 0 && <span style={{ marginLeft: 6, fontSize: '.64rem', fontWeight: 800, color: '#fff', background: '#dc2626', borderRadius: 9, padding: '1px 6px', minWidth: 15, display: 'inline-block', textAlign: 'center' }}>{cnt}</span>}
           </button>
           );
         })}
       </div>
+      <p style={{ fontSize: '.74rem', color: 'var(--text-muted)', margin: '-4px 0 10px' }}>Steps unlock one by one — each page opens once the previous step is completed. 🔒 = not reached yet.</p>
 
       <div style={{ ...card }}>
 
@@ -1869,15 +1872,15 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       {/* Orchestration bar: HR/admin drive the pipeline; the HOD only hands off the JD at stage 1 */}
       {(isHr || isAdmin || (isHod && r.Stage === 'jd')) && (
         <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-          {(isHr || isAdmin) && idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
-          {idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
+          {(isHr || isAdmin) && viewStage === r.Stage && idx > 0 && <button style={ghostBtn} onClick={() => goStage(REC_STAGES[idx - 1])}>← Back</button>}
+          {viewStage === r.Stage && idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
           {(isHr || isAdmin) && (r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null)}
           {(isHr || isAdmin) && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>}
           {(isHr || isAdmin) && !r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
-          {idx < REC_STAGES.length - 1 && (gateMsg
+          {viewStage === r.Stage && idx < REC_STAGES.length - 1 && (gateMsg
             ? <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-orange)' }}>⚠ Pending to advance: {gateMsg}</span>
             : <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-green)' }}>✓ Ready to advance</span>)}
-          {viewStage !== r.Stage && <span style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>· Viewing {STATUS_META[viewStage]?.label} (current: {STATUS_META[r.Stage]?.label})</span>}
+          {viewStage !== r.Stage && <span style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>Viewing {STATUS_META[viewStage]?.label} · the live stage is {STATUS_META[r.Stage]?.label}</span>}
         </div>
       )}
       {msg && <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginTop: 8 }}>{msg}</p>}
