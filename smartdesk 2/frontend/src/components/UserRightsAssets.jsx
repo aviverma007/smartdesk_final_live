@@ -1526,7 +1526,7 @@ const readBase64 = (file) => new Promise((res, rej) => { const r = new FileReade
 
 const RecruitmentView = ({ onBack }) => {
   const api = useApi();
-  const { isManager, isInterviewer } = useAuth();
+  const { isManager, isInterviewer, isAdmin } = useAuth();
   const [list, setList] = useState([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState(isManager ? 'hod' : 'active');
@@ -1554,6 +1554,7 @@ const RecruitmentView = ({ onBack }) => {
     if (d.success) { setForm(blank); setShowForm(false); setMsg('Requirement created.'); load(); } else setMsg(d.error || 'Failed.');
   };
   const needsHod = (r) => r.Stage === 'cv_shortlist' && (r.candidates || []).some(c => (c.HodDecision || 'pending') === 'pending');
+  const adminDelete = async (id, e) => { e.stopPropagation(); if (!window.confirm('Permanently delete this requirement and all its candidates? This cannot be undone.')) return; const d = await api(`/recruitment/${id}/approve-delete`, 'POST', {}); if (d.success) load(); else window.alert(d.error || 'Failed.'); };
   const filtered = list.filter(r => {
     const s = search.trim().toLowerCase();
     const ms = !s || [r.Role, r.Department, r.MrfRef].filter(Boolean).some(x => x.toLowerCase().includes(s));
@@ -1609,6 +1610,7 @@ const RecruitmentView = ({ onBack }) => {
               {r.DeleteRequested && <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>Delete requested</span>}
               <Pill status={r.Stage} />
               <button style={{ ...ghostBtn, padding: '6px 12px', fontSize: '.8rem' }} onClick={() => setOpenId(r.Id)}>Open</button>
+              {isAdmin && <button style={{ ...ghostBtn, padding: '6px 10px', fontSize: '.8rem', color: '#dc2626', borderColor: '#dc2626' }} onClick={(e) => adminDelete(r.Id, e)}>Delete</button>}
             </div>
           </div>
         ))}
@@ -1650,6 +1652,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const viewServerFile = async (path) => { try { const res = await fetch(`${URA_API}${path}`, { headers: { 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' } }); if (!res.ok) return window.alert('Could not open (' + res.status + ').'); const b = await res.blob(); const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); } catch { window.alert('Could not reach server.'); } };
 
   const requestDelete = async () => { const why = window.prompt('Delete this requirement? Reason goes to Admin for approval:'); if (why === null) return; const d = await api(`/recruitment/${r.Id}/request-delete`, 'POST', { reason: why }); if (d.success) { window.alert('Deletion requested — pending Admin approval.'); await refresh(); reload(); } };
+  const deleteNow = async () => { if (!window.confirm('Permanently delete this requirement and all its candidates? This cannot be undone.')) return; const d = await api(`/recruitment/${r.Id}/approve-delete`, 'POST', {}); if (d.success) { window.alert('Deleted.'); reload(); onClose && onClose(); } else window.alert(d.error || 'Failed.'); };
   const approveDelete = async () => { if (!window.confirm('Approve deletion? Permanently removes this requirement and its candidates.')) return; const d = await api(`/recruitment/${r.Id}/approve-delete`, 'POST', {}); if (d.success) { window.alert('Deleted.'); reload(); onClose && onClose(); } };
   const rejectDelete = async () => { const d = await api(`/recruitment/${r.Id}/reject-delete`, 'POST', {}); if (d.success) { await refresh(); reload(); } };
 
@@ -1878,7 +1881,8 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
           {viewStage === r.Stage && idx < REC_STAGES.length - 1 && <button style={primaryBtn} onClick={() => goStage(REC_STAGES[idx + 1])}>Advance to {STATUS_META[REC_STAGES[idx + 1]]?.label} →</button>}
           {r.Status === 'active' ? <button style={ghostBtn} onClick={() => save({ status: 'on_hold' })}>Put on hold</button> : r.Status === 'on_hold' ? <button style={ghostBtn} onClick={() => save({ status: 'active' })}>Resume</button> : null}
           <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => { const why = window.prompt('Reason for dropping / closing?') || ''; save({ status: 'dropped', dropReason: why }); }}>Drop</button>
-          {!r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Delete entry</button>}
+          {isAdmin ? <button style={{ ...ghostBtn, color: '#fff', background: '#dc2626', borderColor: '#dc2626' }} onClick={deleteNow}>Delete entry</button>
+            : !r.DeleteRequested && <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={requestDelete}>Request delete</button>}
           {viewStage === r.Stage && idx < REC_STAGES.length - 1 && (gateMsg
             ? <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-orange)' }}>⚠ Pending to advance: {gateMsg}</span>
             : <span style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--accent-green)' }}>✓ Ready to advance</span>)}
