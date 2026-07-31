@@ -1937,6 +1937,14 @@ const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin
   const canPropose = isInterviewer || isAdmin;
   const canApprove = isHr || isAdmin;
   const canRun = isInterviewer || isAdmin;
+  const viewCv = async () => {
+    if (!c.CvFileName) return window.alert('No CV on file for this candidate.');
+    try {
+      const res = await fetch(`${URA_API}/recruitment/candidates/${c.Id}/cv`, { headers: { 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' } });
+      if (!res.ok) return window.alert('Could not open CV (' + res.status + ').');
+      const b = await res.blob(); const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000);
+    } catch { window.alert('Could not reach server.'); }
+  };
 
   const badge = (txt, col) => <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#fff', background: col, borderRadius: 12, padding: '2px 9px' }}>{txt}</span>;
   const row = { ...rowStyle, flexDirection: 'column', alignItems: 'stretch' };
@@ -2007,9 +2015,10 @@ const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin
       {/* Arrived: interviewer fills the assessment form */}
       {(st === 'arrived' || c.Outcome) && (
         <div style={{ marginTop: 8 }}>
+          {c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', marginRight: 8 }} onClick={viewCv}>📄 View CV</button>}
           {canRun && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssess(a => !a)}>{assess ? 'Close form' : (c.Assessment ? 'Edit assessment' : 'Fill assessment form')}</button>}
           {!canRun && !c.Outcome && <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Awaiting the interviewer's assessment.</span>}
-          {assess && <AssessmentForm c={c} req={req} onSave={(patch) => { save(patch); setAssess(false); }} />}
+          {assess && <AssessmentForm c={c} req={req} viewCv={viewCv} onSave={(patch) => { save(patch); setAssess(false); }} />}
         </div>
       )}
     </div>
@@ -2017,7 +2026,7 @@ const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin
 };
 
 // Digitised Interview Assessment Form (matches the paper form)
-const AssessmentForm = ({ c, req, onSave }) => {
+const AssessmentForm = ({ c, req, onSave, viewCv }) => {
   const init = (() => { try { return JSON.parse(c.Assessment || 'null'); } catch { return null; } })() || {
     position: req.Role || '', department: req.Department || '', expectedCtc: '', currentCtc: '', noticePeriod: '', experience: '',
     dob: '', qualification: '', maritalStatus: '', source: '', interviewedEarlier: 'No',
@@ -2033,7 +2042,10 @@ const AssessmentForm = ({ c, req, onSave }) => {
 
   return (
     <div style={{ marginTop: 10, padding: 14, borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-      <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Interview Assessment — {c.Name}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>Interview Assessment — {c.Name}</div>
+        {viewCv && c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 12px', fontSize: '.78rem', marginBottom: 0 }} onClick={viewCv}>📄 View CV</button>}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <Field l="Position"><input style={input} value={f.position} onChange={e => set('position', e.target.value)} /></Field>
         <Field l="Department"><input style={input} value={f.department} onChange={e => set('department', e.target.value)} /></Field>
