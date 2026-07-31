@@ -1922,7 +1922,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
 // Per-candidate interview lifecycle: interviewer proposes time -> HR approves/edits ->
 // auto/manual start -> interviewer marks Arrived/Reschedule/No-show -> Arrived opens the form.
 const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin, req }) => {
-  const { user } = useAuth();
+  const { user, isHod } = useAuth();
   const [assess, setAssess] = useState(false);
   const dv = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
   const [d, setD] = useState(dv(c.InterviewDate));
