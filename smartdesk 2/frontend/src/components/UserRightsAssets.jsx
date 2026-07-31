@@ -1634,6 +1634,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   const [r, setR] = useState(record);
   const [cand, setCand] = useState({ name: '', phone: '', email: '', source: '' });
   const [assessFor, setAssessFor] = useState(null);
+  const [joinDates, setJoinDates] = useState({});
   const [msg, setMsg] = useState('');
   const [viewStage, setViewStage] = useState(recNormStage(record.Stage));
   useEffect(() => { setR(record); }, [record]);
@@ -1847,7 +1848,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
       {/* STAGE 6 — SELECTION */}
       {viewStage === 'selection' && (
         <div>
-          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Positions: {r.Positions || 1}. Selected so far: {selectedCount}. Choose who to take forward to offer.</p>
+          <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginTop: 0 }}>Positions: {r.Positions || 1}. Selected so far: {selectedCount}. Set the joining date and take a candidate forward to the Joining stage.</p>
           {cands.filter(c => c.Outcome).map(c => (
             <div key={c.Id} style={{ ...rowStyle, alignItems: 'center', background: r.SelectedCandidateId === c.Id ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : undefined }}>
               <div style={{ flex: 1 }}>
@@ -1855,7 +1856,13 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
                 <div style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}>Interview outcome: {c.Outcome}{c.InterviewerName ? ` · by ${c.InterviewerName}` : ''}</div>
               </div>
               <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: OUTCOME_META[c.Outcome] || 'var(--text-muted)', borderRadius: 12, padding: '2px 9px' }}>{c.Outcome}</span>
-              {c.Outcome === 'Selected' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => { save({ selectedCandidateId: c.Id }); saveCand(c.Id, { candStatus: 'selected' }); }}>Take forward</button>}
+              {c.Outcome === 'Selected' && (<>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: '.68rem', color: 'var(--text-muted)' }}>Joining date</span>
+                  <input type="date" style={{ ...input, marginBottom: 0, maxWidth: 150, padding: '5px 8px' }} value={joinDates[c.Id] ?? dv(c.JoiningDate)} onChange={e => setJoinDates(s => ({ ...s, [c.Id]: e.target.value }))} />
+                </div>
+                <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => { const jd = joinDates[c.Id] ?? dv(c.JoiningDate); if (!jd) return window.alert('Enter a joining date before taking this candidate forward.'); save({ selectedCandidateId: c.Id }); saveCand(c.Id, { candStatus: 'selected', joiningDate: jd }); }}>Take forward</button>
+              </>)}
             </div>
           ))}
           {cands.filter(c => c.Outcome).length === 0 && <Empty text="No interview outcomes yet." />}
