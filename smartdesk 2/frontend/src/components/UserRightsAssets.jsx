@@ -1626,7 +1626,7 @@ const RecruitmentDetail = ({ record, api, reload, onClose }) => {
   // Rights matrix: which roles may ACT on each stage (admin can always act).
   const STAGE_ACT = {
     jd: ['hod'], review_post: ['hr'], cv_shortlist: ['hr', 'hod'], scheduling: ['hr', 'interviewer'],
-    interview: ['interviewer'], selection: ['hr'], joining: ['hr'],
+    interview: ['interviewer', 'hod'], selection: ['hr'], joining: ['hr'],
   };
   const STAGE_OWNER = { jd: 'HOD', review_post: 'HR', cv_shortlist: 'HOD / HR', scheduling: 'Interviewer + HR', interview: 'Interviewer', selection: 'HR', joining: 'HR' };
   const myRole = user?.role;
@@ -2012,33 +2012,54 @@ const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin
         </div>
       )}
 
-      {/* Arrived: interviewer fills the assessment form */}
-      {(st === 'arrived' || c.Outcome) && (
-        <div style={{ marginTop: 8 }}>
-          {c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem', marginRight: 8 }} onClick={viewCv}>📄 View CV</button>}
-          {canRun && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssess(a => !a)}>{assess ? 'Close form' : (c.Assessment ? 'Edit assessment' : 'Fill assessment form')}</button>}
-          {!canRun && !c.Outcome && <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Awaiting the interviewer's assessment.</span>}
-          {assess && <AssessmentForm c={c} req={req} viewCv={viewCv} onSave={(patch) => { save(patch); setAssess(false); }} />}
-        </div>
-      )}
+      {/* Arrived: interviewer fills the assessment (Save draft / Send for HOD approval); HOD approves (level 2) */}
+      {(st === 'arrived' || c.Outcome || c.AssessmentStatus) && (() => {
+        const aStatus = c.AssessmentStatus || (c.Outcome ? 'approved' : 'draft');
+        const rec = (() => { try { return (JSON.parse(c.Assessment || '{}')).status; } catch { return null; } })();
+        const isHodR = isHod || isAdmin;
+        return (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={viewCv}>📄 View CV</button>}
+              {aStatus === 'pending_hod' && <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: 'var(--accent-orange)', borderRadius: 12, padding: '2px 9px' }}>Level 2 · awaiting HOD</span>}
+              {aStatus === 'rejected' && <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 12, padding: '2px 9px' }}>HOD sent back</span>}
+              {aStatus === 'approved' && <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#fff', background: 'var(--accent-green)', borderRadius: 12, padding: '2px 9px' }}>HOD approved</span>}
+              {/* interviewer: fill/edit while draft or rejected */}
+              {canRun && aStatus !== 'approved' && aStatus !== 'pending_hod' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssess(a => !a)}>{assess ? 'Close form' : (c.Assessment ? 'Edit assessment' : 'Fill assessment form')}</button>}
+              {/* HOD: review the pending assessment */}
+              {isHodR && aStatus === 'pending_hod' && <button style={{ ...ghostBtn, padding: '5px 10px', fontSize: '.78rem' }} onClick={() => setAssess(a => !a)}>{assess ? 'Close' : 'Review assessment (level 2)'}</button>}
+              {canRun && aStatus === 'pending_hod' && <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Sent to HOD for level-2 approval.</span>}
+            </div>
+            {assess && (
+              <AssessmentForm c={c} req={req} viewCv={viewCv}
+                readOnly={isHodR && !canRun && aStatus === 'pending_hod'}
+                onApprove={() => { save({ outcome: rec, assessmentStatus: 'approved', candStatus: rec === 'Selected' ? 'selected' : rec === 'Not Suitable' ? 'rejected' : 'interviewing' }); setAssess(false); }}
+                onReject={() => { const rm = window.prompt('Send back to interviewer — remark (optional):') || ''; save({ assessmentStatus: 'rejected', hodRemark: rm }); setAssess(false); }}
+                onSave={(patch, keepOpen) => { save(patch); if (!keepOpen) setAssess(false); }} />
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
 
 // Digitised Interview Assessment Form (matches the paper form)
-const AssessmentForm = ({ c, req, onSave, viewCv }) => {
-  const init = (() => { try { return JSON.parse(c.Assessment || 'null'); } catch { return null; } })() || {
+const AssessmentForm = ({ c, req, onSave, viewCv, readOnly, onApprove, onReject }) => {
+  const parsed = (() => { try { return JSON.parse(c.Assessment || 'null'); } catch { return null; } })();
+  const init = parsed || {
     position: req.Role || '', department: req.Department || '', expectedCtc: '', currentCtc: '', noticePeriod: '', experience: '',
     dob: '', qualification: '', maritalStatus: '', source: '', interviewedEarlier: 'No',
     ratings: {}, comments: {}, knowledge: '', experienceInput: '', exposure: '', date: new Date().toISOString().slice(0, 10),
   };
   const [f, setF] = useState(init);
   const [interviewer, setInterviewer] = useState(c.InterviewerName || '');
-  const [outcome, setOutcome] = useState(c.Outcome || '');
+  const [outcome, setOutcome] = useState((parsed && parsed.status) || c.Outcome || '');
   const set = (k, v) => setF(s => ({ ...s, [k]: v }));
   const setRating = (crit, v) => setF(s => ({ ...s, ratings: { ...s.ratings, [crit]: v } }));
   const setComment = (crit, v) => setF(s => ({ ...s, comments: { ...s.comments, [crit]: v } }));
-  const submit = () => { if (!outcome) return window.alert('Please select a status (Selected / On Hold / Not Suitable).'); onSave({ assessment: f, interviewerName: interviewer, outcome, candStatus: outcome === 'Selected' ? 'selected' : outcome === 'Not Suitable' ? 'rejected' : 'interviewing' }); };
+  const saveDraft = () => onSave({ assessment: { ...f, status: outcome }, interviewerName: interviewer, assessmentStatus: 'draft' }, true);
+  const sendForApproval = () => { if (!outcome) return window.alert('Select a recommendation (Selected / On Hold / Not Suitable) before sending.'); onSave({ assessment: { ...f, status: outcome }, interviewerName: interviewer, assessmentStatus: 'pending_hod' }, false); };
 
   return (
     <div style={{ marginTop: 10, padding: 14, borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
@@ -2046,6 +2067,7 @@ const AssessmentForm = ({ c, req, onSave, viewCv }) => {
         <div style={{ fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>Interview Assessment — {c.Name}</div>
         {viewCv && c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 12px', fontSize: '.78rem', marginBottom: 0 }} onClick={viewCv}>📄 View CV</button>}
       </div>
+      <div style={{ pointerEvents: readOnly ? 'none' : 'auto', opacity: readOnly ? 0.9 : 1 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <Field l="Position"><input style={input} value={f.position} onChange={e => set('position', e.target.value)} /></Field>
         <Field l="Department"><input style={input} value={f.department} onChange={e => set('department', e.target.value)} /></Field>
@@ -2078,13 +2100,24 @@ const AssessmentForm = ({ c, req, onSave, viewCv }) => {
         <Field l="Interviewer name"><input style={input} value={interviewer} onChange={e => setInterviewer(e.target.value)} /></Field>
         <Field l="Date"><input type="date" style={input} value={f.date} onChange={e => set('date', e.target.value)} /></Field>
       </div>
-      <div style={label}>Status</div>
+      <div style={label}>Status / recommendation</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         {['Selected', 'On Hold', 'Not Suitable'].map(o => (
-          <span key={o} onClick={() => setOutcome(o)} style={{ ...chip(outcome === o), borderColor: outcome === o ? (OUTCOME_META[o]) : 'var(--border)', color: outcome === o ? '#fff' : 'var(--text-primary)', background: outcome === o ? OUTCOME_META[o] : 'var(--bg-base)' }}>{o}</span>
+          <span key={o} onClick={() => !readOnly && setOutcome(o)} style={{ ...chip(outcome === o), borderColor: outcome === o ? (OUTCOME_META[o]) : 'var(--border)', color: outcome === o ? '#fff' : 'var(--text-primary)', background: outcome === o ? OUTCOME_META[o] : 'var(--bg-base)' }}>{o}</span>
         ))}
       </div>
-      <button style={primaryBtn} onClick={submit}>Save assessment</button>
+      </div>
+      {readOnly ? (
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button style={{ ...primaryBtn, background: 'var(--accent-green)' }} onClick={onApprove}>Approve (level 2)</button>
+          <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={onReject}>Reject — send back</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button style={ghostBtn} onClick={saveDraft}>Save draft</button>
+          <button style={{ ...primaryBtn, background: 'var(--accent-teal)' }} onClick={sendForApproval}>Send to level 2 for HOD approval →</button>
+        </div>
+      )}
     </div>
   );
 };

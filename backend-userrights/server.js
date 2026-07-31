@@ -283,6 +283,7 @@ IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewStatus') IS NULL ALTER TABLE
 IF COL_LENGTH('dbo.RecruitmentCandidates','InterviewerName') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD InterviewerName NVARCHAR(200) NULL;
 IF COL_LENGTH('dbo.RecruitmentCandidates','Assessment') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Assessment NVARCHAR(MAX) NULL;
 IF COL_LENGTH('dbo.RecruitmentCandidates','Outcome') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD Outcome NVARCHAR(20) NULL;
+IF COL_LENGTH('dbo.RecruitmentCandidates','AssessmentStatus') IS NULL ALTER TABLE dbo.RecruitmentCandidates ADD AssessmentStatus NVARCHAR(20) NULL;
 UPDATE dbo.Recruitment SET Stage='jd' WHERE Stage='requisition';
 IF COL_LENGTH('dbo.Recruitment','CvSentForSelection') IS NULL ALTER TABLE dbo.Recruitment ADD CvSentForSelection BIT NOT NULL DEFAULT(0);
   `);
@@ -1257,8 +1258,8 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
     const rl = role(req), adminR = rl === 'admin';
     if (b.hodDecision !== undefined && !(adminR || rl === 'hod' || rl === 'manager'))
       return res.status(403).json({ success: false, error: 'Only the HOD can accept or reject CVs.' });
-    if ((b.assessment !== undefined || b.outcome !== undefined) && !(adminR || rl === 'interviewer'))
-      return res.status(403).json({ success: false, error: 'Only the Interviewer can fill the assessment and set the outcome.' });
+    if ((b.assessment !== undefined || b.outcome !== undefined || b.assessmentStatus !== undefined) && !(adminR || rl === 'interviewer' || rl === 'hod'))
+      return res.status(403).json({ success: false, error: 'Only the Interviewer or HOD can update the interview assessment.' });
     if ((b.interviewDate !== undefined || b.interviewTime !== undefined || b.interviewStatus !== undefined) && !(adminR || rl === 'hr' || rl === 'interviewer'))
       return res.status(403).json({ success: false, error: 'Only HR or the Interviewer can set interview timing.' });
     if (b.joiningDate !== undefined && !(adminR || rl === 'hr'))
@@ -1272,7 +1273,7 @@ app.put('/api/recruitment/candidates/:cid', async (req, res) => {
       interviews: 'Interviews', offerAcceptedDate: 'OfferAcceptedDate', resignationAcceptedDate: 'ResignationAcceptedDate',
       joiningDate: 'JoiningDate', documents: 'Documents', engagementNotes: 'EngagementNotes',
       hodDecision: 'HodDecision', hodRemark: 'HodRemark', interviewDate: 'InterviewDate', interviewTime: 'InterviewTime',
-      interviewStatus: 'InterviewStatus', interviewerName: 'InterviewerName', assessment: 'Assessment', outcome: 'Outcome',
+      interviewStatus: 'InterviewStatus', interviewerName: 'InterviewerName', assessment: 'Assessment', outcome: 'Outcome', assessmentStatus: 'AssessmentStatus',
     };
     const JSON_FIELDS = new Set(['interviews', 'documents', 'assessment']);
     const DATE_FIELDS = new Set(['offerAcceptedDate', 'resignationAcceptedDate', 'joiningDate', 'interviewDate']);
