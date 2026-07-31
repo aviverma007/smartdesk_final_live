@@ -2032,8 +2032,7 @@ const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin
             </div>
             {assess && (
               <AssessmentForm c={c} req={req} viewCv={viewCv}
-                readOnly={isHodR && !canRun && aStatus === 'pending_hod'}
-                onApprove={() => { save({ outcome: rec, assessmentStatus: 'approved', candStatus: rec === 'Selected' ? 'selected' : rec === 'Not Suitable' ? 'rejected' : 'interviewing' }); setAssess(false); }}
+                hodMode={(isHod || isAdmin) && !isInterviewer && aStatus === 'pending_hod'}
                 onReject={() => { const rm = window.prompt('Send back to interviewer — remark (optional):') || ''; save({ assessmentStatus: 'rejected', hodRemark: rm }); setAssess(false); }}
                 onSave={(patch, keepOpen) => { save(patch); if (!keepOpen) setAssess(false); }} />
             )}
@@ -2045,7 +2044,7 @@ const InterviewLifecycle = ({ c, save, api, reload, isHr, isInterviewer, isAdmin
 };
 
 // Digitised Interview Assessment Form (matches the paper form)
-const AssessmentForm = ({ c, req, onSave, viewCv, readOnly, onApprove, onReject }) => {
+const AssessmentForm = ({ c, req, onSave, viewCv, hodMode, onReject }) => {
   const parsed = (() => { try { return JSON.parse(c.Assessment || 'null'); } catch { return null; } })();
   const init = parsed || {
     position: req.Role || '', department: req.Department || '', expectedCtc: '', currentCtc: '', noticePeriod: '', experience: '',
@@ -2067,7 +2066,7 @@ const AssessmentForm = ({ c, req, onSave, viewCv, readOnly, onApprove, onReject 
         <div style={{ fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>Interview Assessment — {c.Name}</div>
         {viewCv && c.CvFileName && <button style={{ ...ghostBtn, padding: '5px 12px', fontSize: '.78rem', marginBottom: 0 }} onClick={viewCv}>📄 View CV</button>}
       </div>
-      <div style={{ pointerEvents: readOnly ? 'none' : 'auto', opacity: readOnly ? 0.9 : 1 }}>
+      <div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <Field l="Position"><input style={input} value={f.position} onChange={e => set('position', e.target.value)} /></Field>
         <Field l="Department"><input style={input} value={f.department} onChange={e => set('department', e.target.value)} /></Field>
@@ -2103,13 +2102,14 @@ const AssessmentForm = ({ c, req, onSave, viewCv, readOnly, onApprove, onReject 
       <div style={label}>Status / recommendation</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         {['Selected', 'On Hold', 'Not Suitable'].map(o => (
-          <span key={o} onClick={() => !readOnly && setOutcome(o)} style={{ ...chip(outcome === o), borderColor: outcome === o ? (OUTCOME_META[o]) : 'var(--border)', color: outcome === o ? '#fff' : 'var(--text-primary)', background: outcome === o ? OUTCOME_META[o] : 'var(--bg-base)' }}>{o}</span>
+          <span key={o} onClick={() => setOutcome(o)} style={{ ...chip(outcome === o), borderColor: outcome === o ? (OUTCOME_META[o]) : 'var(--border)', color: outcome === o ? '#fff' : 'var(--text-primary)', background: outcome === o ? OUTCOME_META[o] : 'var(--bg-base)' }}>{o}</span>
         ))}
       </div>
       </div>
-      {readOnly ? (
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button style={{ ...primaryBtn, background: 'var(--accent-green)' }} onClick={onApprove}>Approve (level 2)</button>
+      {hodMode ? (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button style={ghostBtn} onClick={() => onSave({ assessment: { ...f, status: outcome }, interviewerName: interviewer }, true)}>Save changes</button>
+          <button style={{ ...primaryBtn, background: 'var(--accent-green)' }} onClick={() => { if (!outcome) return window.alert('Select a recommendation before approving.'); onSave({ assessment: { ...f, status: outcome }, interviewerName: interviewer, outcome, assessmentStatus: 'approved', candStatus: outcome === 'Selected' ? 'selected' : outcome === 'Not Suitable' ? 'rejected' : 'interviewing' }, false); }}>Approve (level 2)</button>
           <button style={{ ...ghostBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={onReject}>Reject — send back</button>
         </div>
       ) : (
