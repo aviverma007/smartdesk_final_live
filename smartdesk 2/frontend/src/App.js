@@ -258,7 +258,7 @@ const SettingsPanel = ({ theme, setTheme, onClose }) => (
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 const Sidebar = ({ active, setActive, theme, setTheme }) => {
-  const { user, logout, isEmployee, isDashboard, isHr, isIt, isManager, isHod, isInterviewer } = useAuth();
+  const { user, logout, isEmployee, isDashboard, isHr, isIt, isManager } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
 
@@ -322,7 +322,6 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
             if (isDashboard === true) return n.id === 'dashboard';
             if (isEmployee === true)  return ['home','directory','attendance','policies','holiday-calendar','user-rights'].includes(n.id);
             if (isHr) return ['home','directory','attendance','policies','holiday-calendar','user-rights'].includes(n.id);
-            if (isHod || isInterviewer) return ['home','user-rights'].includes(n.id);
             if (isIt || isManager) return ['home','directory','user-rights'].includes(n.id);
             return true; // admin sees all
           }).map(({ id, label, Icon }) => (

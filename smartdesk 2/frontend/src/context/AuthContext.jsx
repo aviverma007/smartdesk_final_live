@@ -17,8 +17,6 @@ const ROLE_LOGINS = {
   hr:          { pw: 'SmartWorld@2026', name: 'HR Team',     role: 'hr' },
   it:          { pw: 'SmartWorld@2026', name: 'IT Team',     role: 'it' },
   manager:     { pw: 'SmartWorld@2026', name: 'Manager',     role: 'manager' },
-  hod:         { pw: 'SmartWorld@2026', name: 'HOD',         role: 'hod' },
-  interviewer: { pw: 'SmartWorld@2026', name: 'Interviewer', role: 'interviewer' },
 };
 
 // User Rights & Assets backend (same host, port 5093)
@@ -158,11 +156,9 @@ export const AuthProvider = ({ children }) => {
   const isHr        = user?.role === 'hr';
   const isIt        = user?.role === 'it';
   const isManager   = user?.role === 'manager';
-  const isHod         = user?.role === 'hod';
-  const isInterviewer = user?.role === 'interviewer';
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, tryEmployeeLogin, tryAppLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard, isHr, isIt, isManager, isHod, isInterviewer }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, tryEmployeeLogin, tryAppLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard, isHr, isIt, isManager}}>
       {children}
     </AuthContext.Provider>
   );
