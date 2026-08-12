@@ -2164,7 +2164,6 @@ const RecCandidateAcceptance = ({ c, api, reload, user }) => {
 
 /* ── Landing buttons ─────────────────────────────────────────────────────── */
 const BUTTONS = [
-  { id: 'recruitment', title: 'Recruitment', desc: 'Full hiring pipeline — requisition through offer acceptance.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['hr', 'manager', 'hod', 'interviewer', 'admin'] },
   { id: 'onboarding', title: 'User ID Allocation', desc: 'Onboard a new joiner and assign their Employee ID.', grad: 'linear-gradient(135deg,#0c1a40,#2563eb)', roles: ['admin'] },
   { id: 'assets', title: 'Asset Management', desc: 'Allocate assets and let employees confirm receipt.', grad: 'linear-gradient(135deg,#0a2010,#16a34a)', roles: ['it', 'admin', 'employee'] },
   { id: 'access', title: 'Application & Rights', desc: 'Request app access with manager + IT approval.', grad: 'linear-gradient(135deg,#1a1040,#7c3aed)', roles: ['it', 'manager', 'admin', 'employee'] },
@@ -2223,7 +2222,6 @@ const UserRightsAssets = () => {
     </div>
   ) : null;
 
-  if (view === 'recruitment') return <>{banner}<RecruitmentView onBack={() => setView('home')} /></>;
   if (view === 'onboarding') return <><div style={{ padding: '0 0 0' }}>{banner}</div><OnboardingView onBack={() => setView('home')} /></>;
   if (view === 'assets') return <>{banner}<AssetsView onBack={() => setView('home')} /></>;
   if (view === 'access') return <>{banner}<AccessView onBack={() => setView('home')} /></>;
