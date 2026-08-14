@@ -30,18 +30,26 @@
  *                       this is the interim store so the app is usable now).
  */
 const sql = require('mssql');
+const bcrypt = require('bcryptjs');
 
 async function migrate(pool) {
   await pool.request().batch(`
 IF OBJECT_ID('dbo.MC_Users','U') IS NULL
 CREATE TABLE dbo.MC_Users (
-  Id            INT IDENTITY(1,1) PRIMARY KEY,
-  LoginId       NVARCHAR(80)  NOT NULL UNIQUE,
-  DisplayName   NVARCHAR(120) NOT NULL,
-  Role          NVARCHAR(20)  NOT NULL, -- user | revMEP | revCIV | admin
-  IsActive      BIT NOT NULL DEFAULT(1),
-  CreatedAt     DATETIME NOT NULL DEFAULT(GETDATE())
+  Id                  INT IDENTITY(1,1) PRIMARY KEY,
+  LoginId             NVARCHAR(80)  NOT NULL UNIQUE,
+  DisplayName         NVARCHAR(120) NOT NULL,
+  Role                NVARCHAR(20)  NOT NULL, -- user | revMEP | revCIV | admin
+  PasswordHash        NVARCHAR(200) NULL,     -- bcrypt hash; NULL only pre-migration
+  MustChangePassword  BIT NOT NULL DEFAULT(0), -- forces a change on next login (e.g. after admin reset)
+  IsActive            BIT NOT NULL DEFAULT(1),
+  CreatedAt           DATETIME NOT NULL DEFAULT(GETDATE())
 );
+-- Migration for DBs created before auth existed.
+IF COL_LENGTH('dbo.MC_Users', 'PasswordHash') IS NULL
+  ALTER TABLE dbo.MC_Users ADD PasswordHash NVARCHAR(200) NULL;
+IF COL_LENGTH('dbo.MC_Users', 'MustChangePassword') IS NULL
+  ALTER TABLE dbo.MC_Users ADD MustChangePassword BIT NOT NULL DEFAULT(0);
 
 IF OBJECT_ID('dbo.MC_Entries','U') IS NULL
 CREATE TABLE dbo.MC_Entries (
@@ -195,16 +203,36 @@ CREATE TABLE dbo.MC_AuditLog (
 );
   `);
 
-  // Seed a minimal user roster if empty (I4 — real AD/SSO is IT-lane).
+  // Seed the 4 role credentials on first boot only (I4 — real AD/SSO is a
+  // separate IT lane; this is the interim login store). Passwords are
+  // bcrypt-hashed before insert — nothing plain-text ever touches the DB.
+  // Every seeded account is forced to change its password on first login.
   const r = await pool.request().query('SELECT COUNT(*) AS c FROM dbo.MC_Users');
   if (r.recordset[0].c === 0) {
-    await pool.request().batch(`
-INSERT INTO dbo.MC_Users(LoginId, DisplayName, Role) VALUES
-  ('dhruv',   'Dhruv',      'user'),
-  ('rverma',  'R. Verma',   'revMEP'),
-  ('sanand',  'S. Anand',   'revCIV'),
-  ('akhilesh','Akhilesh',   'admin');
-    `);
+    const seedUsers = [
+      { loginId: 'dhruv',    displayName: 'Dhruv',    role: 'user',   password: 'User@2026' },
+      { loginId: 'rverma',   displayName: 'R. Verma', role: 'revMEP', password: 'RevMEP@2026' },
+      { loginId: 'sanand',   displayName: 'S. Anand', role: 'revCIV', password: 'RevCIV@2026' },
+      { loginId: 'akhilesh', displayName: 'Akhilesh', role: 'admin',  password: 'Admin@2026' },
+    ];
+    for (const u of seedUsers) {
+      const hash = await bcrypt.hash(u.password, 10);
+      await pool.request()
+        .input('loginId', u.loginId).input('displayName', u.displayName).input('role', u.role).input('hash', hash)
+        .query(`INSERT INTO dbo.MC_Users(LoginId, DisplayName, Role, PasswordHash, MustChangePassword)
+                VALUES (@loginId, @displayName, @role, @hash, 1)`);
+    }
+  } else {
+    // Existing DBs from before auth existed: backfill a hash for any row
+    // that still has none, so login doesn't silently fail for old data.
+    const noHash = await pool.request().query("SELECT LoginId FROM dbo.MC_Users WHERE PasswordHash IS NULL");
+    for (const row of noHash.recordset) {
+      const tempPassword = `${row.LoginId}@Temp2026`;
+      const hash = await bcrypt.hash(tempPassword, 10);
+      await pool.request().input('loginId', row.LoginId).input('hash', hash)
+        .query('UPDATE dbo.MC_Users SET PasswordHash=@hash, MustChangePassword=1 WHERE LoginId=@loginId');
+      console.log(`[migrate] backfilled password for existing user '${row.LoginId}' — temp password: ${tempPassword} (must change on login)`);
+    }
   }
 }
 

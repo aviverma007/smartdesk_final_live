@@ -136,3 +136,20 @@ td.edit { background: #FFFDF3; }
 .sheethead { display: flex; align-items: center; gap: 10px; padding: 10px 16px 0 16px; flex-wrap: wrap; }
 .decisions-legend { font-size: 9.5px; color: #666; }
 .filterlbl { font-size: 11px; color: #444; }
+
+/* ---- Auth: login page, user menu, forced-change screen ---- */
+.authloading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #666; font-size: 13px; }
+.loginwrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #EFF1F4; }
+.loginbox { background: #fff; border: 1px solid #C4CAD2; border-radius: 6px; padding: 32px 34px; width: 340px; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+.login-logo { height: 30px; margin-bottom: 14px; display: block; }
+.loginbox h2 { font-size: 17px; margin-bottom: 4px; }
+.login-sub { font-size: 11px; color: #666; margin-bottom: 18px; }
+.loginbox .field { margin-bottom: 12px; }
+.login-error { background: #FFF6F5; border: 1px solid #E8A0A0; color: #B3261E; font-size: 11.5px; padding: 7px 10px; border-radius: 3px; margin: 6px 0; }
+
+.userbox { position: relative; }
+.userchip { border: 1px solid #C4CAD2; background: #fff; border-radius: 20px; padding: 6px 12px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.rolepill { background: #EEF4FB; color: #1D5FA8; font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.usermenu { position: absolute; top: 100%; right: 0; margin-top: 4px; background: #fff; border: 1px solid #C4CAD2; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 70; min-width: 150px; overflow: hidden; }
+.usermenu button { display: block; width: 100%; text-align: left; padding: 9px 12px; border: none; background: none; font-size: 12px; cursor: pointer; }
+.usermenu button:hover { background: #F0F1F4; }

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const PAGES = [
   { id: 1, label: 'Page 1 — NFA Entry' },
@@ -8,7 +10,9 @@ const PAGES = [
 ];
 
 export default function AppBar({ page, setPage }) {
-  const { role, setRole, ROLE_LABEL, isReviewerish } = useApp();
+  const { user, role, roleLabel, isAdmin, logout } = useApp();
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="appbar">
@@ -34,16 +38,26 @@ export default function AppBar({ page, setPage }) {
             </button>
           );
         })}
+        {isAdmin && (
+          <button className={`tab ${page === 5 ? 'active' : ''}`} onClick={() => setPage(5)}>
+            Manage Users
+          </button>
+        )}
       </div>
       <div className="spacer" />
-      <div className="rolebox">
-        <span>Role:</span>
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          {Object.keys(ROLE_LABEL).map((r) => (
-            <option key={r} value={r}>{ROLE_LABEL[r]}</option>
-          ))}
-        </select>
+      <div className="userbox">
+        <button className="userchip" onClick={() => setMenuOpen((v) => !v)}>
+          {user?.displayName} <span className="rolepill">{roleLabel}</span> ▾
+        </button>
+        {menuOpen && (
+          <div className="usermenu" onMouseLeave={() => setMenuOpen(false)}>
+            <button onClick={() => { setShowChangePw(true); setMenuOpen(false); }}>Change password</button>
+            <button onClick={logout}>Log out</button>
+          </div>
+        )}
       </div>
+
+      {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
     </div>
   );
 }

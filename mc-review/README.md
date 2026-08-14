@@ -104,12 +104,35 @@ The frontend's dev server proxies nothing — it calls the API directly at
 `http://<current-host>:5094/api` when opened from anywhere other than
 localhost (so the same build works via `swdsales.com` in production).
 
-## Role switching (dev / demo)
+## Login
 
-There is no real login yet (I4 — AD/SSO is IT-owned and out of scope here).
-Use the role switcher in the top-right of the app bar: **User**, **Reviewer
-— MEP**, **Reviewer — Civil**, **Admin**. This flips the `x-user-role` /
-`x-user-id` headers sent on every request; the backend gates on those.
+Real authentication now: bcrypt-hashed passwords in SQL Server, JWT
+session tokens (12h expiry). Every API route except `/auth/login` and
+`/health` requires a valid `Authorization: Bearer <token>` header — the
+frontend handles this automatically once you're logged in.
+
+Four seeded accounts, one per role, created automatically on first boot:
+
+| Role | Login ID | Seed password |
+|---|---|---|
+| User | `dhruv` | `User@2026` |
+| Reviewer — MEP | `rverma` | `RevMEP@2026` |
+| Reviewer — Civil | `sanand` | `RevCIV@2026` |
+| Admin | `akhilesh` | `Admin@2026` |
+
+All four are forced to set their own password on first login
+(`MustChangePassword` flag) — the app will show a "set a new password"
+screen right after login and won't let you into the app until you do.
+
+**Admin capabilities** (Manage Users tab, admin role only): change anyone's
+role, reset a password (forces them to set a new one next login), create
+new accounts, activate/deactivate accounts.
+
+**Changing your own password**: click your name in the top-right corner →
+Change password.
+
+Real AD/SSO (I4) remains a separate, IT-owned lane — this is the interim
+login store, same as the rest of the app's stopgaps until IT's pieces land.
 
 ## What's implemented
 

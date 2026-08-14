@@ -1,4 +1,5 @@
 const express = require('express');
+const { currentUser } = require('../lib/auth');
 
 module.exports = function usersRoutes(getPool) {
   const router = express.Router();
@@ -11,9 +12,10 @@ module.exports = function usersRoutes(getPool) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Superseded by GET /api/auth/me (which also returns mustChangePassword),
+  // kept for backward compatibility with any existing frontend calls.
   router.get('/me', async (req, res) => {
-    const loginId = req.header('x-user-id') || 'unknown';
-    const role = req.header('x-user-role') || 'user';
+    const { loginId, role } = currentUser(req);
     try {
       const pool = await getPool();
       const r = await pool.request().input('loginId', loginId)

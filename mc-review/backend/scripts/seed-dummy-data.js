@@ -25,19 +25,36 @@ const BASE = process.env.SEED_API_BASE || 'http://localhost:5094/api';
 // date/index — that's by design, not a bug).
 const TODAY = process.env.SEED_DATE || new Date().toISOString().slice(0, 10);
 
-function client(role, userId) {
-  return axios.create({
-    baseURL: BASE,
-    headers: { 'x-user-role': role, 'x-user-id': userId },
-  });
+// Every route now requires a real Bearer token (see lib/auth.js) — the
+// old x-user-role/x-user-id trust headers no longer work. Log in as each
+// seeded account first and attach the resulting token.
+const SEED_CREDENTIALS = {
+  user: { loginId: 'dhruv', password: process.env.SEED_USER_PASSWORD || 'User@2026' },
+  revMEP: { loginId: 'rverma', password: process.env.SEED_REVMEP_PASSWORD || 'RevMEP@2026' },
+  revCIV: { loginId: 'sanand', password: process.env.SEED_REVCIV_PASSWORD || 'RevCIV@2026' },
+  admin: { loginId: 'akhilesh', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@2026' },
+};
+
+async function client(roleKey) {
+  const { loginId, password } = SEED_CREDENTIALS[roleKey];
+  const anon = axios.create({ baseURL: BASE });
+  const { data } = await anon.post('/auth/login', { loginId, password });
+  const authed = axios.create({ baseURL: BASE, headers: { Authorization: `Bearer ${data.token}` } });
+  if (data.user.mustChangePassword) {
+    // Fresh seed data — the account is still on its seeded password and
+    // forced to change it. For a dev/demo seed run, just satisfy that
+    // requirement automatically (re-set the same password) so the script
+    // doesn't get stuck in a chicken-and-egg loop on a brand-new DB.
+    await authed.post('/auth/change-password', { newPassword: password });
+    console.log(`  (${loginId}: cleared the forced first-login password change — still using the same seeded password)`);
+  }
+  return authed;
 }
 
-const user = client('user', 'dhruv');
-const revMEP = client('revMEP', 'rverma');
-const revCIV = client('revCIV', 'sanand');
-const admin = client('admin', 'akhilesh');
-
 async function main() {
+  const [user, revMEP, revCIV, admin] = await Promise.all([
+    client('user'), client('revMEP'), client('revCIV'), client('admin'),
+  ]);
   console.log(`Seeding against ${BASE} for review date ${TODAY} ...`);
   console.log('NOTE: NFA numbers below must exist in the live QMS feed right now — see file header if a fetch fails.');
 

@@ -1,6 +1,16 @@
 import client, { API_BASE } from './client';
 
 export const api = {
+  // Auth
+  login: (loginId, password) => client.post('/auth/login', { loginId, password }).then((r) => r.data),
+  authMe: () => client.get('/auth/me').then((r) => r.data),
+  changePassword: (currentPassword, newPassword) => client.post('/auth/change-password', { currentPassword, newPassword }),
+  adminListUsers: () => client.get('/auth/users').then((r) => r.data),
+  adminChangeRole: (loginId, role) => client.post(`/auth/users/${encodeURIComponent(loginId)}/role`, { role }),
+  adminResetPassword: (loginId, newPassword) => client.post(`/auth/users/${encodeURIComponent(loginId)}/reset-password`, { newPassword }),
+  adminSetActive: (loginId, isActive) => client.post(`/auth/users/${encodeURIComponent(loginId)}/active`, { isActive }),
+  adminCreateUser: (payload) => client.post('/auth/users', payload),
+
   // Reference & users
   reference: () => client.get('/reference').then((r) => r.data),
   allNfas: (limit, offset) => client.get('/qms/all-nfas', { params: { limit, offset } }).then((r) => r.data),

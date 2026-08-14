@@ -3,39 +3,51 @@ import api from '../api';
 
 const AppCtx = createContext(null);
 
-const ROLE_USER_ID = {
-  user: 'dhruv',
-  revMEP: 'rverma',
-  revCIV: 'sanand',
-  admin: 'akhilesh',
-};
-
 const ROLE_LABEL = {
-  user: 'User (Dhruv)',
-  revMEP: 'Reviewer — MEP (R. Verma)',
-  revCIV: 'Reviewer — Civil (S. Anand)',
-  admin: 'Admin (Akhilesh)',
+  user: 'User',
+  revMEP: 'Reviewer — MEP & Procurement',
+  revCIV: 'Reviewer — Civil & Consultancy',
+  admin: 'Admin',
 };
 
 export function AppProvider({ children }) {
-  const [role, setRoleState] = useState(localStorage.getItem('mc_role') || 'user');
+  const [token, setToken] = useState(localStorage.getItem('mc_token') || null);
+  const [user, setUser] = useState(null); // { loginId, displayName, role, mustChangePassword }
+  const [authLoading, setAuthLoading] = useState(true);
   const [reference, setReference] = useState(null);
 
-  const setRole = useCallback((newRole) => {
-    localStorage.setItem('mc_role', newRole);
-    localStorage.setItem('mc_user_id', ROLE_USER_ID[newRole]);
-    setRoleState(newRole);
+  const logout = useCallback(() => {
+    localStorage.removeItem('mc_token');
+    setToken(null);
+    setUser(null);
   }, []);
+
+  const login = useCallback((newToken, newUser) => {
+    localStorage.setItem('mc_token', newToken);
+    setToken(newToken);
+    setUser(newUser);
+  }, []);
+
+  // Re-validate the token on load (also picks up mustChangePassword / role
+  // changes an admin made since the token was issued, within its 12h life).
+  useEffect(() => {
+    if (!token) { setAuthLoading(false); return; }
+    api.authMe()
+      .then((u) => setUser(u))
+      .catch(() => logout())
+      .finally(() => setAuthLoading(false));
+  }, [token]);
 
   useEffect(() => {
-    if (!localStorage.getItem('mc_user_id')) {
-      localStorage.setItem('mc_user_id', ROLE_USER_ID[role]);
-    }
+    if (!user) return;
     api.reference().then(setReference).catch(() => {});
-  }, []);
+  }, [user]);
+
+  const role = user?.role || null;
 
   const value = {
-    role, setRole, roleLabel: ROLE_LABEL[role], ROLE_LABEL,
+    token, user, authLoading, login, logout,
+    role, roleLabel: role ? ROLE_LABEL[role] : null, ROLE_LABEL,
     reference,
     isReviewerish: role !== 'user',
     reviewerIndex: role === 'revMEP' ? 'MEP' : role === 'revCIV' ? 'CIVIL' : null,
