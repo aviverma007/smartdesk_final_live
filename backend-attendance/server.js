@@ -130,6 +130,35 @@ app.get('/api/attendance/departments', async (req, res) => {
   }
 });
 
+// ── Does this employee code exist in the attendance system? ─────────────────
+// Used by the SmartDesk login: people who punch in/out but are missing from the
+// Excel directory must still be able to sign in. "Exists" = at least one punch
+// in the last LOGIN_LOOKBACK_DAYS days (so people who have left drop out).
+const LOGIN_LOOKBACK_DAYS = parseInt(process.env.LOGIN_LOOKBACK_DAYS || '90', 10);
+
+app.get('/api/employees/:code', async (req, res) => {
+  const code = String(req.params.code || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(code)) return res.json({ success: true, exists: false });
+  try {
+    const p = await getPool();
+    const since = new Date(Date.now() - LOGIN_LOOKBACK_DAYS * 86400000);
+    const r = await p.request()
+      .input('code', sql.NVarChar(50), code)
+      .input('since', sql.DateTime, since)
+      .query(`
+        SELECT TOP 1 CONVERT(VARCHAR(23), MAX(LogDate), 126) AS lastPunch
+        FROM dbo.vw_DeviceLogs_All
+        WHERE LogDate >= @since
+          AND LTRIM(RTRIM(CAST(UserId AS NVARCHAR(50)))) = @code
+        HAVING COUNT(*) > 0
+      `);
+    const row = r.recordset[0];
+    res.json({ success: true, exists: !!row, lastPunch: row ? row.lastPunch : null, lookbackDays: LOGIN_LOOKBACK_DAYS });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 5092;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ SmartDesk Attendance API`);

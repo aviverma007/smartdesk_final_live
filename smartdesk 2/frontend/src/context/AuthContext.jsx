@@ -21,6 +21,8 @@ const ROLE_LOGINS = {
 
 // User Rights & Assets backend (same host, port 5093)
 export const URA_API = `http://${window.location.hostname}:5093/api`;
+// Live attendance backend (same host, port 5092)
+export const ATT_API = `http://${window.location.hostname}:5092/api`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser]               = useState(null);
@@ -85,7 +87,24 @@ export const AuthProvider = ({ children }) => {
       const list = await employeeAPI.getAll();
       if (Array.isArray(list) && list.some(e => String(e.id).trim() === want)) return true;
     } catch (_) {}
+    // Fallback: the live attendance system (eTimeTrack). Covers people who punch
+    // in daily but haven't been added to the Excel directory yet.
+    if (await hasAttendanceRecord(want)) return true;
     return false;
+  };
+
+  const hasAttendanceRecord = async (id) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    try {
+      const res = await fetch(`${ATT_API}/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal });
+      const data = await res.json();
+      return !!(data.success && data.exists);
+    } catch (_) {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
   };
 
   // Employee login: only for IDs that exist in the directory, with the
@@ -94,7 +113,7 @@ export const AuthProvider = ({ children }) => {
     const id = String(empId).trim();
     const pw = String(password).trim();
     const exists = await isDirectoryEmployee(id);
-    if (!exists) return { success: false, error: 'No employee with this ID exists in the directory.' };
+    if (!exists) return { success: false, error: 'No employee with this ID was found in the directory or attendance records.' };
     if (pw === makePassword(id)) {
       login({ name: `Employee ${id}`, role: 'employee', empId: id, loginTime: new Date().toISOString() });
       return { success: true };
