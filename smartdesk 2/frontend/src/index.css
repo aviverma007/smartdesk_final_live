@@ -51,6 +51,34 @@
 
   /* Overlay on background */
   --bg-overlay:       rgba(232,243,253,0.55);
+
+  /* Aliases used by components (were undefined) */
+  --accent-purple:    #6d28d9;
+  --accent-pink:      #db2777;
+  --bg-surface:       var(--bg-card);
+
+  /* Status colours — readable on white (≥4.5:1) */
+  --success:          #15803d;
+  --warning:          #b45309;
+  --danger:           #dc2626;
+  --info:             #1d4ed8;
+  --success-bg:       #ecfdf3;
+  --warning-bg:       #fffbeb;
+  --danger-bg:        #fef2f2;
+  --info-bg:          #eff6ff;
+
+  /* Chart palette — brand blue first, then distinct hues */
+  --chart-1:          #105da9;
+  --chart-2:          #0d9488;
+  --chart-3:          #d97706;
+  --chart-4:          #7c3aed;
+  --chart-5:          #db2777;
+  --chart-grid:       rgba(16,93,169,0.10);
+  --chart-track:      #e4eef8;
+  --chart-label:      #4a6fa5;
+
+  --footer-bg:        rgba(255,255,255,0.85);
+  --cyan:             #0369a1;
 }
 
 [data-theme="dark"] {
@@ -70,7 +98,7 @@
   --accent-teal:      #2dd4bf;
   --text-primary:     #f0f8ff;
   --text-secondary:   #a8cce8;
-  --text-muted:       #4a7aaa;
+  --text-muted:       #7b9ec4;
   --shadow-sm:        0 1px 4px rgba(0,0,0,0.3);
   --shadow-card:      0 4px 20px rgba(0,0,0,0.45);
   --shadow-hover:     0 8px 32px rgba(26,127,212,0.25);
@@ -81,6 +109,31 @@
   --topbar-bg:        rgba(6,17,31,0.97);
   --sidebar-bg:       rgba(6,17,31,0.97);
   --bg-overlay:       rgba(6,17,31,0.72);
+
+  --accent-purple:    #a78bfa;
+  --accent-pink:      #f472b6;
+  --bg-surface:       var(--bg-card);
+
+  --success:          #4ade80;
+  --warning:          #fbbf24;
+  --danger:           #f87171;
+  --info:             #60a5fa;
+  --success-bg:       rgba(74,222,128,0.10);
+  --warning-bg:       rgba(251,191,36,0.10);
+  --danger-bg:        rgba(248,113,113,0.10);
+  --info-bg:          rgba(96,165,250,0.10);
+
+  --chart-1:          #3b9cf0;
+  --chart-2:          #2dd4bf;
+  --chart-3:          #fbbf24;
+  --chart-4:          #a78bfa;
+  --chart-5:          #f472b6;
+  --chart-grid:       rgba(120,170,230,0.12);
+  --chart-track:      rgba(120,170,230,0.12);
+  --chart-label:      #7b9ec4;
+
+  --footer-bg:        rgba(6,17,31,0.85);
+  --cyan:             #22d3ee;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -167,6 +220,8 @@ body::after {
 }
 .home-card, .home-card * { color: var(--text-primary) !important; font-weight: 600 !important; }
 [data-theme="light"] .home-card * { color: #0a1628 !important; }
+/* Text drawn on top of photos stays white in both themes */
+.home-card .on-image, .home-card .on-image * { color: #fff !important; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
 
 /* ══════════════════════════════════════════════════════════════════
    QUICK LINK CARDS
@@ -180,6 +235,8 @@ body::after {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   transition: all .22s;
+  height: 100%;
+  cursor: pointer;
 }
 .ql-card:hover {
   border-color: var(--accent);

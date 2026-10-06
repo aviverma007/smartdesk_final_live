@@ -142,18 +142,19 @@ const HeroCard = ({ item }) => {
           }}>{item.stat}</div>
           <div style={{
             fontFamily:'DM Sans, sans-serif', fontSize:'0.72rem',
-            color: item.delta.startsWith('+') ? '#4ade80' : '#f87171',
-            marginTop: 4, display:'flex', alignItems:'center', gap:3,
+            color:'rgba(255,255,255,0.85)',
+            marginTop: 6, display:'flex', alignItems:'center', gap:6,
           }}>
-            <span>{item.delta}</span>
-            <span style={{color:'rgba(255,255,255,0.4)'}}>vs last month</span>
+            <span style={{ background:'rgba(255,255,255,0.18)', color:'#fff', fontWeight:700, padding:'1px 7px', borderRadius:20 }}>{item.delta.startsWith('-') ? '▼' : '▲'} {item.delta.replace(/^[+-]/,'')}</span>
+            <span>vs last month</span>
           </div>
         </div>
         <div style={{
           display:'flex', alignItems:'center', gap:6,
           fontFamily:'Plus Jakarta Sans, sans-serif', fontSize:'0.72rem', fontWeight:600,
-          color: item.textColor,
-          opacity: hov ? 1 : 0.7, transition:'opacity 0.3s',
+          color:'#fff', background:'rgba(255,255,255,0.16)', border:'1px solid rgba(255,255,255,0.28)',
+          padding:'5px 11px', borderRadius:20, position:'relative', zIndex:1,
+          opacity: hov ? 1 : 0.85, transition:'opacity 0.3s',
         }}>
           Open Report <ArrowUpRight size={13} />
         </div>
@@ -212,7 +213,7 @@ const CompactCard = ({ item }) => {
           fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:700,
           fontSize:'0.88rem', color:'#fff', lineHeight:1.2,
         }}>{item.title}</div>
-        <ArrowUpRight size={14} color={item.textColor} style={{ opacity: hov ? 1 : 0.5, transition:'opacity 0.3s', flexShrink:0, marginLeft:4 }} />
+        <ArrowUpRight size={14} color="#fff" style={{ opacity: hov ? 1 : 0.6, transition:'opacity 0.3s', flexShrink:0, marginLeft:4 }} />
       </div>
 
       <div style={{ position:'relative' }}>
@@ -223,9 +224,8 @@ const CompactCard = ({ item }) => {
         }}>{item.stat}</div>
         <div style={{
           fontFamily:'DM Sans, sans-serif', fontSize:'0.68rem',
-          color: item.delta.startsWith('+') ? '#4ade80' : '#f87171',
-          marginTop:3,
-        }}>{item.delta} <span style={{color:'rgba(255,255,255,0.35)'}}>· {item.subtitle}</span></div>
+          color:'rgba(255,255,255,0.8)', marginTop:6, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap',
+        }}>{item.delta && <span style={{ background:'rgba(255,255,255,0.18)', color:'#fff', fontWeight:700, padding:'1px 7px', borderRadius:20 }}>{item.delta.startsWith('-') ? '▼' : '▲'} {item.delta.replace(/^[+-]/,'')}</span>}<span>{item.subtitle}</span></div>
       </div>
     </div>
   );
@@ -252,7 +252,7 @@ const Dashboard = () => {
           <p style={{
             fontFamily:'Plus Jakarta Sans, sans-serif', fontSize:'0.68rem',
             fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase',
-            color:'var(--accent-purple)', marginBottom:5,
+            color:'var(--accent)', marginBottom:5,
           }}>Power BI Analytics</p>
           <h2 style={{
             fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:800,
@@ -287,10 +287,9 @@ const Dashboard = () => {
         {heroItems.map((_, i) => (
           <button key={i} onClick={() => setFeatured(i)} style={{
             width: i === featured ? 20 : 7, height: 7, borderRadius: 4,
-            background: i === featured ? 'var(--accent-purple)' : 'rgba(255,255,255,0.15)',
+            background: i === featured ? 'var(--accent)' : 'var(--chart-track)',
             border: 'none', cursor:'pointer', padding:0,
             transition: 'width 0.4s, background 0.4s',
-            boxShadow: i === featured ? '0 0 8px rgba(139,92,246,0.6)' : 'none',
           }} />
         ))}
       </div>
@@ -298,8 +297,8 @@ const Dashboard = () => {
       {/* GRID — remaining cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
-        gap: 12,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 14,
       }}>
         {gridItems.map(item => <CompactCard key={item.id} item={item} />)}
       </div>
@@ -307,8 +306,8 @@ const Dashboard = () => {
       {/* Bottom CTA strip */}
       <div style={{
         marginTop: 20,
-        background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(244,114,182,0.08) 100%)',
-        border: '1px solid rgba(139,92,246,0.25)',
+        background: 'color-mix(in srgb, var(--accent) 7%, var(--bg-card))',
+        border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', gap: 16, flexWrap: 'wrap',
         borderRadius: 12, padding: '14px 20px',
         display: 'flex', justifyContent:'space-between', alignItems:'center',
       }}>
@@ -325,9 +324,9 @@ const Dashboard = () => {
         <button style={{
           fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:600,
           fontSize:'0.78rem', color:'white', padding:'9px 18px',
-          background:'linear-gradient(135deg,#7c3aed,#f472b6)',
+          background:'linear-gradient(135deg,#105da9,#1a7fd4)',
           border:'none', borderRadius:9, cursor:'pointer',
-          boxShadow:'0 4px 16px rgba(124,58,237,0.45)',
+          boxShadow:'var(--shadow-active)',
           display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap',
           transition:'opacity 0.2s',
         }}

@@ -16,10 +16,10 @@ const MyProfile = () => {
       {/* Avatar + name */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '24px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 20 }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,rgba(124,58,237,0.4),rgba(244,114,182,0.3))', border: '2px solid rgba(139,92,246,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, color: 'var(--accent-purple)' }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,color-mix(in srgb, var(--accent) 40%, transparent),color-mix(in srgb, var(--accent-light) 30%, transparent))', border: '2px solid color-mix(in srgb, var(--accent) 40%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, color: 'var(--accent)' }}>
             {form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
           </div>
-          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid var(--bg-card)' }}>
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid var(--bg-card)' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           </div>
         </div>
@@ -31,7 +31,7 @@ const MyProfile = () => {
             <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '.72rem', color: 'var(--accent-green)' }}>Active</span>
           </div>
         </div>
-        <button onClick={() => setEditing(e => !e)} style={{ marginLeft: 'auto', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '7px 16px', color: 'var(--accent-purple)', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '.8rem', cursor: 'pointer' }}>
+        <button onClick={() => setEditing(e => !e)} style={{ marginLeft: 'auto', background: 'color-mix(in srgb, var(--accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', borderRadius: 8, padding: '7px 16px', color: 'var(--accent)', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '.8rem', cursor: 'pointer' }}>
           {editing ? 'Cancel' : 'Edit Profile'}
         </button>
       </div>
@@ -55,7 +55,7 @@ const MyProfile = () => {
           ))}
         </div>
         {editing && (
-          <button onClick={() => setEditing(false)} style={{ marginTop: 20, background: 'linear-gradient(135deg,rgba(124,58,237,0.8),rgba(109,40,217,0.7))', border: 'none', borderRadius: 8, padding: '10px 24px', color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '.85rem', cursor: 'pointer' }}>
+          <button onClick={() => setEditing(false)} style={{ marginTop: 20, background: 'linear-gradient(135deg,color-mix(in srgb, var(--accent) 80%, transparent),color-mix(in srgb, var(--accent-light) 70%, transparent))', border: 'none', borderRadius: 8, padding: '10px 24px', color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '.85rem', cursor: 'pointer' }}>
             Save Changes
           </button>
         )}

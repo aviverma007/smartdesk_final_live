@@ -92,7 +92,7 @@ function getAIResponse(q) {
 /* ── Notification Panel ─────────────────────────────────────────────────── */
 const NotifPanel = ({ onClose }) => {
   const notifs = [
-    { icon:"🚀", title:"New Update Coming", body:"SmartDesk v3.0 with advanced analytics is in development.", time:"Just now", dot:"#9b6dff" },
+    { icon:"🚀", title:"New Update Coming", body:"SmartDesk v3.0 with advanced analytics is in development.", time:"Just now", dot:"#105da9" },
     { icon:"📢", title:"Upcoming Feature", body:"AI-powered org chart builder will be available soon.", time:"2h ago", dot:"#f472b6" },
     { icon:"🔔", title:"Upcoming Feature", body:"Mobile app for SmartDesk is under development.", time:"Yesterday", dot:"#60a5fa" },
     { icon:"📅", title:"Upcoming Feature", body:"Automated leave management integration with Adrenaline.", time:"2 days ago", dot:"#4ade80" },
@@ -107,7 +107,7 @@ const NotifPanel = ({ onClose }) => {
       <div style={{ maxHeight:360, overflowY:"auto" }}>
         {notifs.map((n,i) => (
           <div key={i} style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", display:"flex", gap:12, alignItems:"flex-start", cursor:"pointer", transition:"background .15s" }}
-            onMouseEnter={e=>e.currentTarget.style.background="rgba(139,92,246,0.06)"}
+            onMouseEnter={e=>e.currentTarget.style.background="color-mix(in srgb, var(--accent) 6%, transparent)"}
             onMouseLeave={e=>e.currentTarget.style.background="transparent"}
           >
             <div style={{ width:36, height:36, borderRadius:10, background:"var(--bg-elevated)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{n.icon}</div>
@@ -123,7 +123,7 @@ const NotifPanel = ({ onClose }) => {
         ))}
       </div>
       <div style={{ padding:"10px 16px", borderTop:"1px solid var(--border)", textAlign:"center" }}>
-        <span style={{ fontSize:".75rem", color:"var(--accent-purple)", cursor:"pointer", fontFamily:"DM Sans,sans-serif" }}>View all notifications</span>
+        <span style={{ fontSize:".75rem", color:"var(--accent)", cursor:"pointer", fontFamily:"DM Sans,sans-serif" }}>View all notifications</span>
       </div>
     </div>
   );
@@ -184,7 +184,7 @@ const AIChatPanel = ({ onClose }) => {
         {loading && (
           <div style={{ display:"flex" }}>
             <div className="ai-msg bot" style={{ display:"flex", gap:4, alignItems:"center" }}>
-              {[0,1,2].map(i=><div key={i} style={{ width:6,height:6,borderRadius:"50%",background:"var(--accent-purple)",opacity:.6,animation:`dotPulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>)}
+              {[0,1,2].map(i=><div key={i} style={{ width:6,height:6,borderRadius:"50%",background:"var(--accent)",opacity:.6,animation:`dotPulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>)}
             </div>
           </div>
         )}
@@ -216,7 +216,7 @@ const AIChatPanel = ({ onClose }) => {
           onFocus={e=>e.target.style.borderColor="var(--border-hover)"}
           onBlur={e=>e.target.style.borderColor="var(--border)"}
         />
-        <button onClick={send} style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#105da9,#1a7fd4)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"white", flexShrink:0, boxShadow:"0 2px 10px rgba(124,58,237,0.4)", transition:"opacity .15s" }}
+        <button onClick={send} style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#105da9,#1a7fd4)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"white", flexShrink:0, boxShadow:"0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent)", transition:"opacity .15s" }}
           onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}
         ><IcoSend/></button>
       </div>
@@ -464,7 +464,7 @@ const QuickTicker = () => {
         {doubled.map((item,i) => (
           <span key={i} style={{ fontFamily:"DM Sans,sans-serif", fontSize:".78rem", color:"var(--text-secondary)", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10 }}>
             {item}
-            <span style={{ opacity:.3, color:"var(--accent-purple)" }}>◆</span>
+            <span style={{ opacity:.3, color:"var(--accent)" }}>◆</span>
           </span>
         ))}
       </div>

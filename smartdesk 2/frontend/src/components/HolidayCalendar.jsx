@@ -19,9 +19,9 @@ const HOLIDAYS = [
 ];
 
 const TYPE_COLORS = {
-  National: { bg:"rgba(0,212,255,0.16)", border:"rgba(0,212,255,0.55)", color:"#00d4ff" },
-  Religious: { bg:"rgba(123,47,255,0.18)", border:"rgba(123,47,255,0.55)", color:"#9b6dff" },
-  "Weekend Holiday": { bg:"rgba(255,107,0,0.18)", border:"rgba(255,107,0,0.55)", color:"#ff7a18" },
+  National: { bg:"rgba(0,212,255,0.16)", border:"rgba(0,212,255,0.55)", color:"var(--cyan)" },
+  Religious: { bg:"rgba(123,47,255,0.18)", border:"rgba(123,47,255,0.55)", color:"var(--accent-purple)" },
+  "Weekend Holiday": { bg:"rgba(255,107,0,0.18)", border:"rgba(255,107,0,0.55)", color:"var(--warning)" },
 };
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -96,7 +96,7 @@ const HolidayCalendar = () => {
       left:0,
       right:0,
       height:1,
-      background:"linear-gradient(90deg,transparent,#00d4ff,transparent)",
+      background:"linear-gradient(90deg,transparent,var(--cyan),transparent)",
       opacity:.7
     }
   };
@@ -129,7 +129,7 @@ const HolidayCalendar = () => {
               gap:8,
               background:"rgba(0,212,255,.12)",
               border:"1px solid rgba(0,212,255,.38)",
-              color:"#00d4ff",
+              color:"var(--cyan)",
               borderRadius:10,
               padding:"8px 12px",
               cursor:"pointer",
@@ -162,7 +162,7 @@ const HolidayCalendar = () => {
               <ChevronLeft size={18} />
             </button>
 
-            <div style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:".9rem", color:"#00d4ff", letterSpacing:".14em" }}>
+            <div style={{ fontFamily:"'Orbitron', monospace", fontWeight:800, fontSize:".9rem", color:"var(--cyan)", letterSpacing:".14em" }}>
               {MONTHS[month].toUpperCase()} {year}
             </div>
 
@@ -179,7 +179,7 @@ const HolidayCalendar = () => {
                   fontFamily:"'Orbitron', monospace",
                   fontSize:".58rem",
                   letterSpacing:".1em",
-                  color:"rgba(0,212,255,0.75)",
+                  color:"var(--cyan)",
                   padding:"6px 0",
                   fontWeight:800
                 }}>
@@ -241,7 +241,7 @@ const HolidayCalendar = () => {
                         top:8,
                         right:8,
                         fontSize:".48rem",
-                        color:"#00d4ff",
+                        color:"var(--cyan)",
                         fontWeight:900,
                         letterSpacing:".08em"
                       }}>
@@ -285,7 +285,7 @@ const HolidayCalendar = () => {
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           <div style={{ ...cs.card, padding:"16px 18px", minHeight:145 }}>
             <div style={cs.topLine} />
-            <div style={{ fontFamily:"'Orbitron', monospace", fontSize:".65rem", letterSpacing:".15em", color:"rgba(0,212,255,0.75)", marginBottom:10 }}>
+            <div style={{ fontFamily:"'Orbitron', monospace", fontSize:".65rem", letterSpacing:".15em", color:"var(--cyan)", marginBottom:10 }}>
               {selectedDay ? `${MONTHS[month].toUpperCase()} ${selectedDay}, ${year}` : "SELECT A DATE"}
             </div>
 
@@ -334,7 +334,7 @@ const HolidayCalendar = () => {
 
             <div style={{ padding:"12px 16px", maxHeight:230, overflowY:"auto" }}>
               {monthHolidays.length === 0 ? (
-                <div style={{ textAlign:"center", padding:"30px 0", fontFamily:"'Share Tech Mono', monospace", fontSize:".7rem", color:"rgba(0,212,255,0.42)", letterSpacing:".12em" }}>
+                <div style={{ textAlign:"center", padding:"30px 0", fontFamily:"'Share Tech Mono', monospace", fontSize:".7rem", color:"var(--text-muted)", letterSpacing:".12em" }}>
                   NO ENTRIES
                 </div>
               ) : monthHolidays.map(h => {
@@ -374,7 +374,7 @@ const HolidayCalendar = () => {
           <div style={{ ...cs.card }}>
             <div style={cs.topLine} />
             <div style={{ padding:"12px 16px", borderBottom:"1px solid rgba(0,212,255,0.1)" }}>
-              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:".65rem", fontWeight:800, color:"rgba(0,212,255,0.85)", letterSpacing:".1em" }}>
+              <div style={{ fontFamily:"'Orbitron', monospace", fontSize:".65rem", fontWeight:800, color:"var(--cyan)", letterSpacing:".1em" }}>
                 ALL {HOLIDAYS.length} HOLIDAYS 2026
               </div>
             </div>
@@ -404,7 +404,7 @@ const HolidayCalendar = () => {
 const navBtn = {
   background:"rgba(0,212,255,.10)",
   border:"1px solid rgba(0,212,255,.35)",
-  color:"#00d4ff",
+  color:"var(--cyan)",
   cursor:"pointer",
   width:36,
   height:36,

@@ -10,17 +10,17 @@ import EmployeeList from "./EmployeeList";
 /* ── Stable SearchInput (defined outside to prevent re-mount on re-render) ── */
 const SearchInput = ({ value, onChange, placeholder }) => (
   <div style={{ position:'relative' }}>
-    <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'rgba(139,92,246,0.5)', pointerEvents:'none' }} />
+    <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'color-mix(in srgb, var(--accent) 50%, transparent)', pointerEvents:'none' }} />
     <input
-      style={{ width:'100%', background:'rgba(139,92,246,0.06)', border:'1px solid rgba(139,92,246,0.2)', borderRadius:7, padding:'8px 32px 8px 32px', color:'var(--text-primary)', fontFamily:"'DM Sans', sans-serif", fontSize:'.82rem', outline:'none', transition:'border-color .2s' }}
+      style={{ width:'100%', background:'color-mix(in srgb, var(--accent) 6%, transparent)', border:'1px solid color-mix(in srgb, var(--accent) 20%, transparent)', borderRadius:7, padding:'8px 32px 8px 32px', color:'var(--text-primary)', fontFamily:"'DM Sans', sans-serif", fontSize:'.82rem', outline:'none', transition:'border-color .2s' }}
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      onFocus={e => e.target.style.borderColor='rgba(139,92,246,0.5)'}
-      onBlur={e => e.target.style.borderColor='rgba(139,92,246,0.2)'}
+      onFocus={e => e.target.style.borderColor='color-mix(in srgb, var(--accent) 50%, transparent)'}
+      onBlur={e => e.target.style.borderColor='color-mix(in srgb, var(--accent) 20%, transparent)'}
     />
     {value && (
-      <button style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'rgba(139,92,246,0.6)', cursor:'pointer', padding:2 }} onClick={() => onChange("")}>
+      <button style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'color-mix(in srgb, var(--accent) 60%, transparent)', cursor:'pointer', padding:2 }} onClick={() => onChange("")}>
         <X size={12} />
       </button>
     )}
@@ -30,44 +30,44 @@ const SearchInput = ({ value, onChange, placeholder }) => (
 const S = {
   container: { padding: '0 0 24px' },
   searchCard: {
-    background: 'rgba(6,20,45,0.85)', border: '1px solid rgba(0,212,255,0.2)',
+    background: 'var(--bg-card)', border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)',
     borderRadius: 8, padding: '14px 16px', marginBottom: 14,
     backdropFilter: 'blur(12px)', position: 'relative', overflow: 'hidden',
   },
   searchCardTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-    background: 'linear-gradient(90deg,transparent,#00d4ff,transparent)', opacity: .5,
+    background: 'linear-gradient(90deg,transparent,var(--accent),transparent)', opacity: .5,
   },
   inputWrap: { position: 'relative' },
   input: {
-    width: '100%', background: 'rgba(0,20,40,0.8)',
-    border: '1px solid rgba(0,212,255,0.2)', borderRadius: 5,
-    padding: '8px 34px 8px 34px', color: '#e0f4ff',
-    fontFamily: "'Exo 2', sans-serif", fontSize: '.8rem', outline: 'none',
+    width: '100%', background: 'var(--bg-elevated)',
+    border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)', borderRadius: 5,
+    padding: '8px 34px 8px 34px', color: 'var(--text-primary)',
+    fontFamily: "'DM Sans', sans-serif", fontSize: '.8rem', outline: 'none',
     transition: 'border-color .2s',
   },
-  searchIcon: { position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,212,255,0.4)', pointerEvents: 'none' },
+  searchIcon: { position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color:'var(--text-muted)', pointerEvents: 'none' },
   clearBtn: {
     position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-    background: 'none', border: 'none', color: 'rgba(0,212,255,0.5)', cursor: 'pointer', padding: 2,
+    background: 'none', border: 'none', color:'var(--text-muted)', cursor: 'pointer', padding: 2,
   },
   viewBtn: (active) => ({
-    background: active ? 'rgba(0,212,255,0.15)' : 'rgba(6,20,45,0.8)',
-    border: `1px solid ${active ? 'rgba(0,212,255,0.5)' : 'rgba(0,212,255,0.15)'}`,
-    color: active ? '#00d4ff' : 'rgba(122,184,212,0.6)',
+    background: active ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--bg-elevated)',
+    border: `1px solid ${active ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'color-mix(in srgb, var(--accent) 15%, transparent)'}`,
+    color: active ? 'var(--accent)' : 'var(--text-muted)',
     borderRadius: 5, padding: '6px 10px', cursor: 'pointer', transition: 'all .2s',
     display: 'flex', alignItems: 'center', gap: 4,
   }),
   clearAllBtn: {
-    background: 'rgba(255,107,0,0.1)', border: '1px solid rgba(255,107,0,0.3)',
-    color: '#ff6b00', borderRadius: 5, padding: '6px 12px', cursor: 'pointer',
-    fontFamily: "'Orbitron', monospace", fontSize: '.6rem', letterSpacing: '.1em',
+    background: 'color-mix(in srgb, var(--warning) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
+    color: 'var(--warning)', borderRadius: 5, padding: '6px 12px', cursor: 'pointer',
+    fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '.6rem', letterSpacing: '.1em',
     transition: 'all .2s',
   },
   countBadge: {
     fontFamily: "'Share Tech Mono', monospace", fontSize: '.6rem',
-    color: '#00d4ff', background: 'rgba(0,212,255,0.1)',
-    border: '1px solid rgba(0,212,255,0.25)', borderRadius: 4,
+    color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 4,
     padding: '3px 8px', letterSpacing: '.1em',
   },
   loadingWrap: {
@@ -75,8 +75,8 @@ const S = {
     padding: '60px 0', flexDirection: 'column', gap: 16,
   },
   spinner: {
-    width: 36, height: 36, border: '2px solid rgba(0,212,255,0.1)',
-    borderTop: '2px solid #00d4ff', borderRadius: '50%',
+    width: 36, height: 36, border: '2px solid color-mix(in srgb, var(--accent) 10%, transparent)',
+    borderTop: '2px solid var(--accent)', borderRadius: '50%',
     animation: 'spin .8s linear infinite',
   },
 };
@@ -194,7 +194,7 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, 
     <div style={S.loadingWrap}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={S.spinner} />
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', color: 'rgba(0,212,255,0.5)', letterSpacing: '.15em' }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', color:'var(--text-muted)', letterSpacing: '.15em' }}>
         LOADING PERSONNEL DATABASE...
       </div>
     </div>
@@ -227,14 +227,14 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, 
           <SearchInput value={locationSearch} onChange={setLocationSearch} placeholder="Location..." />
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-          <button onClick={() => setViewMode('grid')} style={{ display:'flex', alignItems:'center', gap:4, background:viewMode==='grid'?'rgba(139,92,246,0.15)':'transparent', border:`1px solid ${viewMode==='grid'?'rgba(139,92,246,0.5)':'var(--border)'}`, color:viewMode==='grid'?'var(--accent-purple)':'var(--text-muted)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:'.75rem', fontFamily:"'DM Sans', sans-serif", transition:'all .2s' }}>
+          <button onClick={() => setViewMode('grid')} style={{ display:'flex', alignItems:'center', gap:4, background:viewMode==='grid'?'color-mix(in srgb, var(--accent) 15%, transparent)':'transparent', border:`1px solid ${viewMode==='grid'?'color-mix(in srgb, var(--accent) 50%, transparent)':'var(--border)'}`, color:viewMode==='grid'?'var(--accent)':'var(--text-muted)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:'.75rem', fontFamily:"'DM Sans', sans-serif", transition:'all .2s' }}>
             <Grid3X3 size={13}/> Grid
           </button>
-          <button onClick={() => setViewMode('list')} style={{ display:'flex', alignItems:'center', gap:4, background:viewMode==='list'?'rgba(139,92,246,0.15)':'transparent', border:`1px solid ${viewMode==='list'?'rgba(139,92,246,0.5)':'var(--border)'}`, color:viewMode==='list'?'var(--accent-purple)':'var(--text-muted)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:'.75rem', fontFamily:"'DM Sans', sans-serif", transition:'all .2s' }}>
+          <button onClick={() => setViewMode('list')} style={{ display:'flex', alignItems:'center', gap:4, background:viewMode==='list'?'color-mix(in srgb, var(--accent) 15%, transparent)':'transparent', border:`1px solid ${viewMode==='list'?'color-mix(in srgb, var(--accent) 50%, transparent)':'var(--border)'}`, color:viewMode==='list'?'var(--accent)':'var(--text-muted)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:'.75rem', fontFamily:"'DM Sans', sans-serif", transition:'all .2s' }}>
             <List size={13}/> List
           </button>
           {hasSearched && (
-            <button onClick={clearAllSearches} style={{ background:'transparent', border:'1px solid rgba(244,114,182,0.3)', color:'var(--accent-pink)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontFamily:"'DM Sans', sans-serif", fontSize:'.75rem', transition:'all .2s' }}>
+            <button onClick={clearAllSearches} style={{ background:'transparent', border:'1px solid color-mix(in srgb, var(--danger) 35%, transparent)', color:'var(--danger)', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontFamily:"'DM Sans', sans-serif", fontSize:'.75rem', transition:'all .2s' }}>
               ✕ Clear all
             </button>
           )}
@@ -250,7 +250,7 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, 
       {!hasSearched && (
         <div style={{ textAlign:'center', padding:'80px 0' }}>
           <div style={{ fontSize:48, marginBottom:16, opacity:.25 }}>
-            <Search size={48} style={{ margin:'0 auto', color:'var(--accent-purple)' }}/>
+            <Search size={48} style={{ margin:'0 auto', color:'var(--accent)' }}/>
           </div>
           <div style={{ fontFamily:"'Plus Jakarta Sans', sans-serif", fontWeight:600, fontSize:'1rem', color:'var(--text-secondary)', marginBottom:8 }}>
             Search the employee directory

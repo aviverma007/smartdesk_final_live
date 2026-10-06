@@ -91,6 +91,8 @@ const CyberCard = ({ children, style = {}, color = "#00d4ff", hover = true }) =>
   );
 };
 
+const JOINEE_ROW = 50, JOINEE_GAP = 6, JOINEE_STEP = JOINEE_ROW + JOINEE_GAP;
+
 const Home = () => {
   const { isAdmin } = useAuth();
   const [bannerIdx, setBannerIdx] = useState(0);
@@ -398,7 +400,7 @@ const Home = () => {
                     <div key={j}
                       onClick={() => { window.open(p.url, "_blank"); setShowProjects(false); }}
                       style={{ padding:"8px 14px", fontFamily:"'DM Sans',sans-serif", fontSize:".75rem", color:"var(--text-secondary)", borderBottom:"1px solid var(--border)", transition:"background .15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background="rgba(139,92,246,0.08)"}
+                      onMouseEnter={e => e.currentTarget.style.background="var(--bg-hover)"}
                       onMouseLeave={e => e.currentTarget.style.background="transparent"}
                     >{p.name}</div>
                   ))}
@@ -427,8 +429,8 @@ const Home = () => {
                 background: "linear-gradient(180deg, rgba(2,8,22,0.5) 0%, rgba(2,8,22,0.2) 50%, rgba(2,8,22,0.7) 100%)"
               }}
             />
-            <div style={{ position: "absolute", top: 10, left: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              <Image size={13} style={{ color: "#00d4ff" }} />
+            <div className="on-image" style={{ position: "absolute", top: 10, left: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <Image size={13} style={{ color: "#fff" }} />
               <span
                 style={{
                   fontFamily: "'Orbitron', monospace",
@@ -458,7 +460,7 @@ const Home = () => {
                     width: i === galleryIdx ? 16 : 5,
                     height: 5,
                     borderRadius: 3,
-                    background: i === galleryIdx ? "#00d4ff" : "rgba(255,255,255,0.3)",
+                    background: i === galleryIdx ? "#fff" : "rgba(255,255,255,0.4)",
                     cursor: "pointer",
                     transition: "all .3s"
                   }}
@@ -468,11 +470,11 @@ const Home = () => {
           </div>
         </CyberCard>
 
-        <CyberCard color="#7b2fff">
+        <CyberCard color="#105da9">
           <div style={{ padding: "12px 14px", height: 240, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Users size={13} style={{ color: "#7b2fff" }} />
+                <Users size={13} style={{ color: "var(--accent)" }} />
                 <span
                   style={{
                     fontFamily: "'Orbitron', monospace",
@@ -489,7 +491,7 @@ const Home = () => {
                 style={{
                   fontFamily: "'Share Tech Mono', monospace",
                   fontSize: ".55rem",
-                  color: "#7b2fff",
+                  color: "var(--accent)",
                   letterSpacing: ".05em"
                 }}
               >
@@ -499,22 +501,24 @@ const Home = () => {
 
             <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
               {employees.length > 0 ? (
-                <div style={{ transform: `translateY(-${joineeIdx * 46}px)`, transition: "transform 1s ease" }}>
+                <div style={{ transform: `translateY(-${joineeIdx * JOINEE_STEP}px)`, transition: "transform 1s ease" }}>
                   {[...employees, ...employees.slice(0, 5)].map((emp, i) => (
                     <div
                       key={`${emp.id}-${i}`}
                       onClick={() => setSelectedEmployee(emp)}
                       style={{
-                        background: "rgba(123,47,255,0.1)",
-                        border: "1px solid rgba(123,47,255,0.25)",
-                        borderRadius: 5,
-                        padding: "7px 10px",
-                        marginBottom: 6,
+                        background: "color-mix(in srgb, var(--accent) 6%, var(--bg-card))",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        padding: "0 12px",
+                        height: JOINEE_ROW,
+                        display: "flex", flexDirection: "column", justifyContent: "center",
+                        marginBottom: JOINEE_GAP,
                         cursor: "pointer",
                         transition: "border-color .2s"
                       }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(123,47,255,0.5)"}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(123,47,255,0.25)"}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "var(--accent)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span
@@ -553,7 +557,7 @@ const Home = () => {
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 8 }}>
-                  <Users size={24} style={{ color: "rgba(123,47,255,0.4)" }} />
+                  <Users size={24} style={{ color: "var(--text-muted)" }} />
                   <span
                     style={{
                       fontFamily: "'Share Tech Mono', monospace",
@@ -756,10 +760,10 @@ const Home = () => {
           </div>
         </CyberCard>
 
-        <CyberCard color="#7b2fff">
+        <CyberCard color="#105da9">
           <div style={{ padding: "14px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Workflow size={14} style={{ color: "#7b2fff" }} />
+              <Workflow size={14} style={{ color: "var(--accent)" }} />
               <span
                 style={{
                   fontFamily: "'Orbitron', monospace",
