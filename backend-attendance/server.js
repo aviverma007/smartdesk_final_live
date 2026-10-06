@@ -159,6 +159,53 @@ app.get('/api/employees/:code', async (req, res) => {
   }
 });
 
+// ── All employee codes seen in attendance (for the directory) ───────────────
+// Returns every code with a punch in the last LOGIN_LOOKBACK_DAYS days. The
+// frontend appends the ones missing from employee_directory.xlsx.
+// Names/departments come from eTimeTrack's own Employees/Departments tables when
+// they exist; if that lookup fails (different schema), codes are returned alone.
+let empLookupMode = null; // null = untested, 'joined' | 'codes'
+app.get('/api/employees', async (req, res) => {
+  try {
+    const p = await getPool();
+    const since = new Date(Date.now() - LOGIN_LOOKBACK_DAYS * 86400000);
+    const codesSql = `
+      SELECT LTRIM(RTRIM(CAST(UserId AS NVARCHAR(50)))) AS code,
+             CONVERT(VARCHAR(23), MAX(LogDate), 126)       AS lastPunch
+      FROM dbo.vw_DeviceLogs_All
+      WHERE LogDate >= @since AND UserId IS NOT NULL
+      GROUP BY LTRIM(RTRIM(CAST(UserId AS NVARCHAR(50))))`;
+    const joinedSql = `
+      WITH c AS (${codesSql})
+      SELECT c.code, c.lastPunch,
+             LTRIM(RTRIM(e.EmployeeName))    AS name,
+             LTRIM(RTRIM(d.DepartmentFName)) AS department
+      FROM c
+      OUTER APPLY (SELECT TOP 1 EmployeeName, DepartmentId FROM dbo.Employees
+                   WHERE LTRIM(RTRIM(CAST(EmployeeCode AS NVARCHAR(50)))) = c.code) e
+      LEFT JOIN dbo.Departments d ON d.DepartmentId = e.DepartmentId`;
+
+    let rows;
+    if (empLookupMode !== 'codes') {
+      try {
+        rows = (await p.request().input('since', sql.DateTime, since).query(joinedSql)).recordset;
+        empLookupMode = 'joined';
+      } catch (e) {
+        console.warn(`   ! Employees/Departments lookup unavailable (${e.message}) — returning codes only`);
+        empLookupMode = 'codes';
+      }
+    }
+    if (!rows) rows = (await p.request().input('since', sql.DateTime, since).query(codesSql)).recordset;
+
+    const employees = rows
+      .filter(r => r.code && String(r.code).trim())
+      .map(r => ({ code: r.code, name: r.name || null, department: r.department || null, lastPunch: r.lastPunch }));
+    res.json({ success: true, count: employees.length, lookbackDays: LOGIN_LOOKBACK_DAYS, names: empLookupMode === 'joined', employees });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 5092;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ SmartDesk Attendance API`);

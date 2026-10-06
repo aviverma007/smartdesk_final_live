@@ -101,13 +101,63 @@ class DataService {
         };
       }).filter(emp => emp.name && emp.id);
 
-            this.departments = ['All Departments', ...new Set(this.employees.map(emp => emp.department).filter(dept => dept))];
+      // Add people who punch in (eTimeTrack) but are missing from the Excel list.
+      // Excel always wins; these are only appended for codes Excel doesn't have.
+      this.employees = this.employees.concat(await this.loadAttendanceOnlyEmployees(this.employees));
+
+      this.departments = ['All Departments', ...new Set(this.employees.map(emp => emp.department).filter(dept => dept))];
       this.locations = ['All Locations', ...new Set(this.employees.map(emp => emp.location).filter(loc => loc))];
 
       console.log(`Loaded ${this.employees.length} employees`);
     } catch (error) {
       console.error('Error loading employee data:', error);
       throw error;
+    }
+  }
+
+  // Codes from the live attendance backend (port 5092) that aren't in Excel.
+  // Fails soft: if the backend is down, the directory is just the Excel list.
+  async loadAttendanceOnlyEmployees(excelEmployees) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(`http://${window.location.hostname}:5092/api/employees`, { signal: ctrl.signal });
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.employees)) return [];
+      const known = new Set(excelEmployees.map(e => String(e.id).trim()));
+      const added = data.employees
+        .filter(a => a.code && !known.has(String(a.code).trim()))
+        .map(a => {
+          const code = String(a.code).trim();
+          const name = (a.name && String(a.name).trim()) || `Employee ${code}`;
+          const initials = a.name
+            ? String(a.name).split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+            : code.slice(-2);
+          return {
+            id: code,
+            name,
+            department: (a.department && String(a.department).trim()) || '',
+            grade: '',
+            designation: '',
+            reportingManager: '',
+            reportingId: null,
+            location: '',
+            mobile: '',
+            extension: '',
+            email: '',
+            dateOfJoining: '',
+            profileImage: '/api/placeholder/150/150',
+            initials,
+            status: 'active',
+            source: 'attendance',
+          };
+        });
+      if (added.length) console.log(`Added ${added.length} employees from attendance records (not in Excel)`);
+      return added;
+    } catch (_) {
+      return [];
+    } finally {
+      clearTimeout(timer);
     }
   }
 
