@@ -32,6 +32,18 @@ const fmtHours = mins => {
 };
 const pct = (a,b) => b ? Math.round((a/b)*100) : 0;
 
+// Map-pin icon + small location label shown under punch times
+const PinIcon = ({ size = 11 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+  </svg>
+);
+const LocationTag = ({ site }) => site ? (
+  <div title={site} style={{ display:'flex', alignItems:'center', gap:4, marginTop:3, fontFamily:"'DM Sans',sans-serif", fontSize:'.68rem', fontWeight:600, color:'var(--text-muted)', whiteSpace:'nowrap', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis' }}>
+    <PinIcon size={10}/>{site}
+  </div>
+) : null;
+
 // Theme-aware stat card. `color` is a CSS colour or var(--token); the tint is
 // mixed into the card background so it works in both light and dark mode.
 const StatCard = ({ label, value, color, sub, icon }) => (
@@ -118,6 +130,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
   const [empCodeSearch, setEmpCodeSearch] = useState('');
+  const [siteFilter, setSiteFilter] = useState('');
   const [attData, setAttData] = useState([]);
   const [summary, setSummary] = useState(null);
   const [dirEmployees, setDirEmployees] = useState([]);
@@ -198,6 +211,8 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
             outTime: e.outTime,
             workMinutes: e.workMinutes || 0,
             totalPunches: e.totalPunches || 0,
+            inLocation: e.inLocation || null,
+            outLocation: e.outLocation || null,
           });
         });
       });
@@ -246,9 +261,16 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
     const code = e.empCode.toLowerCase();
     const name = e.empName.toLowerCase();
     if (myEmpCode) return code === myEmpCode.toLowerCase();
+    if (siteFilter && e.inLocation !== siteFilter && e.outLocation !== siteFilter) return false;
     if (!empCodeSearch) return true;
     return code.includes(empCodeSearch.toLowerCase()) || name.includes(empCodeSearch.toLowerCase());
   });
+
+  // Headcount per site (by punch-in location), busiest first
+  const siteCounts = Object.entries(enriched.reduce((acc, e) => {
+    if (e.inLocation) acc[e.inLocation] = (acc[e.inLocation] || 0) + 1;
+    return acc;
+  }, {})).sort((a, b) => b[1] - a[1]);
 
   // Excel export
   const exportExcel = () => {
@@ -258,7 +280,9 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
       'Department': e.department,
       'Date': e.date || fromDate,
       'Punch In': fmtTime(e.inTime),
+      'Punch In Location': e.inLocation || '',
       'Punch Out': fmtTime(e.outTime),
+      'Punch Out Location': e.outLocation || '',
       'Total Hours': fmtHours(e.workMinutes),
       'Total Punches': e.totalPunches,
     }));
@@ -269,7 +293,7 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
     a.href = URL.createObjectURL(blob);
     const fname = isRange
       ? `attendance_${fromDate}_to_${toDate}${empCodeSearch?'_'+empCodeSearch:''}.csv`
-      : `attendance_${fromDate}${empCodeSearch?'_'+empCodeSearch:''}.csv`;
+      : `attendance_${fromDate}${empCodeSearch?'_'+empCodeSearch:''}${siteFilter?'_'+siteFilter.replace(/\s+/g,'-'):''}.csv`;
     a.download = fname;
     a.click();
   };
@@ -373,8 +397,8 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                 <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--success)', animation:'dotPulse 1.5s ease-in-out infinite' }}/>
                 <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'.78rem', color:'var(--accent)' }}>MY ATTENDANCE TODAY</span>
               </div>
-              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)' }}>Punch In: <strong style={{color:'var(--success)'}}>{fmtTime(filtered[0]?.inTime)}</strong></span>
-              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)' }}>Punch Out: <strong style={{color:'var(--info)'}}>{fmtTime(filtered[0]?.outTime)}</strong></span>
+              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)' }}>Punch In: <strong style={{color:'var(--success)'}}>{fmtTime(filtered[0]?.inTime)}</strong>{filtered[0]?.inLocation && <> · {filtered[0].inLocation}</>}</span>
+              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)' }}>Punch Out: <strong style={{color:'var(--info)'}}>{fmtTime(filtered[0]?.outTime)}</strong>{filtered[0]?.outLocation && <> · {filtered[0].outLocation}</>}</span>
               <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', color:'var(--text-secondary)' }}>Hours: <strong style={{color:'var(--chart-4)'}}>{fmtHours(filtered[0]?.workMinutes)}</strong></span>
             </div>
           )}
@@ -384,8 +408,8 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
             {myEmpCode ? (
               // Employee view — personal stats only
               <>
-                <StatCard label="My Punch In" value={filtered[0] ? fmtTime(filtered[0].inTime) : '—'} color="var(--chart-1)" sub={isRange ? `${fromDate} → ${toDate}` : fromDate} icon="🕐"/>
-                <StatCard label="My Punch Out" value={filtered[0] ? fmtTime(filtered[0].outTime) : '—'} color="var(--chart-2)" sub="Last recorded punch" icon="🕕"/>
+                <StatCard label="My Punch In" value={filtered[0] ? fmtTime(filtered[0].inTime) : '—'} color="var(--chart-1)" sub={[filtered[0]?.inLocation, isRange ? `${fromDate} → ${toDate}` : fromDate].filter(Boolean).join(' · ')} icon="🕐"/>
+                <StatCard label="My Punch Out" value={filtered[0] ? fmtTime(filtered[0].outTime) : '—'} color="var(--chart-2)" sub={filtered[0]?.outLocation ? `Last punch · ${filtered[0].outLocation}` : 'Last recorded punch'} icon="🕕"/>
                 <StatCard label="Hours Worked" value={filtered[0] ? fmtHours(filtered[0].workMinutes) : '—'} color="var(--chart-4)" sub="Total today" icon="⏱"/>
                 <StatCard label="Total Punches" value={filtered[0]?.totalPunches || '—'} color="var(--chart-3)" sub="Device logs today" icon="📍"/>
               </>
@@ -449,6 +473,33 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
               </div>
             </div>
           </div>}
+
+          {/* ── SITES — headcount by punch-in location, click to filter ── */}
+          {!myEmpCode && siteCounts.length > 0 && (
+            <div style={{ ...G.card, padding:'14px 16px', marginBottom:18 }}>
+              <div style={G.topLine('var(--chart-2)')}/>
+              <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:10, gap:12, flexWrap:'wrap' }}>
+                <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'.85rem', color:'var(--text-primary)' }}>Punch-in by Site</div>
+                <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:'.7rem', color:'var(--text-muted)' }}>{siteFilter ? <>Showing <b style={{ color:'var(--accent)' }}>{siteFilter}</b> · <span onClick={()=>setSiteFilter('')} style={{ cursor:'pointer', textDecoration:'underline' }}>show all</span></> : 'Click a site to filter the table'}</div>
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                {siteCounts.map(([site, n]) => {
+                  const on = siteFilter === site;
+                  return (
+                    <button key={site} onClick={() => setSiteFilter(on ? '' : site)}
+                      style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderRadius:20, cursor:'pointer',
+                        border:`1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                        background: on ? 'var(--accent)' : 'var(--bg-elevated)',
+                        color: on ? '#fff' : 'var(--text-secondary)', fontFamily:"'DM Sans',sans-serif", fontSize:'.78rem', fontWeight:600, transition:'all .15s' }}>
+                      <PinIcon/>{site}
+                      <span style={{ minWidth:22, padding:'1px 7px', borderRadius:10, fontSize:'.72rem', fontWeight:800, fontVariantNumeric:'tabular-nums',
+                        background: on ? 'rgba(255,255,255,0.22)' : 'color-mix(in srgb, var(--accent) 12%, transparent)', color: on ? '#fff' : 'var(--accent)' }}>{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── EMPLOYEE TABLE ── */}
           <div style={{ ...G.card }}>
@@ -515,8 +566,8 @@ const LiveAttendance = ({ initEmpCode = '', onCodeUsed }) => {
                           {new Date((emp.date||fromDate)+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long'})}
                         </div>
                       </td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.inTime ? 'var(--success)' : 'var(--text-muted)' }}>{fmtTime(emp.inTime)}</td>
-                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.outTime && emp.outTime !== emp.inTime ? 'var(--info)' : 'var(--text-muted)' }}>{emp.outTime && emp.outTime !== emp.inTime ? fmtTime(emp.outTime) : '—'}</td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.inTime ? 'var(--success)' : 'var(--text-muted)' }}>{fmtTime(emp.inTime)}<LocationTag site={emp.inLocation}/></td>
+                      <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.outTime && emp.outTime !== emp.inTime ? 'var(--info)' : 'var(--text-muted)' }}>{emp.outTime && emp.outTime !== emp.inTime ? <>{fmtTime(emp.outTime)}<LocationTag site={emp.outLocation}/></> : '—'}</td>
                       <td style={{ padding:'9px 14px', fontFamily:"'Share Tech Mono',monospace", fontSize:'.78rem', color: emp.workMinutes>0 ? (emp.workMinutes < 480 ? 'var(--warning)' : 'var(--text-primary)') : 'var(--text-muted)', fontWeight: emp.workMinutes>0 ? 700 : 400 }}>{fmtHours(emp.workMinutes)}</td>
                       <td style={{ padding:'9px 14px', textAlign:'center' }}>
                         <span style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:'.75rem', padding:'2px 8px', borderRadius:10, background:'var(--info-bg)', border:'1px solid var(--border)', color:'var(--accent)' }}>{emp.totalPunches}</span>

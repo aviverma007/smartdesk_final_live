@@ -29,6 +29,81 @@ async function getPool() {
   return pool;
 }
 
+// ── Device → site mapping ─────────────────────────────────────────────────────
+// Source of truth is dbo.SD_DeviceLocations in this database (created + seeded on
+// boot; edit it in SSMS to rename sites or add devices — picked up within 5 min).
+// If the login can't create/read the table, the built-in list below is used.
+const DEFAULT_DEVICE_SITES = {
+  19: 'IFC 14th Floor',
+  20: 'IFC 11th Floor',
+  21: 'Smart 75',
+  22: 'Smart 69',
+  23: 'Smart 66',
+  24: 'Smart 61',
+  25: 'Smart 62',
+  26: 'Smart 89',
+  27: 'Smart 113',
+  28: 'Noida 126',
+  29: 'Noida 98',
+  30: 'IFC 12th Floor',
+  31: 'Smart 61 Phase 2',
+  32: 'Smart GIC Manesar',
+};
+let deviceSites = Object.fromEntries(Object.entries(DEFAULT_DEVICE_SITES).map(([k, v]) => [String(k), v]));
+let deviceSitesSource = 'built-in';
+const siteOf = (deviceId) => {
+  if (deviceId === null || deviceId === undefined || deviceId === '') return null;
+  const k = String(deviceId).trim();
+  return deviceSites[k] || `Device ${k}`;
+};
+
+async function ensureDeviceTable() {
+  const p = await getPool();
+  await p.request().batch(`
+IF OBJECT_ID('dbo.SD_DeviceLocations','U') IS NULL
+CREATE TABLE dbo.SD_DeviceLocations (
+  DeviceId  INT           NOT NULL PRIMARY KEY,
+  SiteName  NVARCHAR(120) NOT NULL,
+  IsActive  BIT           NOT NULL DEFAULT(1),
+  UpdatedAt DATETIME      NOT NULL DEFAULT(GETDATE())
+);`);
+  // Seed only devices that aren't there yet — never overwrite names edited in SSMS.
+  for (const [id, name] of Object.entries(DEFAULT_DEVICE_SITES)) {
+    await p.request().input('id', sql.Int, Number(id)).input('name', sql.NVarChar(120), name).query(`
+      IF NOT EXISTS (SELECT 1 FROM dbo.SD_DeviceLocations WHERE DeviceId=@id)
+        INSERT INTO dbo.SD_DeviceLocations (DeviceId, SiteName) VALUES (@id, @name)`);
+  }
+}
+
+async function loadDeviceSites() {
+  try {
+    const p = await getPool();
+    const r = await p.request().query(`SELECT DeviceId, SiteName, IsActive FROM dbo.SD_DeviceLocations`);
+    // Database rows win; built-in names fill any gaps; rows marked IsActive=0 are hidden.
+    const merged = Object.fromEntries(Object.entries(DEFAULT_DEVICE_SITES).map(([k, v]) => [String(k), v]));
+    for (const x of r.recordset) {
+      const k = String(x.DeviceId).trim();
+      if (x.IsActive === false || x.IsActive === 0) delete merged[k];
+      else merged[k] = String(x.SiteName).trim();
+    }
+    deviceSites = merged;
+    deviceSitesSource = 'database';
+  } catch (e) {
+    if (deviceSitesSource !== 'built-in-warned') console.warn(`   ! Using built-in device list (${e.message})`);
+    deviceSitesSource = 'built-in-warned';
+  }
+}
+
+// List of devices/sites (for the UI filter and for checking the mapping)
+app.get('/api/devices', async (req, res) => {
+  res.json({
+    success: true,
+    source: deviceSitesSource.startsWith('built-in') ? 'built-in' : 'database',
+    devices: Object.entries(deviceSites).map(([deviceId, site]) => ({ deviceId, site }))
+      .sort((a, b) => Number(a.deviceId) - Number(b.deviceId)),
+  });
+});
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
   try {
@@ -68,22 +143,32 @@ app.get('/api/attendance', async (req, res) => {
     const p = await getPool();
     const date = req.query.date || new Date().toISOString().split('T')[0];
     const r = await p.request().input('date', sql.Date, date).query(`
+      WITH d AS (
+        SELECT UserId, LogDate, DeviceId,
+               ROW_NUMBER() OVER (PARTITION BY UserId ORDER BY LogDate ASC)  AS rnIn,
+               ROW_NUMBER() OVER (PARTITION BY UserId ORDER BY LogDate DESC) AS rnOut
+        FROM dbo.vw_DeviceLogs_All
+        WHERE CAST(LogDate AS DATE) = @date
+      )
       SELECT
         UserId                                                  AS empCode,
         MIN(LogDate)                                            AS inTime,
         MAX(LogDate)                                            AS outTime,
         COUNT(*)                                                AS totalPunches,
         DATEDIFF(MINUTE, MIN(LogDate), MAX(LogDate))            AS workMinutes,
-        CASE
-          WHEN COUNT(*) > 1 THEN 'Present'
-          ELSE 'Present'
-        END                                                     AS status
-      FROM dbo.vw_DeviceLogs_All
-      WHERE CAST(LogDate AS DATE) = @date
+        'Present'                                               AS status,
+        MAX(CASE WHEN rnIn  = 1 THEN DeviceId END)              AS inDeviceId,
+        MAX(CASE WHEN rnOut = 1 THEN DeviceId END)              AS outDeviceId
+      FROM d
       GROUP BY UserId
       ORDER BY MIN(LogDate)
     `);
-    res.json({ success: true, date, count: r.recordset.length, data: r.recordset });
+    const data = r.recordset.map(row => ({
+      ...row,
+      inLocation: siteOf(row.inDeviceId),
+      outLocation: row.totalPunches > 1 ? siteOf(row.outDeviceId) : null,
+    }));
+    res.json({ success: true, date, count: data.length, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -124,7 +209,23 @@ app.get('/api/attendance/departments', async (req, res) => {
       GROUP BY DeviceId
       ORDER BY DeviceId
     `);
-    res.json({ success: true, date, departments: r.recordset });
+    res.json({ success: true, date, departments: r.recordset.map(x => ({ ...x, deviceId: x.department, department: siteOf(x.department) })) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Latest raw punches (newest first) with site ───────────────────────────────
+app.get('/api/attendance/latest', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10) || 20, 1), 200);
+    const p = await getPool();
+    const r = await p.request().input('n', sql.Int, limit).query(`
+      SELECT TOP (@n) LTRIM(RTRIM(CAST(UserId AS NVARCHAR(50)))) AS empCode,
+             CONVERT(VARCHAR(23), LogDate, 126) AS logDate, DeviceId AS deviceId, Direction AS direction
+      FROM dbo.vw_DeviceLogs_All
+      ORDER BY LogDate DESC`);
+    res.json({ success: true, count: r.recordset.length, data: r.recordset.map(x => ({ ...x, location: siteOf(x.deviceId) })) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -207,6 +308,13 @@ app.get('/api/employees', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5092;
+(async () => {
+  try { await ensureDeviceTable(); } catch (e) { console.warn(`   ! Could not create dbo.SD_DeviceLocations (${e.message}) — run backend-attendance/sql/device_locations.sql in SSMS`); }
+  await loadDeviceSites();
+  console.log(`   Device sites: ${Object.keys(deviceSites).length} (${deviceSitesSource.startsWith('built-in') ? 'built-in list' : 'from dbo.SD_DeviceLocations'})`);
+})();
+setInterval(loadDeviceSites, 5 * 60 * 1000);
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ SmartDesk Attendance API`);
   console.log(`   Local:   http://localhost:${PORT}/api/health  (backend port 5092)`);
