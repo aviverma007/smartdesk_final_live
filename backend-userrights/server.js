@@ -192,6 +192,16 @@ CREATE TABLE dbo.RightsMatrix (
 );
 IF COL_LENGTH('dbo.RightsMatrix','Profile') IS NULL ALTER TABLE dbo.RightsMatrix ADD Profile NVARCHAR(40) NULL;
 
+-- Per-employee portal tab access (set by admin in Access Control). No row = role defaults.
+IF OBJECT_ID('dbo.TabAccess','U') IS NULL
+CREATE TABLE dbo.TabAccess (
+  EmpId     NVARCHAR(40)  NOT NULL PRIMARY KEY,
+  Name      NVARCHAR(200) NULL,
+  Tabs      NVARCHAR(MAX) NOT NULL,   -- JSON array of tab ids, e.g. ["home","tools"]
+  UpdatedBy NVARCHAR(80)  NULL,
+  UpdatedAt DATETIME      NOT NULL DEFAULT(GETDATE())
+);
+
 -- Directory of employees managed in-app (add / soft-delete) + audit log
 IF OBJECT_ID('dbo.DirectoryEmployees','U') IS NULL
 CREATE TABLE dbo.DirectoryEmployees (
@@ -724,6 +734,66 @@ app.put('/api/rights-matrix/:empId', async (req, res) => {
               WHEN MATCHED THEN UPDATE SET Name=@Name, Profile=@Profile, Rights=@Rights, UpdatedBy=@By, UpdatedAt=GETDATE()
               WHEN NOT MATCHED THEN INSERT (EmpId,Name,Profile,Rights,UpdatedBy)
               VALUES (@EmpId,@Name,@Profile,@Rights,@By);`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ PORTAL TAB ACCESS ═════════════════════════════════ */
+// Which sidebar tabs an employee (or shared login) may see. Admin-only to change.
+const TAB_IDS = ['home', 'directory', 'attendance', 'policies', 'holiday-calendar', 'dashboard', 'tools'];
+const parseTabs = (json) => { try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? TAB_IDS.filter(t => a.includes(t)) : []; } catch { return []; } };
+
+// The signed-in user's own access ({ tabs: null } means "use role defaults")
+app.get('/api/tab-access/me', async (req, res) => {
+  const id = String(req.headers['x-user-id'] || '').trim();
+  if (!id) return res.json({ success: true, tabs: null });
+  try {
+    const p = await getPool();
+    const r = await p.request().input('id', sql.NVarChar, id).query(`SELECT Tabs FROM dbo.TabAccess WHERE EmpId=@id`);
+    res.json({ success: true, tabs: r.recordset[0] ? parseTabs(r.recordset[0].Tabs) : null });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.get('/api/tab-access', async (req, res) => {
+  if (!can(req)) return deny(res); // admin only
+  try {
+    const p = await getPool();
+    const r = await p.request().query(`SELECT EmpId, Name, Tabs, UpdatedBy, UpdatedAt FROM dbo.TabAccess ORDER BY EmpId`);
+    res.json({ success: true, records: r.recordset.map(x => ({ empId: x.EmpId, name: x.Name, tabs: parseTabs(x.Tabs), updatedBy: x.UpdatedBy, updatedAt: x.UpdatedAt })) });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Set access for one or more employees: { entries: [{ empId, name }], tabs: [...] }
+app.put('/api/tab-access', async (req, res) => {
+  if (!can(req)) return deny(res);
+  const b = req.body || {};
+  const entries = (Array.isArray(b.entries) ? b.entries : []).map(e => ({ empId: String(e.empId || '').trim(), name: e.name ? String(e.name).slice(0, 200) : null })).filter(e => e.empId);
+  const tabs = TAB_IDS.filter(t => (b.tabs || []).includes(t));
+  if (!entries.length) return res.status(400).json({ success: false, error: 'Choose at least one employee.' });
+  if (!tabs.length) return res.status(400).json({ success: false, error: 'Give at least one tab.' });
+  if (entries.some(e => e.empId.toLowerCase() === 'admin')) return res.status(400).json({ success: false, error: 'Admin always has full access.' });
+  try {
+    const p = await getPool();
+    const tx = new sql.Transaction(p); await tx.begin();
+    try {
+      for (const e of entries) {
+        await new sql.Request(tx).input('E', sql.NVarChar, e.empId).input('N', sql.NVarChar, e.name).input('T', sql.NVarChar, JSON.stringify(tabs)).input('By', sql.NVarChar, actor(req))
+          .query(`MERGE dbo.TabAccess AS t USING (SELECT @E AS EmpId) AS s ON t.EmpId=s.EmpId
+                  WHEN MATCHED THEN UPDATE SET Name=COALESCE(@N, t.Name), Tabs=@T, UpdatedBy=@By, UpdatedAt=GETDATE()
+                  WHEN NOT MATCHED THEN INSERT (EmpId,Name,Tabs,UpdatedBy) VALUES (@E,@N,@T,@By);`);
+      }
+      await tx.commit();
+    } catch (e) { await tx.rollback(); throw e; }
+    res.json({ success: true, updated: entries.length });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Remove custom access (back to role defaults)
+app.delete('/api/tab-access/:empId', async (req, res) => {
+  if (!can(req)) return deny(res);
+  try {
+    const p = await getPool();
+    await p.request().input('E', sql.NVarChar, String(req.params.empId).trim()).query(`DELETE FROM dbo.TabAccess WHERE EmpId=@E`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });

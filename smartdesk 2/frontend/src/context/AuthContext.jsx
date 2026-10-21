@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { employeeAPI } from '../services/api';
+import { defaultTabsFor, cleanTabs, TAB_IDS } from '../config/tabs';
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -28,8 +29,32 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser]               = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoading, setShowLoading] = useState(true);
+  // Custom tab access set by an admin (null = role defaults). Fetched from the server
+  // on login / restore and whenever the window regains focus, so changes apply quickly.
+  const [tabOverride, setTabOverride] = useState(null);
 
   useEffect(() => { initializeAuth(); }, []);
+
+  const refreshTabAccess = useCallback(async (u = user) => {
+    if (!u || u.role === 'admin') { setTabOverride(null); return; }
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      const r = await fetch(`${URA_API}/tab-access/me`, { headers: { 'x-user-role': u.role || '', 'x-user-id': u.empId || '' }, signal: ctrl.signal });
+      clearTimeout(t);
+      const j = await r.json();
+      setTabOverride(j.success && Array.isArray(j.tabs) && j.tabs.length ? cleanTabs(j.tabs) : null);
+    } catch (_) { /* server unreachable -> keep role defaults */ }
+  }, [user]);
+
+  useEffect(() => {
+    setTabOverride(null);
+    if (!user) return undefined;
+    refreshTabAccess(user);
+    const onFocus = () => refreshTabAccess(user);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [user]); // eslint-disable-line
 
   // ── Login ─────────────────────────────────────────────────────────────────
   const login = (userData) => {
@@ -175,9 +200,12 @@ export const AuthProvider = ({ children }) => {
   const isHr        = user?.role === 'hr';
   const isIt        = user?.role === 'it';
   const isManager   = user?.role === 'manager';
+  // Tabs this user may open (admins: everything)
+  const allowedTabs = !user ? [] : isAdmin ? [...TAB_IDS] : (tabOverride || defaultTabsFor(user.role));
+  const hasCustomAccess = !!tabOverride;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, tryEmployeeLogin, tryAppLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard, isHr, isIt, isManager}}>
+    <AuthContext.Provider value={{ user, isAuthenticated, showLoading, login, tryLogin, tryEmployeeLogin, tryAppLogin, logout, initializeAuth, isAdmin, isEmployee, isDashboard, isHr, isIt, isManager, allowedTabs, hasCustomAccess, refreshTabAccess}}>
       {children}
     </AuthContext.Provider>
   );
