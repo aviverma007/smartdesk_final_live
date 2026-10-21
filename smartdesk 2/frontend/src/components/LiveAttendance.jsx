@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { employeeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { ATT_API } from '../config/api';
 
 // Dynamically use whatever host the app is running on — works on any machine
-const API_HOST = `http://${window.location.hostname}:5092`;
-const API = `${API_HOST}/api/attendance`;
+const API = `${ATT_API}/attendance`;
 
 const G = {
   card: { background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:14, position:'relative', overflow:'hidden', boxShadow:'var(--shadow-card)' },

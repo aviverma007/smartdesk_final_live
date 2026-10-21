@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { ATT_API } from '../config/api';
 
 class DataService {
   constructor() {
@@ -115,13 +116,13 @@ class DataService {
     }
   }
 
-  // Codes from the live attendance backend (port 5092) that aren't in Excel.
+  // Codes from the live attendance backend (backend-attendance) that aren't in Excel.
   // Fails soft: if the backend is down, the directory is just the Excel list.
   async loadAttendanceOnlyEmployees(excelEmployees) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
-      const res = await fetch(`http://${window.location.hostname}:5092/api/employees`, { signal: ctrl.signal });
+      const res = await fetch(`${ATT_API}/employees`, { signal: ctrl.signal });
       const data = await res.json();
       if (!data.success || !Array.isArray(data.employees)) return [];
       const known = new Set(excelEmployees.map(e => String(e.id).trim()));

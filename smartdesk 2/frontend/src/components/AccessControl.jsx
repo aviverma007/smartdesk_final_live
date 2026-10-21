@@ -106,7 +106,7 @@ const AccessControl = () => {
     <div style={{ paddingBottom: 32 }}>
       <SpinStyle />
       <ToolHeader icon={KeyRound} title="Access Control" subtitle="Choose which tabs each employee (or shared login) can see. Admins always see everything." />
-      {offline && <div style={{ marginBottom: 14 }}><Notice>The User Rights service (port 5093) isn't reachable, so access can't be loaded or saved. Start <code>backend-userrights</code> and refresh.</Notice></div>}
+      {offline && <div style={{ marginBottom: 14 }}><Notice>The User Rights service (backend-userrights) isn't reachable, so access can't be loaded or saved. Start <code>backend-userrights</code> and refresh.</Notice></div>}
 
       <div className="ac-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 0.9fr) minmax(0, 1.4fr)', gap: 16, alignItems: 'start' }}>
         {/* People */}

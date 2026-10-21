@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { employeeAPI } from '../services/api';
 import { defaultTabsFor, cleanTabs, TAB_IDS } from '../config/tabs';
+import { URA_API, ATT_API } from '../config/api';
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -20,10 +21,8 @@ const ROLE_LOGINS = {
   manager:     { pw: 'SmartWorld@2026', name: 'Manager',     role: 'manager' },
 };
 
-// backend-userrights service (same host, port 5093): app-user login, directory, file converter
-export const URA_API = `http://${window.location.hostname}:5093/api`;
-// Live attendance backend (same host, port 5092)
-export const ATT_API = `http://${window.location.hostname}:5092/api`;
+// Backend base URLs (proxied through the portal's own address — see config/api.js)
+export { URA_API, ATT_API };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser]               = useState(null);
