@@ -231,8 +231,8 @@ const CompactCard = ({ item }) => {
   );
 };
 
-/* ─── MAIN DASHBOARD ───────────────────────────────────────────────────── */
-const Dashboard = () => {
+/* ─── POWER BI DASHBOARDS (unchanged view) ───────────────────────────────────────────────────── */
+const PowerBIDashboards = () => {
   const [featured, setFeatured] = useState(0);
 
   // Auto-rotate featured
@@ -335,6 +335,154 @@ const Dashboard = () => {
         >
           Request Report <ChevronRight size={14} />
         </button>
+      </div>
+    </div>
+  );
+};
+
+/* ─── SMARTDB DASHBOARD (button + live preview) ────────────────────────── */
+const SMARTDB_URL = 'http://192.168.66.28:3000/';
+const SMARTDB_NAME = 'www.smartdb.com';
+
+const SmartDbPanel = () => {
+  const [state, setState] = useState('loading'); // loading | loaded | failed
+  const [reloadKey, setReloadKey] = useState(0);
+  const [hov, setHov] = useState(false);
+  const wrapRef = useRef(null);
+  const [scale, setScale] = useState(0.5);
+
+  // Preview renders the dashboard at desktop size (1440×900) and scales it to fit the card.
+  useEffect(() => {
+    const el = wrapRef.current; if (!el) return undefined;
+    const fit = () => setScale(el.clientWidth / 1440);
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // If the dashboard server is unreachable the iframe never loads — show a fallback after 10s.
+  useEffect(() => {
+    setState('loading');
+    const t = setTimeout(() => setState(s => (s === 'loading' ? 'failed' : s)), 10000);
+    return () => clearTimeout(t);
+  }, [reloadKey]);
+
+  const open = () => window.open(SMARTDB_URL, '_blank', 'noopener');
+
+  return (
+    <div style={{ paddingBottom: 32 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <p style={{ fontFamily:'Plus Jakarta Sans, sans-serif', fontSize:'0.68rem', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--accent)', marginBottom:5 }}>Smart Dashboard</p>
+          <h2 style={{ fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:800, fontSize:'1.5rem', color:'var(--text-primary)', lineHeight:1, margin:0 }}>SmartDB</h2>
+        </div>
+        <p style={{ fontFamily:'DM Sans, sans-serif', fontSize:'0.78rem', color:'var(--text-muted)' }}>{SMARTDB_NAME}</p>
+      </div>
+
+      <div
+        onClick={open}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        role="link" tabIndex={0}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && open()}
+        style={{
+          display:'grid', gridTemplateColumns:'minmax(0, 1.6fr) minmax(260px, 1fr)', gap:0, cursor:'pointer',
+          background:'var(--bg-card)', border:`1px solid ${hov ? 'var(--accent)' : 'var(--border)'}`, borderRadius:16, overflow:'hidden',
+          boxShadow: hov ? 'var(--shadow-hover)' : 'var(--shadow-card)', transform: hov ? 'translateY(-3px)' : 'none',
+          transition:'transform .25s ease, box-shadow .25s ease, border-color .25s ease',
+        }}
+        className="smartdb-card"
+      >
+        {/* Live preview */}
+        <div ref={wrapRef} style={{ position:'relative', aspectRatio:'16 / 10', background:'var(--bg-elevated)', overflow:'hidden', borderRight:'1px solid var(--border)' }}>
+          {state !== 'failed' && (
+            <iframe
+              key={reloadKey}
+              title="SmartDB dashboard preview"
+              src={SMARTDB_URL}
+              loading="lazy"
+              tabIndex={-1}
+              onLoad={() => setState('loaded')}
+              style={{ position:'absolute', top:0, left:0, width:1440, height:900, border:0, transform:`scale(${scale})`, transformOrigin:'0 0', pointerEvents:'none', background:'#fff' }}
+            />
+          )}
+          {state === 'loading' && (
+            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', gap:10, fontFamily:'DM Sans, sans-serif', fontSize:'.82rem', color:'var(--text-muted)', background:'var(--bg-elevated)' }}>
+              <span style={{ width:16, height:16, border:'2px solid var(--chart-track)', borderTopColor:'var(--accent)', borderRadius:'50%', animation:'spin .8s linear infinite' }} />Loading preview…
+            </div>
+          )}
+          {state === 'failed' && (
+            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, textAlign:'center', padding:20, background:'linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--bg-elevated)), var(--bg-elevated))' }}>
+              <BarChart3 size={40} style={{ color:'var(--accent)', opacity:.8 }} />
+              <div style={{ fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:700, fontSize:'.95rem', color:'var(--text-primary)' }}>Preview not available</div>
+              <div style={{ fontFamily:'DM Sans, sans-serif', fontSize:'.78rem', color:'var(--text-muted)', maxWidth:340 }}>The dashboard server didn't respond in time. Click to open it in a new tab.</div>
+              <button type="button" onClick={e => { e.stopPropagation(); setReloadKey(k => k + 1); }}
+                style={{ marginTop:4, padding:'6px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--text-secondary)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:700, fontSize:'.74rem', cursor:'pointer' }}>Retry preview</button>
+            </div>
+          )}
+          {/* hover veil */}
+          <div style={{ position:'absolute', inset:0, background:'linear-gradient(180deg, transparent 55%, rgba(6,17,31,0.55))', opacity: hov ? 1 : 0.6, transition:'opacity .25s' }} />
+          <span style={{ position:'absolute', left:14, bottom:12, display:'inline-flex', alignItems:'center', gap:6, padding:'5px 10px', borderRadius:20, background:'rgba(6,17,31,0.65)', color:'#fff', fontFamily:'DM Sans, sans-serif', fontSize:'.72rem', fontWeight:600, backdropFilter:'blur(6px)' }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background: state === 'loaded' ? '#4ade80' : state === 'failed' ? '#f87171' : '#fbbf24' }} />
+            {state === 'loaded' ? 'Live preview' : state === 'failed' ? 'Offline' : 'Connecting…'}
+          </span>
+        </div>
+
+        {/* Details + button */}
+        <div style={{ padding:'26px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', gap:18,
+          background:'linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--bg-card)), var(--bg-card) 60%)' }}>
+          <div>
+            <div style={{ width:48, height:48, borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg,#105da9,#1a7fd4)', color:'#fff', boxShadow:'var(--shadow-active)', marginBottom:16 }}>
+              <BarChart3 size={24} />
+            </div>
+            <div style={{ fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:800, fontSize:'1.35rem', color:'var(--text-primary)', lineHeight:1.15 }}>SmartDB Dashboard</div>
+            <div style={{ fontFamily:'DM Sans, sans-serif', fontSize:'.84rem', color:'var(--text-muted)', marginTop:8, lineHeight:1.5 }}>
+              Smart World's live business dashboard. Opens in a new tab.
+            </div>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:14, padding:'5px 10px', borderRadius:8, background:'var(--bg-elevated)', border:'1px solid var(--border)', fontFamily:"'Share Tech Mono', monospace", fontSize:'.78rem', color:'var(--text-secondary)' }}>
+              {SMARTDB_NAME}
+            </div>
+          </div>
+          <button type="button" onClick={e => { e.stopPropagation(); open(); }}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, width:'100%', padding:'13px 18px', borderRadius:11, border:'none', cursor:'pointer',
+              background:'linear-gradient(135deg,#105da9,#1a7fd4)', color:'#fff', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:800, fontSize:'.92rem', boxShadow:'var(--shadow-active)' }}>
+            Open SmartDB <ArrowUpRight size={17} style={{ transition:'transform .2s', transform: hov ? 'translate(2px,-2px)' : 'none' }} />
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @media (max-width: 900px){ .smartdb-card{ grid-template-columns: 1fr !important; } }`}</style>
+    </div>
+  );
+};
+
+/* ─── DASHBOARD TAB: toggle between SmartDB and Power BI ───────────────── */
+const VIEWS = [
+  { id: 'smartdb', label: 'SmartDB', Icon: BarChart3 },
+  { id: 'powerbi', label: 'Power BI Reports', Icon: BarChart2 },
+];
+const VIEW_KEY = 'sd-dashboard-view';
+
+const Dashboard = () => {
+  const [view, setView] = useState(() => { try { return localStorage.getItem(VIEW_KEY) || 'smartdb'; } catch (_) { return 'smartdb'; } });
+  useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch (_) {} }, [view]);
+
+  return (
+    <div>
+      <div role="tablist" style={{ position:'relative', display:'inline-grid', gridTemplateColumns:`repeat(${VIEWS.length}, 1fr)`, padding:4, marginBottom:20, borderRadius:12, background:'var(--bg-elevated)', border:'1px solid var(--border)', boxShadow:'var(--shadow-sm)' }}>
+        {/* sliding highlight */}
+        <span style={{ position:'absolute', top:4, bottom:4, left:4, width:`calc((100% - 8px) / ${VIEWS.length})`, borderRadius:9,
+          background:'linear-gradient(135deg,#105da9,#1a7fd4)', boxShadow:'var(--shadow-active)',
+          transform:`translateX(${VIEWS.findIndex(v => v.id === view) * 100}%)`, transition:'transform .3s cubic-bezier(.2,.8,.2,1)' }} />
+        {VIEWS.map(({ id, label, Icon }) => (
+          <button key={id} role="tab" aria-selected={view === id} type="button" onClick={() => setView(id)}
+            style={{ position:'relative', zIndex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'9px 20px', minWidth:170, border:'none', background:'transparent', cursor:'pointer',
+              fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:700, fontSize:'.84rem', color: view === id ? '#fff' : 'var(--text-secondary)', transition:'color .25s' }}>
+            <Icon size={16} />{label}
+          </button>
+        ))}
+      </div>
+      <div key={view} className="tab-fade-in">
+        {view === 'smartdb' ? <SmartDbPanel /> : <PowerBIDashboards />}
       </div>
     </div>
   );

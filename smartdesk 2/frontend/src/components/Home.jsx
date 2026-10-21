@@ -51,6 +51,7 @@ const quickLinks = [
   { title: "Gift App", desc: "Vistaoffers", url: "https://vistaoffers.com/#login", img: "/images/GEMBA.png", color: "#ff6b00" },
   { title: "Vista-ERP", desc: "ERP System", url: "https://vistaerponline.com/#login", img: "/images/GEMBA.png", color: "#0066ff" },
   { title: "Company", desc: "Website", url: "https://smartworlddevelopers.com/", img: "/images/company-logo.png", color: "#00d4ff" },
+  { title: "ITS", desc: "VMS Portal", url: "https://vms.smartworlddevelopers.com/", img: "/images/its-logo.svg", color: "#105da9" },
   { title: "Projects", desc: "Developments", url: "#", img: "/images/projects-icon.png", color: "#7b2fff", isDropdown: true },
 ];
 
@@ -371,7 +372,7 @@ const Home = () => {
         <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:".62rem", fontWeight:700, color:"var(--text-muted)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:10 }}>
           Quick Access Portals
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(12, minmax(0, 1fr))", gap:6 }}>
+        <div style={{ display:"grid", gridTemplateColumns:`repeat(${quickLinks.length}, minmax(0, 1fr))`, gap:6 }}>
           {quickLinks.map((lnk, i) => (
             <div key={i} style={{ position:"relative", minWidth:0 }}>
               <div
