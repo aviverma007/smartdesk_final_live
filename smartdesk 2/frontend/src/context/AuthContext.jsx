@@ -11,7 +11,7 @@ export const makePassword = (empId) => `Smart@${String(empId).split('').reverse(
 const ADMIN_ID = 'admin';
 const ADMIN_PW = 'SmartWorld@2026';
 
-// ── Workflow role logins (User Rights & Assets module) ────────────────────
+// ── Extra fixed role logins (hr / it / manager) ───────────────────────────
 // Change these passwords as needed.
 const ROLE_LOGINS = {
   hr:          { pw: 'SmartWorld@2026', name: 'HR Team',     role: 'hr' },
@@ -19,7 +19,7 @@ const ROLE_LOGINS = {
   manager:     { pw: 'SmartWorld@2026', name: 'Manager',     role: 'manager' },
 };
 
-// User Rights & Assets backend (same host, port 5093)
+// backend-userrights service (same host, port 5093): app-user login, directory, file converter
 export const URA_API = `http://${window.location.hostname}:5093/api`;
 // Live attendance backend (same host, port 5092)
 export const ATT_API = `http://${window.location.hostname}:5092/api`;

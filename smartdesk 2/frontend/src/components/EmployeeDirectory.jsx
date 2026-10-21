@@ -119,7 +119,7 @@ const EmployeeDirectory = ({ onViewAttendance, restrictToEmpId, highlightEmpId, 
       try {
         setLoading(true);
         const data = await employeeAPI.getAll();
-        // Merge in employees onboarded via User Rights & Assets (auto-added to directory)
+        // Merge in employees added/onboarded via the backend-userrights service
         let onboarded = [];
         try {
           const r = await fetch(`${URA_API}/onboarding/directory`);

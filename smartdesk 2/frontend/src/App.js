@@ -14,7 +14,6 @@ import Dashboard from "./components/Dashboard";
 import LiveAttendance from "./components/LiveAttendance";
 import MyProfile from "./components/MyProfile";
 import GlobalSearch from "./components/GlobalSearch";
-import UserRightsAssets from "./components/UserRightsAssets";
 import SetPassword from "./components/SetPassword";
 import FileConverter from "./components/FileConverter";
 
@@ -54,7 +53,6 @@ const NAV = [
   { id:"policies",         label:"Policies",           Icon:IcoShield },
   { id:"holiday-calendar", label:"Holiday Calendar",  Icon:IcoCal },
   { id:"dashboard",        label:"Dashboard",          Icon:IcoChart },
-  { id:"user-rights",      label:"User Rights & Assets", Icon:IcoShield },
   { id:"file-converter",   label:"File Converter",    Icon:IcoConvert },
 ];
 
@@ -323,9 +321,9 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
         <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
           {NAV.filter(n => {
             if (isDashboard === true) return n.id === 'dashboard';
-            if (isEmployee === true)  return ['home','directory','attendance','policies','holiday-calendar','user-rights','file-converter'].includes(n.id);
-            if (isHr) return ['home','directory','attendance','policies','holiday-calendar','user-rights','file-converter'].includes(n.id);
-            if (isIt || isManager) return ['home','directory','user-rights','file-converter'].includes(n.id);
+            if (isEmployee === true)  return ['home','directory','attendance','policies','holiday-calendar','file-converter'].includes(n.id);
+            if (isHr) return ['home','directory','attendance','policies','holiday-calendar','file-converter'].includes(n.id);
+            if (isIt || isManager) return ['home','directory','file-converter'].includes(n.id);
             return true; // admin sees all
           }).map(({ id, label, Icon }) => (
             <div key={id}
@@ -543,7 +541,6 @@ const AppContent = () => {
     "policies":         <Policies/>,
     "holiday-calendar": <HolidayCalendar/>,
     "dashboard":        <Dashboard/>,
-    "user-rights":      <UserRightsAssets/>,
     "file-converter":   <FileConverter/>,
   };
 
