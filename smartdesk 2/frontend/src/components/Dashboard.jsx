@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExternalLink, Play, BarChart3, TrendingUp, Users, FileText, BarChart2, ChevronRight, ArrowUpRight } from 'lucide-react';
 
 /* ─── DATA ──────────────────────────────────────────────────────────────── */
@@ -344,29 +344,11 @@ const PowerBIDashboards = () => {
 const SMARTDB_URL = 'http://192.168.66.28:3000/';
 const SMARTDB_NAME = 'www.smartdb.com';
 
+const SMARTDB_PREVIEW = '/images/smartdb-preview.webp';
+
 const SmartDbPanel = () => {
-  const [state, setState] = useState('loading'); // loading | loaded | failed
-  const [reloadKey, setReloadKey] = useState(0);
   const [hov, setHov] = useState(false);
-  const wrapRef = useRef(null);
-  const [scale, setScale] = useState(0.5);
-
-  // Preview renders the dashboard at desktop size (1440×900) and scales it to fit the card.
-  useEffect(() => {
-    const el = wrapRef.current; if (!el) return undefined;
-    const fit = () => setScale(el.clientWidth / 1440);
-    fit();
-    const ro = new ResizeObserver(fit); ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // If the dashboard server is unreachable the iframe never loads — show a fallback after 10s.
-  useEffect(() => {
-    setState('loading');
-    const t = setTimeout(() => setState(s => (s === 'loading' ? 'failed' : s)), 10000);
-    return () => clearTimeout(t);
-  }, [reloadKey]);
-
+  const [imgOk, setImgOk] = useState(true);
   const open = () => window.open(SMARTDB_URL, '_blank', 'noopener');
 
   return (
@@ -385,51 +367,30 @@ const SmartDbPanel = () => {
         onMouseLeave={() => setHov(false)}
         role="link" tabIndex={0}
         onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && open()}
+        className="smartdb-card"
         style={{
-          display:'grid', gridTemplateColumns:'minmax(0, 1.6fr) minmax(260px, 1fr)', gap:0, cursor:'pointer',
+          display:'grid', gridTemplateColumns:'minmax(0, 1.9fr) minmax(260px, 1fr)', cursor:'pointer',
           background:'var(--bg-card)', border:`1px solid ${hov ? 'var(--accent)' : 'var(--border)'}`, borderRadius:16, overflow:'hidden',
           boxShadow: hov ? 'var(--shadow-hover)' : 'var(--shadow-card)', transform: hov ? 'translateY(-3px)' : 'none',
           transition:'transform .25s ease, box-shadow .25s ease, border-color .25s ease',
         }}
-        className="smartdb-card"
       >
-        {/* Live preview */}
-        <div ref={wrapRef} style={{ position:'relative', aspectRatio:'16 / 10', background:'var(--bg-elevated)', overflow:'hidden', borderRight:'1px solid var(--border)' }}>
-          {state !== 'failed' && (
-            <iframe
-              key={reloadKey}
-              title="SmartDB dashboard preview"
-              src={SMARTDB_URL}
-              loading="lazy"
-              tabIndex={-1}
-              onLoad={() => setState('loaded')}
-              style={{ position:'absolute', top:0, left:0, width:1440, height:900, border:0, transform:`scale(${scale})`, transformOrigin:'0 0', pointerEvents:'none', background:'#fff' }}
-            />
+        {/* Preview (screenshot of the SmartDB sign-in page) */}
+        <div style={{ position:'relative', aspectRatio:'1911 / 829', background:'#eef2f8', overflow:'hidden', borderRight:'1px solid var(--border)' }}>
+          {imgOk ? (
+            <img src={SMARTDB_PREVIEW} alt="SmartDB — Analytics: Inventory & Sales Dashboard" onError={() => setImgOk(false)}
+              style={{ width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block', transform: hov ? 'scale(1.025)' : 'scale(1)', transition:'transform .5s ease' }} />
+          ) : (
+            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}><BarChart3 size={44} style={{ color:'var(--accent)', opacity:.7 }} /></div>
           )}
-          {state === 'loading' && (
-            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', gap:10, fontFamily:'DM Sans, sans-serif', fontSize:'.82rem', color:'var(--text-muted)', background:'var(--bg-elevated)' }}>
-              <span style={{ width:16, height:16, border:'2px solid var(--chart-track)', borderTopColor:'var(--accent)', borderRadius:'50%', animation:'spin .8s linear infinite' }} />Loading preview…
-            </div>
-          )}
-          {state === 'failed' && (
-            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, textAlign:'center', padding:20, background:'linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--bg-elevated)), var(--bg-elevated))' }}>
-              <BarChart3 size={40} style={{ color:'var(--accent)', opacity:.8 }} />
-              <div style={{ fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:700, fontSize:'.95rem', color:'var(--text-primary)' }}>Preview not available</div>
-              <div style={{ fontFamily:'DM Sans, sans-serif', fontSize:'.78rem', color:'var(--text-muted)', maxWidth:340 }}>The dashboard server didn't respond in time. Click to open it in a new tab.</div>
-              <button type="button" onClick={e => { e.stopPropagation(); setReloadKey(k => k + 1); }}
-                style={{ marginTop:4, padding:'6px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--text-secondary)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:700, fontSize:'.74rem', cursor:'pointer' }}>Retry preview</button>
-            </div>
-          )}
-          {/* hover veil */}
-          <div style={{ position:'absolute', inset:0, background:'linear-gradient(180deg, transparent 55%, rgba(6,17,31,0.55))', opacity: hov ? 1 : 0.6, transition:'opacity .25s' }} />
-          <span style={{ position:'absolute', left:14, bottom:12, display:'inline-flex', alignItems:'center', gap:6, padding:'5px 10px', borderRadius:20, background:'rgba(6,17,31,0.65)', color:'#fff', fontFamily:'DM Sans, sans-serif', fontSize:'.72rem', fontWeight:600, backdropFilter:'blur(6px)' }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background: state === 'loaded' ? '#4ade80' : state === 'failed' ? '#f87171' : '#fbbf24' }} />
-            {state === 'loaded' ? 'Live preview' : state === 'failed' ? 'Offline' : 'Connecting…'}
+          <div style={{ position:'absolute', inset:0, background:'linear-gradient(180deg, transparent 60%, rgba(6,17,31,0.35))', opacity: hov ? 1 : 0, transition:'opacity .25s' }} />
+          <span style={{ position:'absolute', right:14, bottom:12, display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:20, background:'rgba(16,93,169,0.92)', color:'#fff', fontFamily:'Plus Jakarta Sans, sans-serif', fontSize:'.74rem', fontWeight:700, boxShadow:'0 4px 14px rgba(0,0,0,.25)', opacity: hov ? 1 : 0, transform: hov ? 'translateY(0)' : 'translateY(6px)', transition:'all .25s ease' }}>
+            Open dashboard <ArrowUpRight size={14} />
           </span>
         </div>
 
         {/* Details + button */}
-        <div style={{ padding:'26px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', gap:18,
+        <div style={{ padding:'24px', display:'flex', flexDirection:'column', justifyContent:'space-between', gap:18,
           background:'linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--bg-card)), var(--bg-card) 60%)' }}>
           <div>
             <div style={{ width:48, height:48, borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg,#105da9,#1a7fd4)', color:'#fff', boxShadow:'var(--shadow-active)', marginBottom:16 }}>
@@ -437,7 +398,7 @@ const SmartDbPanel = () => {
             </div>
             <div style={{ fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:800, fontSize:'1.35rem', color:'var(--text-primary)', lineHeight:1.15 }}>SmartDB Dashboard</div>
             <div style={{ fontFamily:'DM Sans, sans-serif', fontSize:'.84rem', color:'var(--text-muted)', marginTop:8, lineHeight:1.5 }}>
-              Smart World's live business dashboard. Opens in a new tab.
+              Analytics — inventory &amp; sales dashboard. Target vs achieved and real-estate analytics. Opens in a new tab.
             </div>
             <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:14, padding:'5px 10px', borderRadius:8, background:'var(--bg-elevated)', border:'1px solid var(--border)', fontFamily:"'Share Tech Mono', monospace", fontSize:'.78rem', color:'var(--text-secondary)' }}>
               {SMARTDB_NAME}
@@ -450,7 +411,7 @@ const SmartDbPanel = () => {
           </button>
         </div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @media (max-width: 900px){ .smartdb-card{ grid-template-columns: 1fr !important; } }`}</style>
+      <style>{`@media (max-width: 1000px){ .smartdb-card{ grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
 };
