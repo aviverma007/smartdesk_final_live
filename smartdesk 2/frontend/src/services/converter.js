@@ -110,7 +110,7 @@ async function zipOutputs(files, zipName) {
 }
 
 let pdfjsPromise;
-function pdfjs() {
+export function pdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = import('pdfjs-dist/legacy/build/pdf').then(lib => {
       // Served from /public (copied there by scripts/copy-pdf-worker.js before start/build)
