@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { id:'holiday-calendar', label:'Holiday Calendar',  sub:'View holidays 2026' },
   { id:'dashboard',        label:'Power BI Dashboard', sub:'Analytics & reports' },
   { id:'policies',         label:'Policies',           sub:'HR, Admin, IT policies' },
+  { id:'file-converter',   label:'File Converter',     sub:'Convert PDF, Word, Excel, images' },
 ];
 
 const GlobalSearch = ({ onClose }) => {

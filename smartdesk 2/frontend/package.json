@@ -41,8 +41,12 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.507.0",
+    "mammoth": "^1.8.0",
     "next-themes": "^0.4.6",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
     "powerbi-client": "^2.23.9",
     "powerbi-client-react": "^2.0.0",
     "react": "^19.0.0",
@@ -60,7 +64,9 @@
     "zod": "^3.24.4"
   },
   "scripts": {
+    "prestart": "node scripts/copy-pdf-worker.js",
     "start": "set PORT=92 && craco start",
+    "prebuild": "node scripts/copy-pdf-worker.js",
     "build": "craco build",
     "test": "craco test"
   },

@@ -24,7 +24,11 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'x-user-role', 'x-user-id'] }));
-app.use(express.json({ limit: '25mb' }));
+// The file converter sends files as base64 (≈ +33%), so it gets a bigger body limit.
+const CONVERT_MAX_MB = parseInt(process.env.CONVERT_MAX_MB || '25', 10);
+const jsonDefault = express.json({ limit: '25mb' });
+const jsonConvert = express.json({ limit: `${Math.ceil(CONVERT_MAX_MB * 1.4) + 1}mb` });
+app.use((req, res, next) => (req.path === '/api/convert/office' ? jsonConvert : jsonDefault)(req, res, next));
 
 // ── SQL Server config ─────────────────────────────────────────────────────────
 const dbConfig = {
@@ -974,6 +978,99 @@ app.delete('/api/preonboarding/:id/file/:key', async (req, res) => {
       .query(`UPDATE dbo.PreOnboarding SET Documents=@Docs, UpdatedAt=GETDATE() WHERE Id=@Id`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ FILE CONVERTER (LibreOffice) ═════════════════════ */
+// Office-format conversions for the portal's File Converter tab. Everything else
+// (images, PDF→image, Excel↔CSV, …) is converted in the browser.
+// Needs LibreOffice installed on this server (free: https://www.libreoffice.org).
+// Set SOFFICE_PATH in .env if it isn't in a standard location.
+const { execFile } = require('child_process');
+const os = require('os');
+const { pathToFileURL } = require('url');
+
+const SOFFICE_CANDIDATES = [
+  process.env.SOFFICE_PATH,
+  'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+  'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+  '/usr/bin/soffice', '/usr/bin/libreoffice', '/usr/local/bin/soffice',
+  '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+].filter(Boolean);
+let sofficePath;
+function findSoffice() {
+  if (sofficePath === undefined) sofficePath = SOFFICE_CANDIDATES.find(p => { try { return fs.existsSync(p); } catch { return false; } }) || null;
+  return sofficePath;
+}
+
+// What LibreOffice may be asked to do: input extensions → allowed targets.
+const OFFICE_MATRIX = {
+  doc:  ['pdf', 'docx', 'odt'], docx: ['pdf', 'doc', 'odt'], odt: ['pdf', 'docx', 'doc'], rtf: ['pdf', 'docx'],
+  txt:  ['docx'], md: ['docx'], html: ['docx'], htm: ['docx'],
+  ppt:  ['pdf', 'pptx'], pptx: ['pdf'], odp: ['pdf', 'pptx'],
+  xls:  ['pdf'], xlsx: ['pdf'], xlsm: ['pdf'], ods: ['pdf'], csv: ['pdf'],
+  pdf:  ['docx'],
+};
+const CONVERT_TO = { docx: 'docx:"MS Word 2007 XML"', doc: 'doc:"MS Word 97"', pptx: 'pptx:"Impress MS PowerPoint 2007 XML"' };
+const OUT_MIME = {
+  pdf: 'application/pdf', odt: 'application/vnd.oasis.opendocument.text', doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
+// LibreOffice is heavy: run at most 2 conversions at once, queue the rest.
+let convRunning = 0; const convQueue = [];
+const withSlot = (fn) => new Promise((resolve, reject) => {
+  const run = () => { convRunning++; fn().then(resolve, reject).finally(() => { convRunning--; const nx = convQueue.shift(); if (nx) nx(); }); };
+  convRunning < 2 ? run() : convQueue.push(run);
+});
+
+app.get('/api/convert/capabilities', (req, res) => {
+  res.json({ success: true, office: !!findSoffice(), maxMb: CONVERT_MAX_MB, matrix: OFFICE_MATRIX });
+});
+
+app.post('/api/convert/office', async (req, res) => {
+  if (!role(req)) return res.status(401).json({ success: false, error: 'Please sign in to SmartDesk first.' });
+  const soffice = findSoffice();
+  if (!soffice) return res.status(503).json({ success: false, error: 'LibreOffice is not installed on the server, so Office conversions are unavailable.' });
+  const b = req.body || {};
+  const inExt = String(b.fileName || '').toLowerCase().split('.').pop();
+  const target = String(b.target || '').toLowerCase();
+  if (!OFFICE_MATRIX[inExt] || !OFFICE_MATRIX[inExt].includes(target))
+    return res.status(400).json({ success: false, error: `Converting .${inExt} to .${target} is not supported.` });
+  const data = Buffer.from(String(b.dataBase64 || ''), 'base64');
+  if (!data.length) return res.status(400).json({ success: false, error: 'The file is empty.' });
+  if (data.length > CONVERT_MAX_MB * 1024 * 1024) return res.status(413).json({ success: false, error: `Files must be under ${CONVERT_MAX_MB} MB.` });
+
+  const work = fs.mkdtempSync(pathmod.join(os.tmpdir(), 'sd-convert-'));
+  const cleanup = () => { try { fs.rmSync(work, { recursive: true, force: true }); } catch (_) {} };
+  try {
+    const inDir = pathmod.join(work, 'in'), outDir = pathmod.join(work, 'out');
+    fs.mkdirSync(inDir); fs.mkdirSync(outDir);
+    const inFile = pathmod.join(inDir, `input.${inExt}`);
+    fs.writeFileSync(inFile, data);
+    const args = ['--headless', '--norestore', '--nolockcheck', '--nodefault',
+      `-env:UserInstallation=${pathToFileURL(pathmod.join(work, 'profile')).href}`];
+    if (inExt === 'pdf') args.push('--infilter=writer_pdf_import');
+    args.push('--convert-to', (CONVERT_TO[target] || target).replace(/"/g, ''), '--outdir', outDir, inFile);
+
+    await withSlot(() => new Promise((resolve, reject) => {
+      execFile(soffice, args, { timeout: 120000, windowsHide: true }, (err, stdout, stderr) =>
+        err ? reject(new Error(err.killed ? 'Conversion took too long and was stopped.' : (stderr || err.message))) : resolve());
+    }));
+    const produced = fs.readdirSync(outDir).find(f => f.toLowerCase().endsWith('.' + target));
+    if (!produced) throw new Error('LibreOffice could not convert this file (it may be damaged or password-protected).');
+    const outName = String(b.fileName).replace(/\.[^.]+$/, '') + '.' + target;
+    res.setHeader('Content-Type', OUT_MIME[target] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(outName)}"`);
+    const stream = fs.createReadStream(pathmod.join(outDir, produced));
+    stream.on('close', cleanup);
+    stream.on('error', (e) => { cleanup(); if (!res.headersSent) res.status(500).json({ success: false, error: e.message }); });
+    stream.pipe(res);
+  } catch (err) {
+    cleanup();
+    console.error('   ! convert failed:', String(err.message).slice(0, 300));
+    res.status(500).json({ success: false, error: String(err.message).split('\n')[0].slice(0, 300) });
+  }
 });
 
 /* ═══════════════════════ APP-USER LOGIN ════════════════════════════════════ */

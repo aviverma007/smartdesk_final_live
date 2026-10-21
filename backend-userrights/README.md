@@ -3,6 +3,16 @@
 Node/Express + SQL Server service powering the **User Rights & Assets** tab in the portal.
 Runs on **port 5093** and auto-creates its tables on first boot.
 
+## File Converter (Office formats)
+The portal's **File Converter** tab converts images, PDFs, Excel/CSV, JSON and Word→HTML/TXT
+in the browser. Word / PowerPoint / Excel → PDF (and PDF → Word) are done here with **LibreOffice**:
+
+1. Install LibreOffice on this server (default location `C:\Program Files\LibreOffice`).
+2. Restart this backend. `http://localhost:5093/api/convert/capabilities` should show `"office": true`.
+3. Optional `.env`: `SOFFICE_PATH` (if installed elsewhere), `CONVERT_MAX_MB` (default 25).
+
+Up to 2 conversions run at once (the rest queue); each has a 2-minute timeout; temp files are deleted after every request.
+
 ## Workflows
 1. **Onboarding / User-ID** — HR captures a new joiner (pending), assigns Employee ID after they join.
 2. **Asset allocation** — HR requests assets → set-password link emailed → employee confirms receipt → locked to HR/IT.
