@@ -51,6 +51,7 @@ const quickLinks = [
   { title: "Gift App", desc: "Vistaoffers", url: "https://vistaoffers.com/#login", img: "/images/GEMBA.png", color: "#ff6b00" },
   { title: "Vista-ERP", desc: "ERP System", url: "https://vistaerponline.com/#login", img: "/images/GEMBA.png", color: "#0066ff" },
   { title: "Company", desc: "Website", url: "https://smartworlddevelopers.com/", img: "/images/company-logo.png", color: "#00d4ff" },
+  { title: "Smart Leasing", desc: "Leasing & Billing", url: "http://192.168.66.28:96/", img: "/images/smart-leasing-logo.svg", color: "#14b8a6" },
   { title: "ITS", desc: "VMS Portal", url: "https://vms.smartworlddevelopers.com/", img: "/images/its-logo.svg", color: "#105da9" },
   { title: "Projects", desc: "Developments", url: "#", img: "/images/projects-icon.png", color: "#7b2fff", isDropdown: true },
 ];
