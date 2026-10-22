@@ -35,6 +35,13 @@ const FAMILIES = {
 };
 const fam = (f) => FAMILIES[f] || FAMILIES.sans;
 const LINE_H = 1.2;
+/* Text items can use the PDF's own embedded font (family 'pdf'), shown in the editor through
+   the FontFace pdf.js already loaded, and written back with the original font object on save. */
+const usesPdfFont = (it) => it.family === 'pdf' && !!it.pdfFont;
+const cssFont = (it) => (usesPdfFont(it) && it.pdfFont.loadedName ? `"${it.pdfFont.loadedName}", ${fam(it.fallback).css}` : fam(it.family === 'pdf' ? it.fallback : it.family).css);
+const weightOf = (it) => (usesPdfFont(it) && it.pdfFont.loadedName ? 400 : it.bold ? 700 : 400);
+const baseKOf = (it) => (usesPdfFont(it) && it.pdfFont.baseK ? it.pdfFont.baseK : fam(it.family === 'pdf' ? it.fallback : it.family).base);
+const fmtPt = (n) => `${Math.round(n * 10) / 10} pt`;
 
 /* Guess sans / serif / mono from a PDF font name */
 const guessFamily = (name = '', generic = '') => {
@@ -71,8 +78,10 @@ function sampleColors(canvas, k, box) {
     let ink = [17, 24, 39];
     if (far.length > 3) {
       far.sort((a, b) => lum(a) - lum(b));
-      const top = far.slice(0, Math.max(1, Math.ceil(far.length * 0.15)));
-      ink = [0, 1, 2].map(j => top.reduce((n, c) => n + c[j], 0) / top.length);
+      // Median of the darkest few % = the solid core of the letters (edges are anti-aliased)
+      const top = far.slice(0, Math.max(1, Math.ceil(far.length * 0.06)));
+      ink = [0, 1, 2].map(j => med(top.map(c => c[j])));
+      if (ink[0] + ink[1] + ink[2] < 40) ink = [0, 0, 0];
     }
     return { bg: toHex(...bg), ink: toHex(...ink) };
   } catch (_) { return null; }
@@ -125,7 +134,7 @@ const textBox = (it) => {
   const lines = String(it.text || ' ').split('\n');
   let w = 20;
   if (measureCtx) {
-    measureCtx.font = `${it.bold ? 'bold ' : ''}${it.size}px ${fam(it.family).css}`;
+    measureCtx.font = `${weightOf(it)} ${it.size}px ${cssFont(it)}`;
     w = Math.max(...lines.map(l => measureCtx.measureText(l || ' ').width), it.size);
   }
   return { w: w + 2, h: lines.length * it.size * LINE_H };
@@ -211,6 +220,8 @@ export default function PdfEditor({ onBack }) {
   const [tool, setTool] = useState('edit');
   const [segInfo, setSegInfo] = useState({ page: -1, list: [] }); // text lines found on the current page
   const [ocrBusy, setOcrBusy] = useState(0);
+  const [missing, setMissing] = useState({ id: null, chars: [] }); // characters the PDF's own font can't draw
+  const libRef = useRef(null); // pdf-lib copy of the file, for checking the original fonts while typing
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const [pending, setPending] = useState(null);  // image waiting to be placed {src,w,h,sig}
@@ -308,16 +319,26 @@ export default function PdfEditor({ onBack }) {
           if (Math.abs(tx[1]) > 0.01 || Math.abs(tx[2]) > 0.01) continue; // only text that reads left→right on screen
           const fh = Math.abs(tx[3]) || Math.abs(tx[0]);
           if (fh < 3) continue;
-          let fname = '';
-          try { const f = page.commonObjs.get(it.fontName); fname = (f && f.name) || ''; } catch (_) {}
+          let fname = '', pdfFont = null;
+          try {
+            const f = page.commonObjs.get(it.fontName);
+            fname = (f && f.name) || '';
+            if (f && !f.isType3Font && f.name) {
+              // Not-embedded fonts (e.g. plain Helvetica) have no browser font face: shown with a similar font, saved with the original
+              const embedded = !!f.loadedName && !f.missingFile;
+              const asc = Number(f.ascent), desc = Number(f.descent);
+              const baseK = embedded && Number.isFinite(asc) && Number.isFinite(desc) && asc > 0 && asc - desc > 0.5 && asc - desc < 2 ? (LINE_H - (asc - desc)) / 2 + asc : null;
+              pdfFont = { name: f.name, loadedName: embedded ? f.loadedName : null, baseK };
+            }
+          } catch (_) {}
           const generic = (content.styles[it.fontName] || {}).fontFamily || '';
-          glyphs.push({ str: it.str, x: tx[4], base: tx[5], w: Math.abs(it.width * (tx[0] / (Math.hypot(it.transform[0], it.transform[1]) || 1))) || it.width, fh, fname, generic });
+          glyphs.push({ str: it.str, x: tx[4], base: tx[5], w: Math.abs(it.width * (tx[0] / (Math.hypot(it.transform[0], it.transform[1]) || 1))) || it.width, fh, fname, generic, fontId: it.fontName, pdfFont });
         }
         glyphs.sort((a, b) => (Math.abs(a.base - b.base) < Math.min(a.fh, b.fh) * 0.3 ? a.x - b.x : a.base - b.base));
         const segs = [];
         for (const g of glyphs) {
           const last = segs[segs.length - 1];
-          const sameLine = last && Math.abs(last.base - g.base) < Math.min(last.fh, g.fh) * 0.3;
+          const sameLine = last && Math.abs(last.base - g.base) < Math.min(last.fh, g.fh) * 0.3 && last.fontId === g.fontId && Math.abs(last.fh - g.fh) < 0.3;
           const gap = last ? g.x - (last.x + last.w) : 0;
           if (sameLine && gap < g.fh * 0.9 && gap > -g.fh) {
             last.str += (gap > g.fh * 0.15 && !/\s$/.test(last.str) && !/^\s/.test(g.str) ? ' ' : '') + g.str;
@@ -328,8 +349,8 @@ export default function PdfEditor({ onBack }) {
         const list = segs.filter(sg => sg.str.trim()).map(sg => ({
           key: `${Math.round(sg.x)}_${Math.round(sg.base)}`,
           x: sg.x, y: sg.base - sg.fh * 0.92, w: Math.max(sg.w, sg.fh), h: sg.fh * 1.18, base: sg.base,
-          text: sg.str.replace(/\s+/g, ' ').trim(), size: Math.round(sg.fh * 2) / 2,
-          family: guessFamily(sg.fname, sg.generic), bold: /bold|black|heavy|semibold|demi/i.test(sg.fname),
+          text: sg.str.replace(/\s+/g, ' ').trim(), size: Math.round(sg.fh * 100) / 100,
+          family: guessFamily(sg.fname, sg.generic), bold: /bold|black|heavy|semibold|demi/i.test(sg.fname), pdfFont: sg.pdfFont,
         }));
         if (!cancelled) setSegInfo({ page: pageIdx, list });
       } catch (_) { if (!cancelled) setSegInfo({ page: pageIdx, list: [] }); }
@@ -356,6 +377,29 @@ export default function PdfEditor({ onBack }) {
     })();
     return () => { stop = true; };
   }, [pdf]);
+
+  /* While editing text in the original font: which characters are not in the PDF's (subset) font? */
+  const selText = sel && sel.type === 'text' ? sel.text : null;
+  const selPdfFont = sel && sel.type === 'text' && usesPdfFont(sel) ? sel.pdfFont.name : null;
+  useEffect(() => {
+    if (!selPdfFont || !file) { setMissing({ id: null, chars: [] }); return undefined; }
+    let stop = false;
+    const id = sel.id, text = selText, orig = sel.origText || '';
+    const t = setTimeout(async () => {
+      try {
+        if (!libRef.current || libRef.current.file !== file) {
+          const [{ PDFDocument }, { makeFontWriter }] = await Promise.all([import('pdf-lib'), import('../../services/pdfFontWriter')]);
+          const doc = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
+          libRef.current = { file, doc, writer: makeFontWriter(doc) };
+        }
+        const { doc, writer } = libRef.current;
+        const page = doc.getPage(pageIdx);
+        const chars = [...new Set(text.split('\n').flatMap(l => (l ? writer.plan(page, selPdfFont, l, orig).missing || [] : [])))];
+        if (!stop) setMissing({ id, chars });
+      } catch (_) { if (!stop) setMissing({ id: null, chars: [] }); }
+    }, 250);
+    return () => { stop = true; clearTimeout(t); };
+  }, [selText, selPdfFont, file, pageIdx]); // eslint-disable-line
 
   /* keyboard */
   useEffect(() => {
@@ -389,14 +433,30 @@ export default function PdfEditor({ onBack }) {
 
   /* Edit text: replace one detected line in place */
   const editSegment = (sg) => {
-    const c = sampleColors(canvasRef.current, pxPerUnit(), sg) || { bg: '#ffffff', ink: '#111827' };
+    const quick = sampleColors(canvasRef.current, pxPerUnit(), sg) || { bg: '#ffffff', ink: '#111827' };
     snapshot();
+    const id = newId();
     const it = {
-      id: newId(), type: 'text', fromSeg: sg.key, text: sg.text, size: sg.size, family: sg.family, bold: sg.bold, color: c.ink,
-      x: sg.x - 1, y: sg.base - sg.size * fam(sg.family).base,
-      cover: { x: sg.x - 1.5, y: sg.y - 1, w: sg.w + 3, h: sg.h + 2, color: c.bg },
+      id, type: 'text', fromSeg: sg.key, text: sg.text, origText: sg.text, size: sg.size, bold: sg.bold, color: quick.ink,
+      family: sg.pdfFont ? 'pdf' : sg.family, fallback: sg.family, pdfFont: sg.pdfFont,
+      x: sg.x - 1, y: 0,
+      cover: { x: sg.x - 1.5, y: sg.y - 1, w: sg.w + 3, h: sg.h + 2, color: quick.bg },
     };
-    updatePage(l => [...l, it]); setSelected(it.id); setEditing(it.id);
+    it.y = sg.base - sg.size * baseKOf(it);
+    updatePage(l => [...l, it]); setSelected(id); setEditing(id);
+    // Exact colours: re-render just this spot at high resolution and read the solid ink pixels
+    (async () => {
+      try {
+        const page = await pdf.getPage(pageIdx + 1);
+        const S = 6, pad = 4;
+        const vp = page.getViewport({ scale: S });
+        const c = document.createElement('canvas');
+        c.width = Math.ceil((sg.w + pad * 2) * S); c.height = Math.ceil((sg.h + pad * 2) * S);
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp, transform: [1, 0, 0, 1, -(sg.x - pad) * S, -(sg.y - pad) * S] }).promise;
+        const exact = sampleColors(c, S, { x: pad, y: pad, w: sg.w, h: sg.h });
+        if (exact) setItems(all => ({ ...all, [pageIdx]: (all[pageIdx] || []).map(i => (i.id === id ? { ...i, color: i.color === quick.ink ? exact.ink : i.color, cover: { ...i.cover, color: exact.bg } } : i)) }));
+      } catch (_) { /* keep the quick sample */ }
+    })();
   };
 
   /* Edit text on a scan (or any area): cover the box, read it with OCR, let the user retype it */
@@ -407,6 +467,7 @@ export default function PdfEditor({ onBack }) {
     const id = newId();
     const it = {
       id, type: 'text', text: '', size: size0, family: style.family, bold: false, color: c.ink, ocr: true,
+      fallback: style.family,
       x: box.x + 1, y: box.y + Math.max(0, (box.h - size0 * LINE_H) / 2),
       cover: { x: box.x - 1, y: box.y - 1, w: box.w + 2, h: box.h + 2, color: c.bg },
     };
@@ -420,7 +481,7 @@ export default function PdfEditor({ onBack }) {
         if (!cur || (cur.text && cur.text.trim())) return all; // gone, or the user already typed
         const lines = Math.max(1, r.text.split('\n').length);
         const size = r.size ? Math.max(6, Math.min(72, Math.round(r.size * 2) / 2)) : Math.max(6, Math.min(72, Math.round((box.h / lines) * 0.62 * 2) / 2));
-        const top = r.baseline != null ? r.baseline - size * fam(cur.family).base : box.y + Math.max(0, (box.h - lines * size * LINE_H) / 2);
+        const top = r.baseline != null ? r.baseline - size * baseKOf(cur) : box.y + Math.max(0, (box.h - lines * size * LINE_H) / 2);
         const x = r.left != null ? Math.max(box.x, r.left - 1) : cur.x;
         return { ...all, [pageIdx]: list.map(i => (i.id === id ? { ...i, text: r.text, size, y: top, x, ocr: false } : i)) };
       });
@@ -553,7 +614,10 @@ export default function PdfEditor({ onBack }) {
       pen: { ink: 'color', width: 'width' },
       rect: sel.kind === 'highlight' ? { marker: 'color' } : sel.kind === 'box' ? { boxColor: 'color', width: 'width' } : {},
     }[sel.type] || {};
-    if (map[key]) { snapshot(); patchItem(sel.id, { [map[key]]: value }); }
+    if (!map[key]) return;
+    snapshot();
+    if (sel.type === 'text' && key === 'bold' && usesPdfFont(sel)) { patchItem(sel.id, { family: sel.fallback || 'sans', bold: value }); return; }
+    patchItem(sel.id, { [map[key]]: value });
   };
 
   const addImage = async (f) => {
@@ -593,6 +657,9 @@ export default function PdfEditor({ onBack }) {
       };
       const imgCache = {};
       let replaced = false;
+      const { makeFontWriter, drawWithOriginalFont } = await import('../../services/pdfFontWriter');
+      const writer = makeFontWriter(doc);
+      const fellBack = new Set();
       for (const [k, list] of Object.entries(items)) {
         if (!list.length) continue;
         const idx = Number(k);
@@ -621,8 +688,25 @@ export default function PdfEditor({ onBack }) {
               page.drawRectangle({ x: Math.min(ax, bx), y: Math.min(ay, by), width: Math.abs(bx - ax), height: Math.abs(by - ay), color: rgb(...hexToRgb(cv.color)) });
             }
             if (!it.text.trim()) continue;
-            const fnt = await getFont(it.family, it.bold);
-            const baseK = fam(it.family).base;
+            const baseK = baseKOf(it);
+            const color = hexToRgb(it.color);
+            // 1) the PDF's own font → identical look
+            if (usesPdfFont(it)) {
+              const lines = it.text.split('\n');
+              const plans = lines.map(line => (line ? writer.plan(page, it.pdfFont.name, line, it.origText || '') : { runs: [] }));
+              const miss = plans.flatMap(pl => pl.missing || []);
+              const allOk = !miss.length;
+              if (allOk) {
+                lines.forEach((line, n) => {
+                  if (!line) return;
+                  const [x, y] = P(it.x + 1, it.y + it.size * (n * LINE_H + baseK));
+                  drawWithOriginalFont(doc, page, writer, it.pdfFont.name, { text: line, originalText: it.origText || '', x, y, size: it.size, rgb: color, rotateDeg: rot.angle });
+                });
+              } else miss.forEach(ch => fellBack.add(ch));
+              if (allOk) continue;
+              // a character isn't in the embedded (subset) font → write the item with a similar standard font
+            }
+            const fnt = await getFont(it.family === 'pdf' ? it.fallback : it.family, it.bold);
             it.text.split('\n').forEach((line, n) => {
               const safe = winAnsiSafe(line);
               if (safe !== line) replaced = true;
@@ -641,7 +725,15 @@ export default function PdfEditor({ onBack }) {
       }
       const name = `${baseOf(file.name)}-edited.pdf`;
       downloadBlob(new Blob([await doc.save()], { type: 'application/pdf' }), name);
-      setSaved(replaced ? `${name} downloaded. Note: some characters (e.g. Hindi) can't be written with the standard PDF font and were replaced with "?".` : `${name} downloaded.`);
+      const notes = [];
+      if (fellBack.size) {
+        const chars = [...fellBack].filter(c => c !== 'font');
+        notes.push(chars.length
+          ? `The original font in this PDF doesn't contain ${chars.map(c => `"${c}"`).join(', ')}, so ${chars.length > 1 ? 'those edits were' : 'that edit was'} written with a similar standard font.`
+          : 'One edit could not use the PDF\'s original font and was written with a similar standard font.');
+      }
+      if (replaced) notes.push('Some characters (e.g. Hindi) can\'t be written with the standard PDF fonts and were replaced with "?".');
+      setSaved(`${name} downloaded.${notes.length ? ` Note: ${notes.join(' ')}` : ''}`);
     } catch (e) {
       setError(`Could not save: ${e?.message || e}`);
     } finally { setBusy(false); }
@@ -709,11 +801,12 @@ export default function PdfEditor({ onBack }) {
             {INK.slice(0, 5).map(c => swatch(c, (sel ? sel.color : style.textColor) === c, () => setProp('textColor', c)))}
             <select value={sel ? sel.size : style.size} onChange={e => setProp('size', Number(e.target.value))} aria-label="Font size"
               style={{ height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontFamily: font.body, fontSize: '.8rem', padding: '0 6px' }}>
-              {[...new Set([...SIZES, sel ? sel.size : style.size])].sort((m, n) => m - n).map(s => <option key={s} value={s}>{s} pt</option>)}
+              {[...new Set([...SIZES, sel ? sel.size : style.size])].sort((m, n) => m - n).map(s => <option key={s} value={s}>{fmtPt(s)}</option>)}
             </select>
-            <button type="button" aria-label="Bold" title="Bold" onClick={() => setProp('bold', !(sel ? sel.bold : style.bold))} style={{ ...toolBtn(sel ? sel.bold : style.bold), width: 32, height: 30 }}><Bold size={15} /></button>
+            <button type="button" aria-label="Bold" title={sel && usesPdfFont(sel) ? 'Bold (switches to a standard font)' : 'Bold'} onClick={() => setProp('bold', !(sel ? sel.bold : style.bold))} style={{ ...toolBtn(sel ? (usesPdfFont(sel) ? false : sel.bold) : style.bold), width: 32, height: 30 }}><Bold size={15} /></button>
             <select value={(sel ? sel.family : style.family) || 'sans'} onChange={e => setProp('family', e.target.value)} aria-label="Font"
               style={{ height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontFamily: font.body, fontSize: '.8rem', padding: '0 6px' }}>
+              {sel && sel.pdfFont && <option value="pdf">Original font ({String(sel.pdfFont.name || '').replace(/^[A-Z]{6}\+/, '').slice(0, 24) || 'from PDF'})</option>}
               {Object.entries(FAMILIES).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
             </select>
             {sel && sel.cover && swatch(sel.cover.color, false, () => {}, 'Cover colour (matched to the page)')}
@@ -752,6 +845,13 @@ export default function PdfEditor({ onBack }) {
 
       {error && <div style={{ marginBottom: 10 }}><Notice>{error}</Notice></div>}
       {saved && <div style={{ marginBottom: 10 }}><Notice type="success">{saved}</Notice></div>}
+      {sel && missing.id === sel.id && missing.chars.length > 0 && usesPdfFont(sel) && (
+        <div style={{ marginBottom: 10 }}><Notice type="warning">
+          {missing.chars.includes('font')
+            ? 'The original font could not be reused for this text, so it will be saved with a similar standard font.'
+            : <>The font inside this PDF only contains the letters the document already uses — it has no {missing.chars.map(c => `“${c}”`).join(', ')}. This line will be saved with a similar standard font. To keep it identical, use only characters that already appear in the same style elsewhere in the document.</>}
+        </Notice></div>
+      )}
       {ocrBusy > 0 && <div style={{ marginBottom: 10 }}><Notice type="info"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Loader2 size={13} className="tools-spin" />Reading the text in the box… (first time takes a few seconds)</span></Notice></div>}
       {tool === 'edit' && isScan && !ocrBusy && !pageItems.some(i => i.cover) && <div style={{ marginBottom: 10 }}><Notice type="info">This page is a scanned image, so its words can't be clicked. Drag a box over the words you want to change — SmartDesk reads them, hides the old ones and lets you type the new text.</Notice></div>}
       {pending && <div style={{ marginBottom: 10 }}><Notice type="info">{pending.sig ? 'Signature ready — click on the page where it should go.' : 'Image ready — click on the page where it should go.'} Press Esc to cancel.</Notice></div>}
@@ -828,7 +928,7 @@ export default function PdfEditor({ onBack }) {
                 ))}
                 {pageItems.filter(i => i.type === 'text').map(it => {
                   const box = textBox(it);
-                  const common = { position: 'absolute', left: it.x * zoom, top: it.y * zoom, fontFamily: fam(it.family).css, fontSize: it.size * zoom, lineHeight: LINE_H, fontWeight: it.bold ? 700 : 400, color: it.color, whiteSpace: 'pre', padding: 0, margin: 0 };
+                  const common = { position: 'absolute', left: it.x * zoom, top: it.y * zoom, fontFamily: cssFont(it), fontSize: it.size * zoom, lineHeight: LINE_H, fontWeight: weightOf(it), color: it.color, whiteSpace: 'pre', padding: 0, margin: 0 };
                   if (editing === it.id) return (
                     <textarea key={it.id} autoFocus value={it.text} spellCheck={false}
                       onFocus={e => { const v = e.target.value; e.target.setSelectionRange(v.length, v.length); }}
