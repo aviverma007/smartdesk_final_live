@@ -3,10 +3,10 @@
  *
  * Most conversions run entirely in the browser (files never leave the PC):
  *   images  ⇄ png / jpg / webp / pdf
- *   pdf     → png / jpg (one image per page) / txt, and merging PDFs
+ *   pdf     → docx (editable Word) / png / jpg (one image per page) / txt, and merging PDFs
  *   sheets  ⇄ xlsx / xls / csv / ods / json / html
  *   docx    → html / txt
- *   text    → pdf / txt
+ *   text    → pdf / txt / docx
  * Office → PDF (Word, PowerPoint, Excel…) needs LibreOffice on the server and is
  * done by backend-userrights at /api/convert/office; those targets are only
  * offered when /api/convert/capabilities says LibreOffice is installed.
@@ -33,12 +33,12 @@ export const kindOf = (file) => EXT_KIND[extOf(file.name)] || 'unknown';
 /* Conversion targets per kind. `office: true` = needs LibreOffice on the server. */
 const TARGETS = {
   image: [{ ext: 'png' }, { ext: 'jpg' }, { ext: 'webp' }, { ext: 'pdf' }],
-  pdf:   [{ ext: 'png', note: 'one image per page' }, { ext: 'jpg', note: 'one image per page' }, { ext: 'txt', note: 'extract text' }, { ext: 'docx', office: true, note: 'layout may change' }],
+  pdf:   [{ ext: 'docx', note: 'editable Word document' }, { ext: 'png', note: 'one image per page' }, { ext: 'jpg', note: 'one image per page' }, { ext: 'txt', note: 'extract text' }],
   sheet: [{ ext: 'xlsx' }, { ext: 'csv' }, { ext: 'json' }, { ext: 'html' }, { ext: 'ods' }, { ext: 'pdf', office: true }],
   json:  [{ ext: 'xlsx' }, { ext: 'csv' }, { ext: 'html' }],
   docx:  [{ ext: 'pdf', office: true }, { ext: 'html' }, { ext: 'txt' }, { ext: 'odt', office: true }, { ext: 'doc', office: true }],
   office:[{ ext: 'pdf', office: true }, { ext: 'docx', office: true, only: ['doc', 'odt', 'rtf'] }, { ext: 'pptx', office: true, only: ['ppt', 'odp'] }],
-  text:  [{ ext: 'pdf' }, { ext: 'txt' }, { ext: 'docx', office: true }],
+  text:  [{ ext: 'pdf' }, { ext: 'txt' }, { ext: 'docx' }],
 };
 
 export const targetsFor = (file, officeAvailable) => {
@@ -150,6 +150,11 @@ export async function imagesToPdf(files, name = 'images.pdf') {
 
 /* ── PDF conversions ─────────────────────────────────────────────────────── */
 async function pdfTo(file, ext, onProgress) {
+  if (ext === 'docx') {
+    const { pdfToDocx } = await import('./pdfToDocx');
+    const { blob } = await pdfToDocx(file, { onProgress });
+    return [out(`${baseOf(file.name)}.docx`, blob)];
+  }
   const lib = await pdfjs();
   const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
   const base = baseOf(file.name);
@@ -262,6 +267,10 @@ async function textTo(file, ext) {
     text = d.body ? d.body.innerText || d.body.textContent : text;
   }
   if (ext === 'txt') return [out(`${base}.txt`, new Blob([text], { type: MIME.txt }))];
+  if (ext === 'docx') {
+    const { textToDocx } = await import('./pdfToDocx');
+    return [out(`${base}.docx`, await textToDocx(text, base))];
+  }
 
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const doc = await PDFDocument.create();
