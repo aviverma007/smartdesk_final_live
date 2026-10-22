@@ -2,16 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
-/* Right-hand slideshow. Add/replace slides here (images live in public/images). */
+/* Right-hand slideshow. Illustrations live in public/images/login (animated SVGs). */
 const SLIDES = [
-  { src: '/images/login/office-gallery.webp',        tag: 'Smart World',  caption: 'Our sales gallery' },
-  { src: '/images/smart-world-sky-arc.webp',         tag: 'Project',      caption: 'Smart World Sky Arc' },
-  { src: '/images/login/celebrations.webp',          tag: 'Culture',      caption: 'Celebrating together' },
-  { src: '/images/smart-world-the-edition.webp',     tag: 'Project',      caption: 'Smart World The Edition' },
-  { src: '/images/login/workplace.webp',             tag: 'Workplace',    caption: 'Where we build every day' },
-  { src: '/images/smart-world-one-dxp.webp',         tag: 'Project',      caption: 'Smart World One DXP' },
-  { src: '/images/login/together.webp',              tag: 'People',       caption: 'One team, one family' },
-  { src: '/images/smart-world-orchard.webp',         tag: 'Project',      caption: 'Smart World Orchard' },
+  { src: '/images/login/slide-workspace.svg',  tag: 'SmartDesk',  caption: 'Your whole workday, in one orbit' },
+  { src: '/images/login/slide-attendance.svg', tag: 'Attendance', caption: 'Live punch-ins across every site' },
+  { src: '/images/login/slide-directory.svg',  tag: 'Directory',  caption: 'Find any colleague in seconds' },
+  { src: '/images/login/slide-tools.svg',      tag: 'Tools',      caption: 'Convert, merge and calculate' },
+  { src: '/images/login/slide-dashboards.svg', tag: 'Dashboards', caption: 'SmartDB and Power BI, one tap away' },
+  { src: '/images/login/slide-policies.svg',   tag: 'HR',         caption: 'Policies and holidays at a glance' },
 ];
 const SLIDE_MS = 5500;
 const BRAND = 'SMARTDESK';
