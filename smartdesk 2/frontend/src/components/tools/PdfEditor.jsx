@@ -1,20 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FilePen, MousePointer2, Type, PenLine, Highlighter, Eraser, Square, ImagePlus, PenTool, Undo2, Redo2, Trash2,
-  ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Bold, X, Check, CalendarDays, FileUp,
+  ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download, Bold, X, Check, CalendarDays, FileUp, TextCursorInput, Loader2,
 } from 'lucide-react';
 import { pdfjs, baseOf, downloadBlob } from '../../services/converter';
 import { DropZone, ToolHeader, Notice, Btn, btnStyle, font, card } from './shared';
 
 /*
- * PDF Editor — add text, freehand drawing, highlights, white-out, boxes, images and a
- * drawn signature to any page, then download the edited PDF. Runs in the browser.
+ * PDF Editor — edit existing text, add text, freehand drawing, highlights, white-out, boxes,
+ * images and a drawn signature to any page, then download the edited PDF. Runs in the browser.
+ * "Edit text": on normal PDFs each text line is clickable and is replaced in place (the old
+ * words are covered with the page's own background colour); on scanned PDFs the user drags a
+ * box over the words and they are read with OCR (Tesseract, served from /public/tesseract).
  * Item coordinates are stored in page units (1 unit = 1 pt at zoom 1, top-left origin of
  * the page as displayed) and converted to PDF space only when saving.
  */
 
 const TOOLS = [
   { id: 'select', label: 'Select / move', Icon: MousePointer2, key: 'v' },
+  { id: 'edit', label: 'Edit existing text', Icon: TextCursorInput, key: 'e' },
   { id: 'text', label: 'Add text', Icon: Type, key: 't' },
   { id: 'draw', label: 'Draw', Icon: PenLine, key: 'd' },
   { id: 'highlight', label: 'Highlight', Icon: Highlighter, key: 'h' },
@@ -24,8 +28,94 @@ const TOOLS = [
 const INK = ['#111827', '#1d4ed8', '#dc2626', '#15803d', '#7c3aed', '#ffffff'];
 const MARKER = ['#fde047', '#86efac', '#93c5fd', '#f9a8d4'];
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
-const TEXT_FONT = 'Helvetica, Arial, sans-serif';
+const FAMILIES = {
+  sans: { css: 'Helvetica, Arial, sans-serif', label: 'Sans (Arial)', base: 0.95 },
+  serif: { css: "'Times New Roman', Times, serif", label: 'Serif (Times)', base: 0.94 },
+  mono: { css: "'Courier New', Courier, monospace", label: 'Mono (Courier)', base: 0.87 },
+};
+const fam = (f) => FAMILIES[f] || FAMILIES.sans;
 const LINE_H = 1.2;
+
+/* Guess sans / serif / mono from a PDF font name */
+const guessFamily = (name = '', generic = '') => {
+  const n = `${name} ${generic}`.toLowerCase();
+  if (/courier|mono|consol/.test(n)) return 'mono';
+  if (/sans|arial|helvet|calibri|verdana|segoe|tahoma|roboto|open ?sans|gothic|futura/.test(n)) return 'sans';
+  if (/times|serif|cambria|georgia|garamond|book ?antiqua|palatino|minion|roman|century/.test(n)) return 'serif';
+  return 'sans';
+};
+const toHex = (r, g, b) => `#${[r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+
+/* Background (around a box) and ink (inside it) colours from the rendered page */
+function sampleColors(canvas, k, box) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const pad = 3;
+    const x0 = Math.max(0, Math.floor((box.x - pad) * k)), y0 = Math.max(0, Math.floor((box.y - pad) * k));
+    const x1 = Math.min(canvas.width, Math.ceil((box.x + box.w + pad) * k)), y1 = Math.min(canvas.height, Math.ceil((box.y + box.h + pad) * k));
+    const w = x1 - x0, h = y1 - y0;
+    if (w < 3 || h < 3) return null;
+    const d = ctx.getImageData(x0, y0, w, h).data;
+    const rw = Math.max(1, Math.round(pad * k * 0.7));
+    const step = Math.max(1, Math.floor(Math.sqrt((w * h) / 60000)));
+    const ring = [[], [], []], inner = [];
+    for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) {
+      const i = (y * w + x) * 4;
+      if (x < rw || y < rw || x >= w - rw || y >= h - rw) { ring[0].push(d[i]); ring[1].push(d[i + 1]); ring[2].push(d[i + 2]); }
+      else inner.push([d[i], d[i + 1], d[i + 2]]);
+    }
+    const med = (a) => { const s = a.slice().sort((p, q) => p - q); return s[Math.floor(s.length / 2)] ?? 255; };
+    const bg = [med(ring[0]), med(ring[1]), med(ring[2])];
+    const lum = (c) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+    const far = inner.filter(c => Math.abs(c[0] - bg[0]) + Math.abs(c[1] - bg[1]) + Math.abs(c[2] - bg[2]) > 120);
+    let ink = [17, 24, 39];
+    if (far.length > 3) {
+      far.sort((a, b) => lum(a) - lum(b));
+      const top = far.slice(0, Math.max(1, Math.ceil(far.length * 0.15)));
+      ink = [0, 1, 2].map(j => top.reduce((n, c) => n + c[j], 0) / top.length);
+    }
+    return { bg: toHex(...bg), ink: toHex(...ink) };
+  } catch (_) { return null; }
+}
+
+/* OCR (lazy; files are served from public/tesseract — no internet needed) */
+let ocrPromise = null;
+const getOcr = () => {
+  if (!ocrPromise) {
+    ocrPromise = (async () => {
+      const { createWorker } = await import('tesseract.js');
+      const base = `${window.location.origin}${process.env.PUBLIC_URL || ''}/tesseract`;
+      return createWorker('eng', 1, { workerPath: `${base}/worker.min.js`, corePath: base, langPath: `${base}/lang`, gzip: true, workerBlobURL: false });
+    })().catch(e => { ocrPromise = null; throw e; });
+  }
+  return ocrPromise;
+};
+async function ocrRegion(canvas, k, box) {
+  const sx = Math.max(0, box.x * k), sy = Math.max(0, box.y * k);
+  const sw = Math.min(canvas.width - sx, box.w * k), sh = Math.min(canvas.height - sy, box.h * k);
+  if (sw < 4 || sh < 4) return { text: '' };
+  const scale = Math.max(1, Math.min(4, 90 / sh));
+  const c = document.createElement('canvas'), pad = 16;
+  c.width = Math.round(sw * scale) + pad * 2; c.height = Math.round(sh * scale) + pad * 2;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(canvas, sx, sy, sw, sh, pad, pad, sw * scale, sh * scale);
+  const worker = await getOcr();
+  const { data } = await worker.recognize(c);
+  const text = String(data.text || '').split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+  const lines = (data.lines || []).filter(l => l.text && l.text.trim());
+  // Font size and position from the first line: top of the letters → baseline ≈ 0.72 em
+  let size = null, left = null, baseline = null;
+  if (lines.length) {
+    const l0 = lines[0];
+    const bl = l0.baseline && Number.isFinite(l0.baseline.y0) ? (l0.baseline.y0 + l0.baseline.y1) / 2 : l0.bbox.y1;
+    const asc = bl - l0.bbox.y0;
+    if (asc > 2) size = asc / 0.72 / scale / k;
+    left = box.x + (l0.bbox.x0 - pad) / scale / k;
+    baseline = box.y + (bl - pad) / scale / k;
+  }
+  return { text, size, left, baseline };
+}
 
 let uid = 0;
 const newId = () => `i${Date.now().toString(36)}${(uid++).toString(36)}`;
@@ -35,7 +125,7 @@ const textBox = (it) => {
   const lines = String(it.text || ' ').split('\n');
   let w = 20;
   if (measureCtx) {
-    measureCtx.font = `${it.bold ? 'bold ' : ''}${it.size}px ${TEXT_FONT}`;
+    measureCtx.font = `${it.bold ? 'bold ' : ''}${it.size}px ${fam(it.family).css}`;
     w = Math.max(...lines.map(l => measureCtx.measureText(l || ' ').width), it.size);
   }
   return { w: w + 2, h: lines.length * it.size * LINE_H };
@@ -118,11 +208,13 @@ export default function PdfEditor({ onBack }) {
   const [items, setItems] = useState({});        // { [page]: Item[] }
   const [past, setPast] = useState([]);
   const [future, setFuture] = useState([]);
-  const [tool, setTool] = useState('select');
+  const [tool, setTool] = useState('edit');
+  const [segInfo, setSegInfo] = useState({ page: -1, list: [] }); // text lines found on the current page
+  const [ocrBusy, setOcrBusy] = useState(0);
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const [pending, setPending] = useState(null);  // image waiting to be placed {src,w,h,sig}
-  const [style, setStyle] = useState({ textColor: '#111827', size: 14, bold: false, ink: '#1d4ed8', width: 2, marker: '#fde047', boxColor: '#dc2626' });
+  const [style, setStyle] = useState({ textColor: '#111827', size: 14, bold: false, ink: '#1d4ed8', width: 2, marker: '#fde047', boxColor: '#dc2626', family: 'sans' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [sigOpen, setSigOpen] = useState(false);
@@ -200,8 +292,47 @@ export default function PdfEditor({ onBack }) {
       c.style.width = `${vp.width / dpr}px`; c.style.height = `${vp.height / dpr}px`;
       task = page.render({ canvasContext: c.getContext('2d'), viewport: vp });
       renderRef.current = task;
-      try { await task.promise; } catch (_) { /* cancelled */ }
+      let ok = true;
+      try { await task.promise; } catch (_) { ok = false; /* cancelled */ }
       if (renderRef.current === task) renderRef.current = null;
+      if (!ok || cancelled) return;
+      // Text lines on this page (for "Edit text"). Fonts are loaded now that the page is rendered.
+      try {
+        const lib = await pdfjs();
+        const vp1 = page.getViewport({ scale: 1 });
+        const content = await page.getTextContent();
+        const glyphs = [];
+        for (const it of content.items) {
+          if (!it.str || !it.str.trim() || !it.transform) continue;
+          const tx = lib.Util.transform(vp1.transform, it.transform);
+          if (Math.abs(tx[1]) > 0.01 || Math.abs(tx[2]) > 0.01) continue; // only text that reads left→right on screen
+          const fh = Math.abs(tx[3]) || Math.abs(tx[0]);
+          if (fh < 3) continue;
+          let fname = '';
+          try { const f = page.commonObjs.get(it.fontName); fname = (f && f.name) || ''; } catch (_) {}
+          const generic = (content.styles[it.fontName] || {}).fontFamily || '';
+          glyphs.push({ str: it.str, x: tx[4], base: tx[5], w: Math.abs(it.width * (tx[0] / (Math.hypot(it.transform[0], it.transform[1]) || 1))) || it.width, fh, fname, generic });
+        }
+        glyphs.sort((a, b) => (Math.abs(a.base - b.base) < Math.min(a.fh, b.fh) * 0.3 ? a.x - b.x : a.base - b.base));
+        const segs = [];
+        for (const g of glyphs) {
+          const last = segs[segs.length - 1];
+          const sameLine = last && Math.abs(last.base - g.base) < Math.min(last.fh, g.fh) * 0.3;
+          const gap = last ? g.x - (last.x + last.w) : 0;
+          if (sameLine && gap < g.fh * 0.9 && gap > -g.fh) {
+            last.str += (gap > g.fh * 0.15 && !/\s$/.test(last.str) && !/^\s/.test(g.str) ? ' ' : '') + g.str;
+            last.w = Math.max(last.w, g.x + g.w - last.x);
+            last.fh = Math.max(last.fh, g.fh);
+          } else segs.push({ ...g });
+        }
+        const list = segs.filter(sg => sg.str.trim()).map(sg => ({
+          key: `${Math.round(sg.x)}_${Math.round(sg.base)}`,
+          x: sg.x, y: sg.base - sg.fh * 0.92, w: Math.max(sg.w, sg.fh), h: sg.fh * 1.18, base: sg.base,
+          text: sg.str.replace(/\s+/g, ' ').trim(), size: Math.round(sg.fh * 2) / 2,
+          family: guessFamily(sg.fname, sg.generic), bold: /bold|black|heavy|semibold|demi/i.test(sg.fname),
+        }));
+        if (!cancelled) setSegInfo({ page: pageIdx, list });
+      } catch (_) { if (!cancelled) setSegInfo({ page: pageIdx, list: [] }); }
     })();
     return () => { cancelled = true; if (task) task.cancel(); };
   }, [pdf, pageIdx, zoom]);
@@ -239,7 +370,7 @@ export default function PdfEditor({ onBack }) {
       if (e.key === 'Escape') { setSelected(null); setPending(null); setTool('select'); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const t = TOOLS.find(x => x.key === e.key.toLowerCase());
-      if (t) { setTool(t.id); setPending(null); }
+      if (t) { setTool(t.id); setPending(null); setSelected(null); setEditing(null); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -249,6 +380,54 @@ export default function PdfEditor({ onBack }) {
   const toPage = (e) => {
     const r = overlayRef.current.getBoundingClientRect();
     return [(e.clientX - r.left) / zoom, (e.clientY - r.top) / zoom];
+  };
+
+  const segs = segInfo.page === pageIdx ? segInfo.list : [];
+  const isScan = segInfo.page === pageIdx && !segInfo.list.length;
+  const usedSegs = new Set(pageItems.filter(i => i.fromSeg).map(i => i.fromSeg));
+  const pxPerUnit = () => (canvasRef.current ? canvasRef.current.width / dims.w : 1);
+
+  /* Edit text: replace one detected line in place */
+  const editSegment = (sg) => {
+    const c = sampleColors(canvasRef.current, pxPerUnit(), sg) || { bg: '#ffffff', ink: '#111827' };
+    snapshot();
+    const it = {
+      id: newId(), type: 'text', fromSeg: sg.key, text: sg.text, size: sg.size, family: sg.family, bold: sg.bold, color: c.ink,
+      x: sg.x - 1, y: sg.base - sg.size * fam(sg.family).base,
+      cover: { x: sg.x - 1.5, y: sg.y - 1, w: sg.w + 3, h: sg.h + 2, color: c.bg },
+    };
+    updatePage(l => [...l, it]); setSelected(it.id); setEditing(it.id);
+  };
+
+  /* Edit text on a scan (or any area): cover the box, read it with OCR, let the user retype it */
+  const editArea = async (box) => {
+    const k = pxPerUnit();
+    const c = sampleColors(canvasRef.current, k, box) || { bg: '#ffffff', ink: '#111827' };
+    const size0 = Math.max(6, Math.min(72, Math.round(box.h * 0.62 * 2) / 2));
+    const id = newId();
+    const it = {
+      id, type: 'text', text: '', size: size0, family: style.family, bold: false, color: c.ink, ocr: true,
+      x: box.x + 1, y: box.y + Math.max(0, (box.h - size0 * LINE_H) / 2),
+      cover: { x: box.x - 1, y: box.y - 1, w: box.w + 2, h: box.h + 2, color: c.bg },
+    };
+    updatePage(l => [...l, it]); setSelected(id); setEditing(id);
+    setOcrBusy(n => n + 1);
+    try {
+      const r = await ocrRegion(canvasRef.current, k, box);
+      setItems(all => {
+        const list = all[pageIdx] || [];
+        const cur = list.find(i => i.id === id);
+        if (!cur || (cur.text && cur.text.trim())) return all; // gone, or the user already typed
+        const lines = Math.max(1, r.text.split('\n').length);
+        const size = r.size ? Math.max(6, Math.min(72, Math.round(r.size * 2) / 2)) : Math.max(6, Math.min(72, Math.round((box.h / lines) * 0.62 * 2) / 2));
+        const top = r.baseline != null ? r.baseline - size * fam(cur.family).base : box.y + Math.max(0, (box.h - lines * size * LINE_H) / 2);
+        const x = r.left != null ? Math.max(box.x, r.left - 1) : cur.x;
+        return { ...all, [pageIdx]: list.map(i => (i.id === id ? { ...i, text: r.text, size, y: top, x, ocr: false } : i)) };
+      });
+    } catch (e) {
+      setError('Could not read the text automatically — type the new words in the box.');
+      patchItem(id, { ocr: false });
+    } finally { setOcrBusy(n => n - 1); }
   };
 
   const onDown = (e) => {
@@ -279,11 +458,20 @@ export default function PdfEditor({ onBack }) {
         setSelected(hitId); if (editing !== hitId) setEditing(null);
         if (it) drag.current = { mode: 'move', id: it.id, start: [x, y], orig: it, pushed: false };
       } else { setSelected(null); setEditing(null); return; }
+    } else if (tool === 'edit') {
+      const it = hitId && pageItems.find(i => i.id === hitId && i.type === 'text');
+      if (it) { setSelected(it.id); setEditing(it.id); return; }
+      const segEl = e.target.closest && e.target.closest('[data-seg]');
+      if (segEl) { const sg = segs.find(z => z.key === segEl.getAttribute('data-seg')); if (sg) editSegment(sg); return; }
+      setSelected(null); setEditing(null);
+      const tmp = { id: newId(), type: 'rect', kind: 'editbox', x, y, w: 0, h: 0, color: '#3b82f6', width: 1 };
+      updatePage(l => [...l, tmp]);
+      drag.current = { mode: 'editbox', id: tmp.id, start: [x, y] };
     } else if (tool === 'text') {
       const it = hitId && pageItems.find(i => i.id === hitId && i.type === 'text');
       if (it) { setSelected(it.id); setEditing(it.id); return; }
       snapshot();
-      const nt = { id: newId(), type: 'text', x, y: y - style.size * 0.6, text: '', size: style.size, color: style.textColor, bold: style.bold };
+      const nt = { id: newId(), type: 'text', x, y: y - style.size * 0.6, text: '', size: style.size, color: style.textColor, bold: style.bold, family: style.family };
       updatePage(l => [...l, nt]); setSelected(nt.id); setEditing(nt.id);
       return;
     } else if (tool === 'draw') {
@@ -311,7 +499,7 @@ export default function PdfEditor({ onBack }) {
         const last = it.points[it.points.length - 1];
         return Math.hypot(cx - last[0], cy - last[1]) < 0.8 / zoom ? {} : { points: [...it.points, [cx, cy]] };
       });
-    } else if (d.mode === 'rect') {
+    } else if (d.mode === 'rect' || d.mode === 'editbox') {
       const [sx, sy] = d.start;
       patchItem(d.id, { x: Math.min(sx, cx), y: Math.min(sy, cy), w: Math.abs(cx - sx), h: Math.abs(cy - sy) });
     } else if (d.mode === 'move' || d.mode === 'resize') {
@@ -338,6 +526,18 @@ export default function PdfEditor({ onBack }) {
       const it = (itemsRef.current[pageIdx] || []).find(i => i.id === d.id);
       if (it && (it.w < 3 || it.h < 3)) { updatePage(l => l.filter(i => i.id !== d.id)); setPast(p => p.slice(0, -1)); }
     }
+    if (d.mode === 'editbox') {
+      const cur = itemsRef.current;
+      const list = cur[pageIdx] || [];
+      const it = list.find(i => i.id === d.id);
+      const without = { ...cur, [pageIdx]: list.filter(i => i.id !== d.id) };
+      setItems(without);
+      if (it && it.w >= 6 && it.h >= 5) {
+        setPast(p => [...p.slice(-60), without]); setFuture([]);
+        editArea({ x: it.x, y: it.y, w: it.w, h: it.h });
+      }
+      return;
+    }
     if (d.mode === 'pen') {
       const it = (itemsRef.current[pageIdx] || []).find(i => i.id === d.id);
       if (it && it.points.length === 1) patchItem(d.id, { points: [...it.points, [it.points[0][0] + 0.5, it.points[0][1] + 0.5]] });
@@ -349,7 +549,7 @@ export default function PdfEditor({ onBack }) {
     setStyle(s => ({ ...s, [key]: value }));
     if (!sel) return;
     const map = {
-      text: { textColor: 'color', size: 'size', bold: 'bold' },
+      text: { textColor: 'color', size: 'size', bold: 'bold', family: 'family' },
       pen: { ink: 'color', width: 'width' },
       rect: sel.kind === 'highlight' ? { marker: 'color' } : sel.kind === 'box' ? { boxColor: 'color', width: 'width' } : {},
     }[sel.type] || {};
@@ -369,7 +569,7 @@ export default function PdfEditor({ onBack }) {
     snapshot();
     const d = new Date();
     const txt = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-    const it = { id: newId(), type: 'text', x: dims.w / 2 - 35, y: dims.h / 2, text: txt, size: style.size, color: style.textColor, bold: style.bold };
+    const it = { id: newId(), type: 'text', x: dims.w / 2 - 35, y: dims.h / 2, text: txt, size: style.size, color: style.textColor, bold: style.bold, family: style.family };
     updatePage(l => [...l, it]); setSelected(it.id); setTool('select');
   };
 
@@ -380,8 +580,17 @@ export default function PdfEditor({ onBack }) {
     try {
       const { PDFDocument, StandardFonts, rgb, degrees, LineCapStyle, BlendMode } = await import('pdf-lib');
       const doc = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
-      const regular = await doc.embedFont(StandardFonts.Helvetica);
-      const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+      const STD = {
+        sans: [StandardFonts.Helvetica, StandardFonts.HelveticaBold],
+        serif: [StandardFonts.TimesRoman, StandardFonts.TimesRomanBold],
+        mono: [StandardFonts.Courier, StandardFonts.CourierBold],
+      };
+      const fontCache = {};
+      const getFont = async (family, b) => {
+        const f = STD[family] ? family : 'sans', key = `${f}${b ? 'B' : ''}`;
+        if (!fontCache[key]) fontCache[key] = await doc.embedFont(STD[f][b ? 1 : 0]);
+        return fontCache[key];
+      };
       const imgCache = {};
       let replaced = false;
       for (const [k, list] of Object.entries(items)) {
@@ -406,12 +615,18 @@ export default function PdfEditor({ onBack }) {
               page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: it.width, color: c, lineCap: LineCapStyle.Round });
             }
           } else if (it.type === 'text') {
+            if (it.cover) {
+              const cv = it.cover;
+              const [ax, ay] = P(cv.x, cv.y), [bx, by] = P(cv.x + cv.w, cv.y + cv.h);
+              page.drawRectangle({ x: Math.min(ax, bx), y: Math.min(ay, by), width: Math.abs(bx - ax), height: Math.abs(by - ay), color: rgb(...hexToRgb(cv.color)) });
+            }
             if (!it.text.trim()) continue;
-            const fnt = it.bold ? bold : regular;
+            const fnt = await getFont(it.family, it.bold);
+            const baseK = fam(it.family).base;
             it.text.split('\n').forEach((line, n) => {
               const safe = winAnsiSafe(line);
               if (safe !== line) replaced = true;
-              const [x, y] = P(it.x + 1, it.y + it.size * (n * LINE_H + 0.95));
+              const [x, y] = P(it.x + 1, it.y + it.size * (n * LINE_H + baseK));
               page.drawText(safe, { x, y, size: it.size, font: fnt, color: rgb(...hexToRgb(it.color)), rotate: rot });
             });
           } else if (it.type === 'image') {
@@ -436,12 +651,12 @@ export default function PdfEditor({ onBack }) {
   if (!pdf) {
     return (
       <div style={{ paddingBottom: 32 }}>
-        <ToolHeader icon={FilePen} color="var(--accent-purple)" title="PDF Editor" subtitle="Add text, signatures, highlights, drawings and images to a PDF — or white-out what you need to hide." onBack={onBack} />
+        <ToolHeader icon={FilePen} color="var(--accent-purple)" title="PDF Editor" subtitle="Edit existing text, add text, signatures, highlights, drawings and images — or white-out what you need to hide." onBack={onBack} />
         <div style={{ display: 'grid', gap: 14, maxWidth: 760 }}>
           <DropZone accept=".pdf,application/pdf" multiple={false} onFiles={open} title={busy ? 'Opening…' : 'Drop a PDF here, or click to choose'} hint="The file is edited in your browser — it is never uploaded." />
           {error && <Notice>{error}</Notice>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 10 }}>
-            {[[Type, 'Type on any page', 'Fill forms, add notes'], [PenTool, 'Sign', 'Draw your signature once, place it anywhere'], [Highlighter, 'Highlight & draw', 'Mark up for review'], [Eraser, 'White-out', 'Cover text or numbers before sharing']].map(([I, t, d]) => (
+            {[[TextCursorInput, 'Edit existing text', 'Change words — works on scanned PDFs too'], [Type, 'Type on any page', 'Fill forms, add notes'], [PenTool, 'Sign', 'Draw your signature once, place it anywhere'], [Highlighter, 'Highlight & draw', 'Mark up for review'], [Eraser, 'White-out', 'Cover text or numbers before sharing']].map(([I, t, d]) => (
               <div key={t} style={{ ...card, padding: 14, display: 'flex', gap: 10 }}>
                 <I size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
                 <div><div style={{ fontFamily: font.head, fontWeight: 700, fontSize: '.84rem', color: 'var(--text-primary)' }}>{t}</div><div style={{ fontFamily: font.body, fontSize: '.76rem', color: 'var(--text-muted)', marginTop: 2 }}>{d}</div></div>
@@ -465,6 +680,7 @@ export default function PdfEditor({ onBack }) {
   );
   const kindNow = sel ? (sel.type === 'rect' ? sel.kind : sel.type === 'pen' ? 'draw' : sel.type) : tool;
   const cursor = pending ? 'copy' : tool === 'text' ? 'text' : tool === 'select' ? 'default' : 'crosshair';
+  // (edit tool: line boxes show a text cursor via .pdfed-seg)
   const divider = <span style={{ width: 1, height: 26, background: 'var(--border)', margin: '0 4px' }} />;
 
   return (
@@ -493,10 +709,16 @@ export default function PdfEditor({ onBack }) {
             {INK.slice(0, 5).map(c => swatch(c, (sel ? sel.color : style.textColor) === c, () => setProp('textColor', c)))}
             <select value={sel ? sel.size : style.size} onChange={e => setProp('size', Number(e.target.value))} aria-label="Font size"
               style={{ height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontFamily: font.body, fontSize: '.8rem', padding: '0 6px' }}>
-              {SIZES.map(s => <option key={s} value={s}>{s} pt</option>)}
+              {[...new Set([...SIZES, sel ? sel.size : style.size])].sort((m, n) => m - n).map(s => <option key={s} value={s}>{s} pt</option>)}
             </select>
             <button type="button" aria-label="Bold" title="Bold" onClick={() => setProp('bold', !(sel ? sel.bold : style.bold))} style={{ ...toolBtn(sel ? sel.bold : style.bold), width: 32, height: 30 }}><Bold size={15} /></button>
+            <select value={(sel ? sel.family : style.family) || 'sans'} onChange={e => setProp('family', e.target.value)} aria-label="Font"
+              style={{ height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontFamily: font.body, fontSize: '.8rem', padding: '0 6px' }}>
+              {Object.entries(FAMILIES).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+            </select>
+            {sel && sel.cover && swatch(sel.cover.color, false, () => {}, 'Cover colour (matched to the page)')}
           </>)}
+          {kindNow === 'edit' && <span style={{ fontFamily: font.body, fontSize: '.76rem', color: 'var(--text-muted)' }}>{isScan ? 'Scanned page — drag a box over the words you want to change' : 'Click any line of text to edit it · or drag a box over an area'}</span>}
           {kindNow === 'draw' && (<>
             {INK.slice(0, 5).map(c => swatch(c, (sel ? sel.color : style.ink) === c, () => setProp('ink', c)))}
             {[1, 2, 4, 6].map(w => (
@@ -530,6 +752,8 @@ export default function PdfEditor({ onBack }) {
 
       {error && <div style={{ marginBottom: 10 }}><Notice>{error}</Notice></div>}
       {saved && <div style={{ marginBottom: 10 }}><Notice type="success">{saved}</Notice></div>}
+      {ocrBusy > 0 && <div style={{ marginBottom: 10 }}><Notice type="info"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Loader2 size={13} className="tools-spin" />Reading the text in the box… (first time takes a few seconds)</span></Notice></div>}
+      {tool === 'edit' && isScan && !ocrBusy && !pageItems.some(i => i.cover) && <div style={{ marginBottom: 10 }}><Notice type="info">This page is a scanned image, so its words can't be clicked. Drag a box over the words you want to change — SmartDesk reads them, hides the old ones and lets you type the new text.</Notice></div>}
       {pending && <div style={{ marginBottom: 10 }}><Notice type="info">{pending.sig ? 'Signature ready — click on the page where it should go.' : 'Image ready — click on the page where it should go.'} Press Esc to cancel.</Notice></div>}
 
       <div className="pdfed-layout" style={{ display: 'grid', gridTemplateColumns: '128px 1fr', gap: 12, alignItems: 'start' }}>
@@ -560,6 +784,12 @@ export default function PdfEditor({ onBack }) {
                 <svg width={dims.w * zoom} height={dims.h * zoom} viewBox={`0 0 ${dims.w} ${dims.h}`} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
                   {pageItems.map(it => {
                     const on = it.id === selected;
+                    if (it.type === 'text') return it.cover
+                      ? <rect key={it.id} x={it.cover.x} y={it.cover.y} width={it.cover.w} height={it.cover.h} fill={it.cover.color} pointerEvents="none" />
+                      : null;
+                    if (it.type === 'rect' && it.kind === 'editbox') return (
+                      <rect key={it.id} x={it.x} y={it.y} width={it.w} height={it.h} fill="rgba(59,130,246,.10)" stroke="#3b82f6" strokeWidth={1.2 / zoom} strokeDasharray={`${4 / zoom} ${3 / zoom}`} pointerEvents="none" />
+                    );
                     if (it.type === 'rect') return (
                       <g key={it.id}>
                         <rect data-id={it.id} x={it.x} y={it.y} width={it.w} height={it.h}
@@ -592,16 +822,20 @@ export default function PdfEditor({ onBack }) {
                   })}
                 </svg>
 
+                {tool === 'edit' && !pending && segs.filter(sg => !usedSegs.has(sg.key)).map(sg => (
+                  <div key={sg.key} data-seg={sg.key} className="pdfed-seg" title="Click to edit this text"
+                    style={{ position: 'absolute', left: (sg.x - 1.5) * zoom, top: (sg.y - 1) * zoom, width: (sg.w + 3) * zoom, height: (sg.h + 2) * zoom }} />
+                ))}
                 {pageItems.filter(i => i.type === 'text').map(it => {
                   const box = textBox(it);
-                  const common = { position: 'absolute', left: it.x * zoom, top: it.y * zoom, fontFamily: TEXT_FONT, fontSize: it.size * zoom, lineHeight: LINE_H, fontWeight: it.bold ? 700 : 400, color: it.color, whiteSpace: 'pre', padding: 0, margin: 0 };
+                  const common = { position: 'absolute', left: it.x * zoom, top: it.y * zoom, fontFamily: fam(it.family).css, fontSize: it.size * zoom, lineHeight: LINE_H, fontWeight: it.bold ? 700 : 400, color: it.color, whiteSpace: 'pre', padding: 0, margin: 0 };
                   if (editing === it.id) return (
                     <textarea key={it.id} autoFocus value={it.text} spellCheck={false}
                       onFocus={e => { const v = e.target.value; e.target.setSelectionRange(v.length, v.length); }}
                       onChange={e => patchItem(it.id, { text: e.target.value })}
-                      onBlur={() => { setEditing(null); if (!it.text.trim()) updatePage(l => l.filter(i => i.id !== it.id)); }}
-                      placeholder="Type here"
-                      style={{ ...common, width: (box.w + it.size * 2) * zoom, height: box.h * zoom + 4, border: '1px dashed var(--accent)', outline: 'none', background: 'rgba(255,255,255,.6)', resize: 'none', overflow: 'hidden', borderRadius: 2 }} />
+                      onBlur={() => { setEditing(null); if (!it.text.trim() && !it.cover) updatePage(l => l.filter(i => i.id !== it.id)); }}
+                      placeholder={it.ocr ? 'Reading text…' : 'Type here'}
+                      style={{ ...common, width: Math.max(box.w + it.size * 2, it.cover ? it.cover.w : 0) * zoom, height: box.h * zoom + 4, border: '1px dashed var(--accent)', outline: 'none', background: it.cover ? 'transparent' : 'rgba(255,255,255,.6)', resize: 'none', overflow: 'hidden', borderRadius: 2 }} />
                   );
                   return (
                     <div key={it.id} data-id={it.id}
@@ -621,12 +855,14 @@ export default function PdfEditor({ onBack }) {
       </div>
 
       <p style={{ fontFamily: font.body, fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 10 }}>
-        Tip: double-click text to edit it · Del removes the selected item · Ctrl+Z undo. White-out covers content visually; to remove text completely, re-create the PDF from the original document.
+        Tip: Edit text (E) changes existing words · double-click added text to edit it · Del removes the selected item · Ctrl+Z undo. White-out covers content visually; to remove text completely, re-create the PDF from the original document.
       </p>
 
       {sigOpen && <SignaturePad onClose={() => setSigOpen(false)} onUse={(src, w, h) => { setPending({ src, w, h, sig: true }); setSigOpen(false); setTool('select'); setSelected(null); }} />}
 
       <style>{`
+        .pdfed-seg{ border: 1px dashed rgba(59,130,246,.28); border-radius: 2px; cursor: text; transition: background .12s, border-color .12s; }
+        .pdfed-seg:hover{ background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.85); }
         @media (max-width: 760px){ .pdfed-layout{ grid-template-columns: 1fr !important; } .pdfed-thumbs{ flex-direction: row !important; max-height: none !important; overflow-x: auto; } .pdfed-thumbs > button{ width: 80px; flex-shrink: 0; } }
       `}</style>
     </div>

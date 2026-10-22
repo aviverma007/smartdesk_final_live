@@ -33,6 +33,7 @@
     "@radix-ui/react-toggle": "^1.1.6",
     "@radix-ui/react-toggle-group": "^1.1.7",
     "@radix-ui/react-tooltip": "^1.2.4",
+    "@tesseract.js-data/eng": "^1.0.0",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -62,14 +63,15 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
+    "tesseract.js": "^5.1.1",
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5",
     "zod": "^3.24.4"
   },
   "scripts": {
-    "prestart": "node scripts/copy-pdf-worker.js",
+    "prestart": "node scripts/copy-assets.js",
     "start": "set PORT=92 && craco start",
-    "prebuild": "node scripts/copy-pdf-worker.js",
+    "prebuild": "node scripts/copy-assets.js",
     "build": "craco build",
     "test": "craco test"
   },

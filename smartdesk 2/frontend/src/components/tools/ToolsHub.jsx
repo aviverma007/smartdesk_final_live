@@ -14,7 +14,7 @@ const Calculators = lazy(() => import('./Calculators'));
 
 export const TOOLS = [
   { id: 'convert', title: 'File Converter', desc: 'PDF → Word, Excel ⇄ CSV, images ⇄ PDF, merge PDFs and more.', Icon: Repeat, color: 'var(--chart-1)', C: FileConverter, tags: ['PDF', 'Word', 'Excel', 'Images'] },
-  { id: 'pdf-edit', title: 'PDF Editor', desc: 'Type on a PDF, sign it, highlight, draw, add images or white-out text — then download.', Icon: FilePen, color: 'var(--accent-purple, #7c3aed)', C: PdfEditor, tags: ['Sign', 'Add text', 'Highlight'] },
+  { id: 'pdf-edit', title: 'PDF Editor', desc: 'Edit existing text (even in scans), type, sign, highlight, draw, add images or white-out — then download.', Icon: FilePen, color: 'var(--accent-purple, #7c3aed)', C: PdfEditor, tags: ['Edit text', 'Sign', 'Highlight'] },
   { id: 'pdf', title: 'PDF Tools', desc: 'Reorder, rotate, delete pages · split · watermark · page numbers · compress.', Icon: FileCog, color: 'var(--danger)', C: PdfTools, tags: ['Split', 'Watermark', 'Compress'] },
   { id: 'image', title: 'Image Tools', desc: 'Resize photos, compress to under 200 KB, convert JPG / PNG / WEBP in bulk.', Icon: ImageDown, color: 'var(--chart-4)', C: ImageTools, tags: ['Resize', 'Compress', 'Bulk'] },
   { id: 'excel', title: 'Excel Tools', desc: 'Merge many files, compare two versions, remove duplicates, split by site/department.', Icon: Table2, color: 'var(--success)', C: ExcelTools, tags: ['Merge', 'Compare', 'Dedupe'] },

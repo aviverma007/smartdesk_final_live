@@ -113,7 +113,7 @@ let pdfjsPromise;
 export function pdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = import('pdfjs-dist/legacy/build/pdf').then(lib => {
-      // Served from /public (copied there by scripts/copy-pdf-worker.js before start/build)
+      // Served from /public (copied there by scripts/copy-assets.js before start/build)
       lib.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.js`;
       return lib;
     });
