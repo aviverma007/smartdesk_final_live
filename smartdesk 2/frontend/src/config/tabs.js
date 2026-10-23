@@ -11,6 +11,7 @@ export const TABS = [
   { id: 'holiday-calendar', label: 'Holiday Calendar',   desc: 'Company holidays' },
   { id: 'dashboard',        label: 'Dashboard',          desc: 'SmartDB and Power BI reports' },
   { id: 'tools',            label: 'Tools',              desc: 'Converter, PDF / image / Excel tools, QR, calculators' },
+  { id: 'tv',               label: 'TV Display',         desc: 'Office TV screens — announcements, joiners, attendance pulse (HR)' },
 ];
 
 /** Admin-only tabs: always visible to admins, never grantable to others. */
@@ -23,7 +24,7 @@ export const TAB_IDS = TABS.map(t => t.id);
 const ROLE_DEFAULTS = {
   dashboard: ['dashboard'],
   employee:  ['home', 'directory', 'attendance', 'policies', 'holiday-calendar', 'tools'],
-  hr:        ['home', 'directory', 'attendance', 'policies', 'holiday-calendar', 'tools'],
+  hr:        ['home', 'directory', 'attendance', 'policies', 'holiday-calendar', 'tools', 'tv'],
   it:        ['home', 'directory', 'tools'],
   manager:   ['home', 'directory', 'tools'],
 };

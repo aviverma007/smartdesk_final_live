@@ -13,6 +13,16 @@ in the browser. Word / PowerPoint / Excel → PDF (and PDF → Word) are done he
 
 Up to 2 conversions run at once (the rest queue); each has a 2-minute timeout; temp files are deleted after every request.
 
+## Office TV display
+
+HR edits the TV loop in the portal's **TV Display** tab; it is stored in `dbo.TvConfig`
+(created automatically on start).
+
+- `GET /api/tv/version`, `GET /api/tv/config`: read by the TV page (`http://<portal>/?tv`, no login)
+- `PUT /api/tv/config`: publish (role `hr` or `admin`; limit 20 MB including pictures)
+
+TVs check `/version` every minute and only download the content when it changed.
+
 ## Workflows
 1. **Onboarding / User-ID** — HR captures a new joiner (pending), assigns Employee ID after they join.
 2. **Asset allocation** — HR requests assets → set-password link emailed → employee confirms receipt → locked to HR/IT.

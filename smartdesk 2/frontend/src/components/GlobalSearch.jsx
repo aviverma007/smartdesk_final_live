@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { id:'dashboard',        label:'Power BI Dashboard', sub:'Analytics & reports' },
   { id:'policies',         label:'Policies',           sub:'HR, Admin, IT policies' },
   { id:'tools',            label:'Tools',              sub:'Converter, PDF, image, Excel tools, QR codes, GST/EMI calculators' },
+  { id:'tv',               label:'TV Display',         sub:'Office TV screens — announcements, joiners, birthdays (HR)' },
 ];
 
 const GlobalSearch = ({ onClose }) => {

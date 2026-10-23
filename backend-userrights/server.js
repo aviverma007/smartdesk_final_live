@@ -202,6 +202,15 @@ CREATE TABLE dbo.TabAccess (
   UpdatedAt DATETIME      NOT NULL DEFAULT(GETDATE())
 );
 
+-- Office TV display content (single row, JSON published by HR from the TV Display tab)
+IF OBJECT_ID('dbo.TvConfig','U') IS NULL
+CREATE TABLE dbo.TvConfig (
+  Id        INT           NOT NULL PRIMARY KEY,
+  Config    NVARCHAR(MAX) NOT NULL,
+  UpdatedBy NVARCHAR(80)  NULL,
+  UpdatedAt DATETIME      NOT NULL DEFAULT(GETDATE())
+);
+
 -- Directory of employees managed in-app (add / soft-delete) + audit log
 IF OBJECT_ID('dbo.DirectoryEmployees','U') IS NULL
 CREATE TABLE dbo.DirectoryEmployees (
@@ -740,7 +749,7 @@ app.put('/api/rights-matrix/:empId', async (req, res) => {
 
 /* ═══════════════════════ PORTAL TAB ACCESS ═════════════════════════════════ */
 // Which sidebar tabs an employee (or shared login) may see. Admin-only to change.
-const TAB_IDS = ['home', 'directory', 'attendance', 'policies', 'holiday-calendar', 'dashboard', 'tools'];
+const TAB_IDS = ['home', 'directory', 'attendance', 'policies', 'holiday-calendar', 'dashboard', 'tools', 'tv'];
 const parseTabs = (json) => { try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? TAB_IDS.filter(t => a.includes(t)) : []; } catch { return []; } };
 
 // The signed-in user's own access ({ tabs: null } means "use role defaults")
@@ -795,6 +804,44 @@ app.delete('/api/tab-access/:empId', async (req, res) => {
     const p = await getPool();
     await p.request().input('E', sql.NVarChar, String(req.params.empId).trim()).query(`DELETE FROM dbo.TabAccess WHERE EmpId=@E`);
     res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+/* ═══════════════════════ OFFICE TV DISPLAY ═════════════════════════════════ */
+// The TV page (no login) reads; HR / admin publish. TVs poll /version and only
+// download the full config (which can contain images) when it has changed.
+const TV_MAX_BYTES = 20 * 1024 * 1024;
+app.get('/api/tv/version', async (req, res) => {
+  try {
+    const p = await getPool();
+    const r = await p.request().query(`SELECT UpdatedAt FROM dbo.TvConfig WHERE Id=1`);
+    res.json({ success: true, version: r.recordset[0] ? new Date(r.recordset[0].UpdatedAt).getTime() : 0 });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.get('/api/tv/config', async (req, res) => {
+  try {
+    const p = await getPool();
+    const r = await p.request().query(`SELECT Config, UpdatedBy, UpdatedAt FROM dbo.TvConfig WHERE Id=1`);
+    const row = r.recordset[0];
+    let config = null;
+    try { config = row ? JSON.parse(row.Config) : null; } catch { config = null; }
+    res.json({ success: true, config, version: row ? new Date(row.UpdatedAt).getTime() : 0, updatedBy: row ? row.UpdatedBy : null, updatedAt: row ? row.UpdatedAt : null });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+app.put('/api/tv/config', async (req, res) => {
+  if (!can(req, 'hr')) return deny(res);
+  const config = req.body && req.body.config;
+  if (!config || typeof config !== 'object') return res.status(400).json({ success: false, error: 'Missing config.' });
+  const json = JSON.stringify(config);
+  if (Buffer.byteLength(json) > TV_MAX_BYTES) return res.status(413).json({ success: false, error: 'Too many / too large images — please remove some (limit 20 MB).' });
+  try {
+    const p = await getPool();
+    await p.request().input('C', sql.NVarChar(sql.MAX), json).input('By', sql.NVarChar, actor(req))
+      .query(`MERGE dbo.TvConfig AS t USING (SELECT 1 AS Id) AS s ON t.Id=s.Id
+              WHEN MATCHED THEN UPDATE SET Config=@C, UpdatedBy=@By, UpdatedAt=GETDATE()
+              WHEN NOT MATCHED THEN INSERT (Id,Config,UpdatedBy) VALUES (1,@C,@By);`);
+    const r = await p.request().query(`SELECT UpdatedAt FROM dbo.TvConfig WHERE Id=1`);
+    res.json({ success: true, version: new Date(r.recordset[0].UpdatedAt).getTime() });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
