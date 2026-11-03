@@ -307,17 +307,55 @@ app.get('/api/employees', async (req, res) => {
   }
 });
 
+/* ── Keep dbo.vw_DeviceLogs_All up to date ─────────────────────────────────
+ * eTimeTrack writes each month's punches to its own table (DeviceLogs_11_2026 …).
+ * The view is a UNION ALL of the current year's monthly tables (plus last year's
+ * during January, so December stays visible). New tables — e.g. DeviceLogs_1_2027 —
+ * are picked up automatically at start-up and every 6 hours. Set AUTO_VIEW=0 to turn off.
+ */
+const VIEW_NAME = 'dbo.vw_DeviceLogs_All';
+async function refreshDeviceLogsView() {
+  if (process.env.AUTO_VIEW === '0') return;
+  const p = await getPool();
+  const r = await p.request().query(`SELECT name FROM sys.tables WHERE name LIKE 'DeviceLogs[_]%[_]%'`);
+  const now = new Date(), year = now.getFullYear();
+  const years = now.getMonth() === 0 ? [year - 1, year] : [year];
+  const tables = r.recordset
+    .map(x => { const m = /^DeviceLogs_(\d{1,2})_(\d{4})$/.exec(x.name); return m ? { name: x.name, month: +m[1], year: +m[2] } : null; })
+    .filter(t => t && years.includes(t.year) && t.month >= 1 && t.month <= 12)
+    .sort((a, b) => a.year - b.year || a.month - b.month);
+  if (!tables.length) { console.warn('   ! No DeviceLogs_<month>_<year> tables found — view not changed'); return; }
+
+  // Only rewrite the view when its list of tables actually changes
+  const cur = await p.request().query(`SELECT OBJECT_DEFINITION(OBJECT_ID('${VIEW_NAME}')) AS def`);
+  const def = (cur.recordset[0] && cur.recordset[0].def) || '';
+  const inView = new Set((def.match(/DeviceLogs_\d{1,2}_\d{4}/g) || []).map(n => n.toLowerCase()));
+  const want = tables.map(t => t.name);
+  if (def && want.length === inView.size && want.every(n => inView.has(n.toLowerCase()))) return;
+
+  const body = want.map((n, i) => `${i ? 'UNION ALL ' : ''}SELECT * FROM dbo.${n}`).join('\n');
+  const verb = def ? 'ALTER' : 'CREATE';
+  try {
+    await p.request().batch(`${verb} VIEW ${VIEW_NAME}\nAS\n${body};`);
+    console.log(`   ✓ ${VIEW_NAME} now covers ${want[0]} … ${want[want.length - 1]} (${want.length} tables)`);
+  } catch (e) {
+    console.warn(`   ! Could not update ${VIEW_NAME} (${e.message}). Run this in SSMS:\n${verb} VIEW ${VIEW_NAME} AS\n${body};`);
+  }
+}
+
 const PORT = process.env.PORT || 5092;
 (async () => {
+  try { await refreshDeviceLogsView(); } catch (e) { console.warn(`   ! View check skipped (${e.message})`); }
   try { await ensureDeviceTable(); } catch (e) { console.warn(`   ! Could not create dbo.SD_DeviceLocations (${e.message}) — run backend-attendance/sql/device_locations.sql in SSMS`); }
   await loadDeviceSites();
   console.log(`   Device sites: ${Object.keys(deviceSites).length} (${deviceSitesSource.startsWith('built-in') ? 'built-in list' : 'from dbo.SD_DeviceLocations'})`);
 })();
 setInterval(loadDeviceSites, 5 * 60 * 1000);
+setInterval(() => refreshDeviceLogsView().catch(e => console.warn(`   ! View check failed (${e.message})`)), 6 * 60 * 60 * 1000);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ SmartDesk Attendance API`);
   console.log(`   Local:   http://localhost:${PORT}/api/health  (backend port 5092)`);
-  console.log(`   Network: http://192.168.66.107:${PORT}/api/health`);
+  console.log(`   Network: http://<this-pc-ip>:${PORT}/api/health`);
   console.log(`   SQL: ${config.server} → ${config.database} as ${config.user}\n`);
 });
