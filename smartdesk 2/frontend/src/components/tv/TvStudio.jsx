@@ -112,10 +112,14 @@ export default function TvStudio() {
     catch (_) { toast.message(tvLink()); }
   };
   const sceneOn = (id) => draft.scenes.find(s => s.id === id)?.on;
-  const pickStar = (name) => {
+  const setStar = (patch) => set({ star: { ...draft.star, ...patch } });
+  const updStar = (id, patch) => setStar({ people: draft.star.people.map(p => (p.id === id ? { ...p, ...patch } : p)) });
+  const pickStar = (id, name) => {
+    const cur = draft.star.people.find(p => p.id === id) || {};
     const e = people.find(p => p.name.toLowerCase() === String(name).toLowerCase());
-    set({ star: { ...draft.star, name, ...(e ? { role: e.designation || draft.star.role, dept: e.department || draft.star.dept } : {}) } });
+    updStar(id, { name, ...(e ? { role: e.designation || cur.role, dept: e.department || cur.dept } : {}) });
   };
+  const moveStar = (i, dir) => { const a = [...draft.star.people]; const j = i + dir; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; setStar({ people: a }); };
 
   return (
     <div style={{ paddingBottom: 32 }}>
@@ -138,6 +142,7 @@ export default function TvStudio() {
 
       {meta.offline && <div style={{ marginBottom: 14 }}><Notice type="warning">The SmartDesk server (backend-userrights) isn't reachable, so this shows the last saved or default content. Publishing needs the server.</Notice></div>}
 
+      <datalist id="tvs-people">{people.slice(0, 2000).map(p => <option key={p.id} value={p.name} />)}</datalist>
       <div className="tvs-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(340px, 1fr)', gap: 20, alignItems: 'start' }}>
         {/* TV preview */}
         <div className="tvs-preview" style={{ position: 'sticky', top: 0 }}>
@@ -208,17 +213,27 @@ export default function TvStudio() {
             <Btn variant="ghost" icon={Plus} onClick={() => setList('announcements', l => [...l, newItem.announcement()])}>Add announcement</Btn>
           </Section>
 
-          <Section icon={Star} title="Star of the month" hint="Recognise someone on every screen" right={<Toggle on={!!draft.star.on} label="Show star of the month" onChange={v => set({ star: { ...draft.star, on: v } })} />}>
-            <div style={row2}>
-              <Field label="Name">
-                <input style={inputStyle} list="tvs-people" value={draft.star.name} onChange={e => pickStar(e.target.value)} placeholder="Start typing a name" />
-                <datalist id="tvs-people">{people.slice(0, 2000).map(p => <option key={p.id} value={p.name} />)}</datalist>
-              </Field>
-              <Field label="Designation"><input style={inputStyle} value={draft.star.role} onChange={e => set({ star: { ...draft.star, role: e.target.value } })} /></Field>
-              <Field label="Department"><input style={inputStyle} value={draft.star.dept} onChange={e => set({ star: { ...draft.star, dept: e.target.value } })} /></Field>
-            </div>
-            <Field label="Why (one or two lines)"><textarea style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }} maxLength={200} value={draft.star.reason} onChange={e => set({ star: { ...draft.star, reason: e.target.value } })} /></Field>
-            <ImagePick value={draft.star.photo} onChange={v => set({ star: { ...draft.star, photo: v } })} label="Photo" />
+          <Section icon={Star} title="Star of the month" hint="One or more people — 2–3 share a scene, more rotate in groups of 3" right={<><span className="tvs-count">{draft.star.people.length}</span><Toggle on={!!draft.star.on} label="Show star of the month" onChange={v => setStar({ on: v })} /></>}>
+            <Field label="Heading (optional)" hint="Leave empty for “Star of the month” / “Stars of the month”"><input style={inputStyle} value={draft.star.title} maxLength={40} onChange={e => setStar({ title: e.target.value })} placeholder="e.g. Stars of October · Best site team" /></Field>
+            {draft.star.people.map((s, i) => (
+              <div key={s.id} style={itemBox}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: font.head, fontWeight: 800, fontSize: '.78rem', color: 'var(--text-muted)' }}>#{i + 1}</span>
+                  <span style={{ flex: 1 }} />
+                  <button type="button" style={iconBtn} title="Move up" aria-label="Move up" onClick={() => moveStar(i, -1)} disabled={!i}><ChevronUp size={14} /></button>
+                  <button type="button" style={iconBtn} title="Move down" aria-label="Move down" onClick={() => moveStar(i, 1)} disabled={i === draft.star.people.length - 1}><ChevronDown size={14} /></button>
+                  <button type="button" style={{ ...iconBtn, color: 'var(--danger)' }} title="Remove" aria-label={`Remove ${s.name || 'person'}`} onClick={() => setStar({ people: draft.star.people.filter(p => p.id !== s.id) })}><Trash2 size={14} /></button>
+                </div>
+                <div style={row2}>
+                  <Field label="Name"><input style={inputStyle} list="tvs-people" value={s.name} onChange={e => pickStar(s.id, e.target.value)} placeholder="Start typing a name" /></Field>
+                  <Field label="Designation"><input style={inputStyle} value={s.role} onChange={e => updStar(s.id, { role: e.target.value })} /></Field>
+                  <Field label="Department"><input style={inputStyle} value={s.dept} onChange={e => updStar(s.id, { dept: e.target.value })} /></Field>
+                </div>
+                <Field label="Why (one or two lines)"><textarea style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }} maxLength={200} value={s.reason} onChange={e => updStar(s.id, { reason: e.target.value })} /></Field>
+                <ImagePick value={s.photo} onChange={v => updStar(s.id, { photo: v })} label="Photo" />
+              </div>
+            ))}
+            <Btn variant="ghost" icon={Plus} onClick={() => setStar({ on: true, people: [...draft.star.people, newItem.star()] })}>Add person</Btn>
           </Section>
 
           <Section icon={Cake} title="Birthdays" hint="Shown during the birthday week. Tip: add a DOB column to the monthly employee sheet to make this automatic" right={<span className="tvs-count">{draft.birthdays.length}</span>}>

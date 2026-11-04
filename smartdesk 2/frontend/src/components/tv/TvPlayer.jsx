@@ -59,7 +59,12 @@ function buildPlaylist(cfg, live, tipIdx) {
       case 'birthdays': { const b = birthdaysThisWeek(cfg.birthdays); if (b.length) out.push({ ...base, key: 'birthdays', payload: b }); break; }
       case 'holidays': if (live.holidays?.length) out.push({ ...base, key: 'holidays' }); break;
       case 'announcements': activeAnnouncements(cfg.announcements).forEach(a => out.push({ ...base, key: `ann-${a.id}`, payload: a, palette: ANNOUNCE_COLORS[a.color] || ANNOUNCE_COLORS.blue })); break;
-      case 'star': if (cfg.star?.on && cfg.star.name) out.push({ ...base, key: 'star', payload: cfg.star }); break;
+      case 'star': {
+        const ppl = cfg.star?.on ? (cfg.star.people || []).filter(p => p.name) : [];
+        // 1–3 people share a scene; more are split into scenes of 3
+        for (let i = 0; i < ppl.length; i += 3) out.push({ ...base, key: `star-${i}`, payload: { title: cfg.star.title, people: ppl.slice(i, i + 3), total: ppl.length } });
+        break;
+      }
       case 'events': { const e = upcomingEvents(cfg.events); if (e.length) out.push({ ...base, key: 'events', payload: e }); break; }
       case 'tips': { const t = (cfg.tips || []).filter(Boolean); if (t.length) out.push({ ...base, key: 'tips', payload: { label: cfg.tipsLabel, text: t[tipIdx % t.length] } }); break; }
       case 'media': (cfg.media || []).filter(m => m.src).forEach(m => out.push({ ...base, key: `media-${m.id}`, payload: m })); break;
@@ -320,7 +325,30 @@ function Announcement({ item }) {
 }
 
 function Star({ item }) {
-  const s = item.payload;
+  const { people, title, total } = item.payload;
+  const heading = title || (total > 1 ? 'Stars of the month' : 'Star of the month');
+  if (people.length > 1) {
+    return (
+      <div className="tvp-col tvp-center">
+        <Eyebrow>{heading} ★</Eyebrow>
+        <MorphTitle text={people.length === 2 ? 'Two reasons to celebrate' : 'Our stars this month'} size={88} />
+        <div className={`tvp-stars n${people.length}`}>
+          {people.map((s, i) => (
+            <div key={s.id || i} className="tvp-glass tvp-starcard tvp-pop" style={{ '--d': `${0.45 + i * 0.15}s` }}>
+              <div className="tvp-starphoto sm">
+                <div className="tvp-ring" />
+                {s.photo ? <img src={s.photo} alt="" /> : <div className="tvp-avatar" style={{ fontSize: 84, '--h': `${30 + i * 70}deg` }}>{initialsOf(s.name)}</div>}
+              </div>
+              <div className="tvp-name tvp-starname">{s.name}</div>
+              {(s.role || s.dept) && <div className="tvp-role">{[s.role, s.dept].filter(Boolean).join(' · ')}</div>}
+              {s.reason && <p className="tvp-starreason">“{s.reason}”</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  const s = people[0];
   return (
     <div className="tvp-split tvp-star">
       <div className="tvp-starphoto tvp-pop" style={{ '--d': '0.3s' }}>
@@ -328,7 +356,7 @@ function Star({ item }) {
         {s.photo ? <img src={s.photo} alt="" /> : <div className="tvp-avatar" style={{ width: '100%', height: '100%', fontSize: 150, '--h': '30deg' }}>{initialsOf(s.name)}</div>}
       </div>
       <div>
-        <Eyebrow>Star of the month ★</Eyebrow>
+        <Eyebrow>{heading} ★</Eyebrow>
         <MorphTitle text={s.name} size={fitSize(s.name, 120, 90, 16)} />
         <p className="tvp-sub tvp-rise" style={{ '--d': '0.7s' }}>{[s.role, s.dept].filter(Boolean).join(' · ')}</p>
         {s.reason && <p className="tvp-quote tvp-rise" style={{ '--d': '0.9s' }}>“{s.reason}”</p>}
@@ -606,6 +634,13 @@ const CSS = `
 .tvp-photo img{width:100%;height:100%;max-height:640px;object-fit:cover;display:block;animation:tvpKen 14s ease-out both}
 @keyframes tvpKen{from{transform:scale(1.15)}to{transform:scale(1)}}
 .tvp-starphoto{position:relative;width:440px;height:440px;justify-self:center}
+.tvp-starphoto.sm{width:250px;height:250px;margin:0 auto 26px}
+.tvp-stars{display:grid;gap:34px;margin-top:26px;width:100%;justify-content:center}
+.tvp-stars.n2{grid-template-columns:repeat(2,minmax(0,640px))}
+.tvp-stars.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tvp-starcard{padding:40px 34px 36px;text-align:center;min-width:0}
+.tvp-starname{white-space:normal;font-size:44px}
+.tvp-starreason{font-size:26px;line-height:1.4;opacity:.88;font-style:italic;margin:16px 0 0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .tvp-starphoto img,.tvp-starphoto .tvp-avatar{position:absolute;inset:22px;width:calc(100% - 44px)!important;height:calc(100% - 44px)!important;border-radius:50%;object-fit:cover}
 .tvp-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,var(--c1),var(--c2),var(--c3),var(--c1));animation:tvpSpin 6s linear infinite;
   -webkit-mask:radial-gradient(circle,transparent 63%,#000 64%);mask:radial-gradient(circle,transparent 63%,#000 64%);box-shadow:0 0 120px color-mix(in srgb,var(--c1) 60%,transparent)}

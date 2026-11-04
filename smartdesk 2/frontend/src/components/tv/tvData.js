@@ -20,7 +20,7 @@ export const SCENES = [
   { id: 'birthdays', label: 'Birthdays', hint: 'Entered by HR below' },
   { id: 'holidays', label: 'Holiday countdown', hint: 'Next holidays from the company calendar' },
   { id: 'announcements', label: 'Announcements', hint: 'One scene per active announcement' },
-  { id: 'star', label: 'Star of the month', hint: 'Recognition with photo' },
+  { id: 'star', label: 'Star of the month', hint: 'One or more people, with photos' },
   { id: 'events', label: 'Upcoming events', hint: 'With countdown' },
   { id: 'tips', label: 'Safety tip / thought', hint: 'One tip per loop, rotating' },
   { id: 'media', label: 'Posters & videos', hint: 'Images uploaded by HR or MP4 links' },
@@ -47,7 +47,7 @@ export const defaultConfig = () => ({
   ],
   events: [],
   birthdays: [],
-  star: { on: false, name: '', role: '', dept: '', reason: '', photo: null },
+  star: { on: false, title: '', people: [] },
   tipsLabel: 'Safety first',
   tips: [
     'Always wear your helmet and safety shoes on site — no exceptions.',
@@ -73,7 +73,11 @@ export function normalizeConfig(c) {
   SCENES.forEach(s => { if (!known.has(s.id)) ordered.push(d.scenes.find(x => x.id === s.id)); });
   out.scenes = ordered.map(s => ({ id: s.id, on: s.on !== false, secs: Math.max(5, Math.min(120, Number(s.secs) || 12)) }));
   ['announcements', 'events', 'birthdays', 'tips', 'media', 'ticker'].forEach(k => { if (!Array.isArray(out[k])) out[k] = d[k]; });
-  out.star = { ...d.star, ...(c.star || {}) };
+  // Star of the month: one person (older configs) → list of people
+  const st = c.star || {};
+  let people = Array.isArray(st.people) ? st.people : [];
+  if (!people.length && st.name) people = [{ id: uid(), name: st.name, role: st.role || '', dept: st.dept || '', reason: st.reason || '', photo: st.photo || null }];
+  out.star = { on: !!st.on, title: st.title || '', people };
   return out;
 }
 
@@ -82,6 +86,7 @@ export const newItem = {
   event: () => ({ id: uid(), title: '', date: '', time: '', place: '' }),
   birthday: () => ({ id: uid(), name: '', dept: '', date: '' }),
   media: (type = 'image') => ({ id: uid(), type, src: '', caption: '' }),
+  star: () => ({ id: uid(), name: '', role: '', dept: '', reason: '', photo: null }),
 };
 
 /* ── config storage ─────────────────────────────────────────────────────── */
