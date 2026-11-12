@@ -31,14 +31,18 @@ const jsonConvert = express.json({ limit: `${Math.ceil(CONVERT_MAX_MB * 1.4) + 1
 app.use((req, res, next) => (req.path === '/api/convert/office' ? jsonConvert : jsonDefault)(req, res, next));
 
 // ── SQL Server config ─────────────────────────────────────────────────────────
+// DB_SERVER may be "host" or "host\\INSTANCE" (e.g. localhost\\SQLEXPRESS); a named instance ignores DB_PORT.
+const [dbHost, dbInstance0] = (process.env.DB_SERVER || 'localhost').split('\\');
+const dbInstance = dbInstance0 || process.env.DB_INSTANCE;
 const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || 'localhost',
+  server: dbHost,
   database: process.env.DB_DATABASE || 'SmartDeskApp',
-  port: parseInt(process.env.DB_PORT || '1433', 10),
+  ...(dbInstance ? {} : { port: parseInt(process.env.DB_PORT || '1433', 10) }),
   // Matches the working attendance backend against this same SQL Server.
-  options: { trustServerCertificate: true, enableArithAbort: true, encrypt: false },
+  options: { trustServerCertificate: true, enableArithAbort: true, encrypt: false,
+             ...(dbInstance ? { instanceName: dbInstance } : {}) },
   pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
   connectionTimeout: 30000,
   requestTimeout: 30000,
@@ -1336,7 +1340,7 @@ const PORT = process.env.PORT || 5093;
     console.error(`\n   ! DB connection/migration failed: ${err.message}`);
     if (/getaddrinfo|ENOTFOUND/i.test(err.message))
       console.error(`     The server name "${dbConfig.server}" could not be resolved. ` +
-        `If the backend runs on the SQL Server machine use DB_SERVER=localhost, otherwise use its IP (e.g. 192.168.66.33).`);
+        `If the backend runs on the SQL Server machine use DB_SERVER=localhost, otherwise use its IP (e.g. 192.168.66.28).`);
     if (/Login failed/i.test(err.message))
       console.error('     Wrong DB_USER/DB_PASSWORD, or mixed-mode auth is off on the server.');
     console.error('');
