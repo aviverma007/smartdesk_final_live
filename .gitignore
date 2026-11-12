@@ -1,3 +1,4 @@
 .env
 smartdesk 2/frontend/public/pdf.worker.min.js
 smartdesk 2/frontend/public/tesseract/
+node_modules/
