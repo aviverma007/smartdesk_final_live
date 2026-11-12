@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { employeeAPI } from '../services/api';
+import HomeHighlights from "./HomeHighlights";
 import {
-  ChevronLeft, ChevronRight, Users, PartyPopper,
-  CheckSquare, Workflow, Newspaper, Image, Plus,
+  ChevronLeft, ChevronRight, Users,
+  CheckSquare, Image, Plus,
   X
 } from "lucide-react";
 
@@ -700,98 +701,8 @@ const Home = () => {
         </CyberCard>
       </div>
 
-      {/* === BOTTOM ROW === */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-        <CyberCard color="#ff6b00">
-          <div style={{ padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <PartyPopper size={14} style={{ color: "#ff6b00" }} />
-              <span
-                style={{
-                  fontFamily: "'Orbitron', monospace",
-                  fontSize: ".62rem",
-                  fontWeight: 700,
-                  color: "#e0f4ff",
-                  letterSpacing: ".08em"
-                }}
-              >
-                CELEBRATIONS
-              </span>
-            </div>
-            <div
-              style={{
-                fontFamily: "'Exo 2', sans-serif",
-                fontSize: ".72rem",
-                color: "rgba(122,184,212,0.6)",
-                textAlign: "center",
-                padding: "16px 0"
-              }}
-            >
-              Birthdays, anniversaries &<br />achievements — coming soon
-            </div>
-          </div>
-        </CyberCard>
-
-        <CyberCard color="#0066ff">
-          <div style={{ padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Newspaper size={14} style={{ color: "#0066ff" }} />
-              <span
-                style={{
-                  fontFamily: "'Orbitron', monospace",
-                  fontSize: ".62rem",
-                  fontWeight: 700,
-                  color: "#e0f4ff",
-                  letterSpacing: ".08em"
-                }}
-              >
-                COMPANY NEWS
-              </span>
-            </div>
-            <div
-              style={{
-                fontFamily: "'Exo 2', sans-serif",
-                fontSize: ".72rem",
-                color: "rgba(122,184,212,0.6)",
-                textAlign: "center",
-                padding: "16px 0"
-              }}
-            >
-              Daily updates & announcements<br />— coming soon
-            </div>
-          </div>
-        </CyberCard>
-
-        <CyberCard color="#105da9">
-          <div style={{ padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Workflow size={14} style={{ color: "var(--accent)" }} />
-              <span
-                style={{
-                  fontFamily: "'Orbitron', monospace",
-                  fontSize: ".62rem",
-                  fontWeight: 700,
-                  color: "#e0f4ff",
-                  letterSpacing: ".08em"
-                }}
-              >
-                WORKFLOW
-              </span>
-            </div>
-            <div
-              style={{
-                fontFamily: "'Exo 2', sans-serif",
-                fontSize: ".72rem",
-                color: "rgba(122,184,212,0.6)",
-                textAlign: "center",
-                padding: "16px 0"
-              }}
-            >
-              Process management &<br />task tracking — coming soon
-            </div>
-          </div>
-        </CyberCard>
-      </div>
+      {/* === BOTTOM ROW: celebrations, company news, today (live) === */}
+      <HomeHighlights CyberCard={CyberCard} />
 
       {selectedEmployee && (
         <div
