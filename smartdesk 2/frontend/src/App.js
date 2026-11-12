@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
-import { flushSync } from "react-dom";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense, lazy } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
@@ -273,6 +272,20 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
 
   useEffect(() => { localStorage.setItem("sd-sidebar-collapsed", collapsed); }, [collapsed]);
 
+  const navRef = useRef(null);
+  const [pill, setPill] = useState({ top: 0, height: 0 });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = navRef.current && navRef.current.querySelector(".sd-nav.active");
+      const n = el ? { top: el.offsetTop, height: el.offsetHeight } : { top: 0, height: 0 };
+      setPill(p => (p.top === n.top && p.height === n.height ? p : n));
+    };
+    measure();
+    const t = setTimeout(measure, 300); // after the collapse/expand width animation
+    window.addEventListener("resize", measure);
+    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+  }, [active, collapsed, allowedTabs.join(","), isAdmin]); // eslint-disable-line
+
   return (
     <div style={{ position:"sticky", top:0, height:"100vh", alignSelf:"flex-start", flexShrink:0, zIndex:30 }}>
       {/* Collapse/expand arrow button (pinned with the sidebar) */}
@@ -328,8 +341,9 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
           <div style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"0.6rem", fontWeight:800, color:"rgba(255,255,255,0.45)", letterSpacing:"0.18em", textTransform:"uppercase", padding:"0 8px", marginBottom:8 }}>Explore</div>
         )}
 
-        {/* Nav items */}
-        <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
+        {/* Nav items (a single highlight pill slides to the active item) */}
+        <div ref={navRef} style={{ display:"flex", flexDirection:"column", gap:2, flex:1, position:"relative" }}>
+          <div className="sd-nav-pill" aria-hidden="true" style={{ transform:`translateY(${pill.top}px)`, height:pill.height, opacity:pill.height ? 1 : 0 }}/>
           {NAV.filter(n => (n.adminOnly ? isAdmin : allowedTabs.includes(n.id))).map(({ id, label, Icon }) => (
             <div key={id}
               className={`nav-item sd-nav${active===id?" active":""}`}
@@ -338,12 +352,12 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
               style={{
                 justifyContent: collapsed ? "center" : "flex-start",
                 padding: collapsed ? "10px" : "9px 12px",
-                background: active===id ? "rgba(255,255,255,0.18)" : "transparent",
+                background: "transparent",
                 color: active===id ? "#ffffff" : "rgba(255,255,255,0.72)",
-                border: `1px solid ${active===id ? "rgba(255,255,255,0.25)" : "transparent"}`,
-                boxShadow: active===id ? "0 2px 12px rgba(0,0,0,0.15)" : "none",
+                border: "1px solid transparent",
+                boxShadow: "none",
                 borderRadius: 9,
-                viewTransitionName: active===id ? "sd-nav-active" : undefined,
+                position: "relative", zIndex: 1,
               }}
               onMouseEnter={e => { if (active!==id) { e.currentTarget.style.background="rgba(255,255,255,0.10)"; e.currentTarget.style.color="#fff"; }}}
               onMouseLeave={e => { if (active!==id) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="rgba(255,255,255,0.72)"; }}}
@@ -427,7 +441,7 @@ const TopBar = ({ active, theme, setTheme, onSearch }) => {
     <>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 28px", borderBottom:"1px solid var(--border)", background:"var(--topbar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", position:"sticky", top:0, zIndex:20, transition:"background .3s" }}>
         <div>
-          <h1 style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1, viewTransitionName:"sd-title" }}>{page?.label}</h1>
+          <h1 style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1 }} key={page?.id} className="sd-title-in">{page?.label}</h1>
           <p style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.72rem", color:"var(--text-muted)", marginTop:3 }}>Smart World Developers · Internal Portal</p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -488,13 +502,8 @@ const AppContent = () => {
     return 'home';
   });
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
-  const setActive = useCallback((id) => {
-    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!document.startViewTransition || reduce) { setActiveRaw(id); return; }
-    document.documentElement.classList.add("sd-vt");
-    const vt = document.startViewTransition(() => flushSync(() => setActiveRaw(id)));
-    vt.finished.finally(() => document.documentElement.classList.remove("sd-vt"));
-  }, []);
+  // Tab switch is immediate; the new page animates in as soon as it mounts (see .tab-fade-in)
+  const setActive = useCallback((id) => setActiveRaw(id), []);
 
   // Soft spotlight that follows the pointer over cards (sets --mx / --my)
   useEffect(() => {

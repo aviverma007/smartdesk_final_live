@@ -126,7 +126,7 @@ function Celebrations({ cfg, people, CyberCard }) {
                 {items.length > 7 && <span className="hh-more">+{items.length - 7}</span>}
               </div>
               <span style={{ flex: 1 }} />
-              <span style={{ fontFamily: font.body, fontSize: '.66rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              <span className="hh-more" style={{ fontFamily: font.body, fontSize: '.66rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                 {counts.map(([k, n]) => `${n} ${{ star: n > 1 ? 'stars' : 'star', birthday: n > 1 ? 'birthdays' : 'birthday', anniversary: n > 1 ? 'anniversaries' : 'anniversary', joiner: n > 1 ? 'joiners' : 'joiner' }[k]}`).join(' · ')}
               </span>
             </div>
@@ -184,12 +184,12 @@ function Today({ people, att, CyberCard }) {
     <CyberCard color="#105da9" style={{ height: '100%' }}>
       <div style={{ padding: '14px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Header icon={Activity} color="#10b981" label="TODAY AT SMART WORLD" right={att && <span className="hh-pill hh-live" style={{ '--c': '#10b981' }}><i />LIVE</span>} />
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-          <div>
-            <div className="hh-big">{att === undefined ? '…' : att ? n : '—'}</div>
-            <div className="hh-sub" style={{ marginTop: 2 }}>{att ? `in office · last check-in ${ago(att.last)}` : att === null ? 'attendance unavailable' : 'loading…'}</div>
-          </div>
-          <div style={{ flex: 1, display: 'grid', gap: 5, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+          <div className="hh-big">{att === undefined ? '…' : att ? n : '—'}</div>
+          <div className="hh-sub" style={{ minWidth: 0 }}>{att ? `in office · last check-in ${ago(att.last)}` : att === null ? 'attendance unavailable' : 'loading…'}</div>
+        </div>
+        {sites.length > 0 && (
+          <div style={{ display: 'grid', gap: 5, marginTop: 10, minWidth: 0 }}>
             {sites.map((s, k) => (
               <div key={s.name} className="hh-site">
                 <MapPin size={10} style={{ flexShrink: 0, opacity: 0.6 }} />
@@ -199,7 +199,7 @@ function Today({ people, att, CyberCard }) {
               </div>
             ))}
           </div>
-        </div>
+        )}
         {att && present > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: font.body, fontSize: '.66rem', color: 'var(--text-muted)', marginBottom: 4 }}>
@@ -227,10 +227,11 @@ export default function HomeHighlights({ CyberCard }) {
   const { cfg, people, att } = useHighlights();
   return (
     <>
-      <div className="hh-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, alignItems: 'stretch' }}>
-        <div style={{ minHeight: 200 }}><Celebrations cfg={cfg} people={people} CyberCard={CyberCard} /></div>
-        <div style={{ minHeight: 200 }}><CompanyNews cfg={cfg} CyberCard={CyberCard} /></div>
-        <div style={{ minHeight: 200 }}><Today people={people} att={att} CyberCard={CyberCard} /></div>
+      {/* minmax(0,1fr): long names or designations can never push a card off the screen */}
+      <div className="hh-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, alignItems: 'stretch', width: '100%', minWidth: 0 }}>
+        <div style={{ minHeight: 200, minWidth: 0 }}><Celebrations cfg={cfg} people={people} CyberCard={CyberCard} /></div>
+        <div style={{ minHeight: 200, minWidth: 0 }}><CompanyNews cfg={cfg} CyberCard={CyberCard} /></div>
+        <div style={{ minHeight: 200, minWidth: 0 }}><Today people={people} att={att} CyberCard={CyberCard} /></div>
       </div>
       <style>{`
         .hh-icon{width:24px;height:24px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
@@ -242,22 +243,22 @@ export default function HomeHighlights({ CyberCard }) {
         .hh-ring > *{animation:hhSpin 5s linear infinite reverse}
         @keyframes hhSpin{to{transform:rotate(360deg)}}
         .hh-badge{position:absolute;right:-3px;bottom:-3px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:.66rem;font-weight:800;border:2px solid var(--bg-card)}
-        .hh-celebrate{position:relative;display:flex;align-items:center;gap:14px;padding:12px;border-radius:12px;overflow:hidden;
+        .hh-celebrate{position:relative;display:flex;min-width:0;align-items:center;gap:14px;padding:12px;border-radius:12px;overflow:hidden;
           background:linear-gradient(135deg,color-mix(in srgb,var(--c) 14%,transparent),transparent 70%);border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
         .hh-swap{animation:hhSwap .55s cubic-bezier(.2,.8,.2,1) both}
         @keyframes hhSwap{from{opacity:0;transform:translateY(10px) scale(.98);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
-        .hh-tag{font-family:'DM Sans',sans-serif;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+        .hh-tag{font-family:'DM Sans',sans-serif;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .hh-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.95rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
         .hh-sub{font-family:'DM Sans',sans-serif;font-size:.7rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .hh-note{font-family:'DM Sans',sans-serif;font-size:.7rem;color:var(--text-secondary);font-style:italic;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .hh-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
         .hh-confetti i{position:absolute;top:-10px;left:var(--x);width:5px;height:9px;border-radius:2px;background:hsl(var(--h) 90% 60%);opacity:.8;animation:hhFall 3.2s linear var(--d) infinite}
         @keyframes hhFall{to{transform:translateY(120px) rotate(540deg)}}
-        .hh-faces{display:flex;align-items:center;padding-left:6px}
+        .hh-faces{display:flex;align-items:center;padding-left:6px;flex-shrink:0}
         .hh-face{margin-left:-7px;padding:2px;border-radius:50%;border:none;cursor:pointer;background:var(--c);box-shadow:0 0 0 2px var(--bg-card);transition:transform .2s;position:relative}
         .hh-face:hover{transform:translateY(-3px) scale(1.1);z-index:20 !important}
         .hh-more{margin-left:6px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.66rem;color:var(--text-muted)}
-        .hh-news{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--c) 7%,transparent);border-left:3px solid var(--c);transition:transform .2s}
+        .hh-news{display:flex;min-width:0;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--c) 7%,transparent);border-left:3px solid var(--c);transition:transform .2s}
         .hh-news:hover{transform:translateX(3px)}
         .hh-in{animation:hhSwap .5s cubic-bezier(.2,.8,.2,1) both}
         .hh-newsicon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;background:var(--c);flex-shrink:0}
@@ -269,7 +270,7 @@ export default function HomeHighlights({ CyberCard }) {
         .hh-when{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.64rem;color:var(--c);padding:3px 7px;border-radius:12px;background:color-mix(in srgb,var(--c) 14%,transparent);white-space:nowrap}
         .hh-big{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:2.5rem;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
           background:linear-gradient(135deg,#10b981,#0ea5e9);-webkit-background-clip:text;background-clip:text;color:transparent}
-        .hh-site{display:grid;grid-template-columns:auto minmax(0,1fr) 46px 22px;align-items:center;gap:6px;font-family:'DM Sans',sans-serif;font-size:.66rem;color:var(--text-secondary)}
+        .hh-site{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(40px,38%) 30px;align-items:center;gap:6px;font-family:'DM Sans',sans-serif;font-size:.66rem;color:var(--text-secondary)}
         .hh-sitename{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .hh-site b{text-align:right;color:var(--text-primary);font-family:'Plus Jakarta Sans',sans-serif}
         .hh-bar{height:6px;border-radius:4px;background:var(--border);overflow:hidden}
@@ -286,7 +287,8 @@ export default function HomeHighlights({ CyberCard }) {
         html .home-card .hh-avatar, html .home-card .hh-badge, html .home-card .hh-badge *, html .home-card .hh-newsicon, html .home-card .hh-newsicon *{color:#fff !important}
         html .home-card .hh-sub, html .home-card .hh-newsbody, html .home-card .hh-stat span, html .home-card .hh-more{color:var(--text-muted) !important;font-weight:500 !important}
         html .home-card .hh-note{color:var(--text-secondary) !important;font-weight:500 !important}
-        @media (max-width: 1100px){ .hh-row{grid-template-columns:1fr !important} }
+        .hh-row .home-card{min-width:0;max-width:100%}
+        @media (max-width: 1100px){ .hh-row{grid-template-columns:minmax(0,1fr) !important} }
         @media (prefers-reduced-motion: reduce){ .hh-row *{animation:none !important} }
       `}</style>
     </>
