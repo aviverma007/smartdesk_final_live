@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PartyPopper, Newspaper, Activity, Star, Cake, Award, Sparkles, CalendarDays, MapPin, Megaphone, Palmtree, UserPlus } from 'lucide-react';
 import {
   fetchTvConfig, loadPeople, loadAttendance, upcomingHolidays, birthdaysThisWeek, activeAnnouncements, upcomingEvents, ANNOUNCE_COLORS,
@@ -85,6 +85,9 @@ function Celebrations({ cfg, people, CyberCard }) {
     return () => clearTimeout(t);
   }, [i, items.length, paused]);
   const it = items[i];
+  // Animate only when the card rotates to the next person — never when the tab first opens
+  const startI = useRef(i); const rotated = useRef(false);
+  if (i !== startI.current) rotated.current = true;
   const meta = it && {
     star: { Icon: Star, color: '#f59e0b' }, birthday: { Icon: Cake, color: '#ec4899' },
     anniversary: { Icon: Award, color: '#8b5cf6' }, joiner: { Icon: UserPlus, color: '#10b981' },
@@ -97,7 +100,7 @@ function Celebrations({ cfg, people, CyberCard }) {
         <Header icon={PartyPopper} color="#ff6b00" label="CELEBRATIONS" right={items.length > 0 && <span className="hh-pill" style={{ '--c': '#ff6b00' }}>{items.length} this week</span>} />
         {!it ? <Empty icon={Sparkles} text="Nothing to celebrate yet this week — HR can add stars and birthdays in TV Display." /> : (
           <>
-            <div key={it.key} className="hh-swap hh-celebrate" style={{ '--c': meta.color }}>
+            <div key={it.key} className={rotated.current ? "hh-swap hh-celebrate" : "hh-celebrate"} style={{ '--c': meta.color }}>
               {(it.kind === 'star' || it.today) && <div className="hh-confetti">{Array.from({ length: 14 }, (_, k) => <i key={k} style={{ '--x': `${(k * 37) % 100}%`, '--d': `${(k % 7) * 0.35}s`, '--h': `${(k * 53) % 360}deg` }} />)}</div>}
               <div style={{ position: 'relative' }}>
                 <div className={it.kind === 'star' ? 'hh-ring' : ''} style={{ padding: it.kind === 'star' ? 3 : 0, borderRadius: '50%' }}>
@@ -154,7 +157,7 @@ function CompanyNews({ cfg, CyberCard }) {
         {!shown.length ? <Empty icon={Megaphone} text="No announcements right now." /> : (
           <div style={{ display: 'grid', gap: 8 }}>
             {shown.map((n, k) => (
-              <div key={n.key} className="hh-news hh-in" style={{ animationDelay: `${k * 90}ms`, '--c': n.kind === 'ann' ? n.color : n.kind === 'event' ? '#06b6d4' : '#f97316' }}>
+              <div key={n.key} className="hh-news" style={{ '--c': n.kind === 'ann' ? n.color : n.kind === 'event' ? '#06b6d4' : '#f97316' }}>
                 {n.kind === 'ann'
                   ? (n.image ? <img src={n.image} alt="" className="hh-thumb" /> : <span className="hh-newsicon"><Megaphone size={15} /></span>)
                   : <span className="hh-date"><b>{n.d.getDate()}</b>{fmt(n.d, { month: 'short' })}</span>}
@@ -194,7 +197,7 @@ function Today({ people, att, CyberCard }) {
               <div key={s.name} className="hh-site">
                 <MapPin size={10} style={{ flexShrink: 0, opacity: 0.6 }} />
                 <span className="hh-sitename">{s.name}</span>
-                <span className="hh-bar"><i style={{ width: `${(s.count / max) * 100}%`, animationDelay: `${k * 120}ms` }} /></span>
+                <span className="hh-bar"><i style={{ width: `${(s.count / max) * 100}%` }} /></span>
                 <b>{s.count}</b>
               </div>
             ))}
@@ -260,7 +263,6 @@ export default function HomeHighlights({ CyberCard }) {
         .hh-more{margin-left:6px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.66rem;color:var(--text-muted)}
         .hh-news{display:flex;min-width:0;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--c) 7%,transparent);border-left:3px solid var(--c);transition:transform .2s}
         .hh-news:hover{transform:translateX(3px)}
-        .hh-in{animation:hhSwap .5s cubic-bezier(.2,.8,.2,1) both}
         .hh-newsicon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;background:var(--c);flex-shrink:0}
         .hh-thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex-shrink:0}
         .hh-date{width:34px;height:34px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;font-family:'DM Sans',sans-serif;font-size:.52rem;text-transform:uppercase;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);line-height:1}
@@ -274,8 +276,7 @@ export default function HomeHighlights({ CyberCard }) {
         .hh-sitename{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .hh-site b{text-align:right;color:var(--text-primary);font-family:'Plus Jakarta Sans',sans-serif}
         .hh-bar{height:6px;border-radius:4px;background:var(--border);overflow:hidden}
-        .hh-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#10b981,#0ea5e9);transform-origin:left;animation:hhGrow 1s cubic-bezier(.2,.8,.2,1) both}
-        @keyframes hhGrow{from{transform:scaleX(0)}}
+        .hh-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#10b981,#0ea5e9);transition:width .6s ease}
         .hh-stat{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;color:var(--c);background:color-mix(in srgb,var(--c) 10%,transparent);border:1px solid color-mix(in srgb,var(--c) 25%,transparent);min-width:0}
         .hh-stat div{min-width:0;display:flex;flex-direction:column}
         .hh-stat b{font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem;color:var(--text-primary);line-height:1.1}

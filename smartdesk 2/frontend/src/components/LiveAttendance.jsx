@@ -97,7 +97,7 @@ const HoursBar = ({ data, height = 290 }) => {
                   <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, fontWeight:700, color: short ? 'var(--warning)' : 'var(--text-secondary)', marginBottom:3, fontVariantNumeric:'tabular-nums' }}>{d.hours.toFixed(1)}</span>
                   <div style={{ width:'100%', height:`${y(d.hours)}%`, minHeight:3, borderRadius:'6px 6px 2px 2px',
                     background: short ? 'var(--chart-3)' : 'var(--chart-1)', opacity: short ? .85 : 1,
-                    animation:`barGrow .7s cubic-bezier(.2,.8,.2,1) ${i * 35}ms both`, transformOrigin:'bottom' }}/>
+                    transformOrigin:'bottom' }}/>
                 </div>
               );
             })}

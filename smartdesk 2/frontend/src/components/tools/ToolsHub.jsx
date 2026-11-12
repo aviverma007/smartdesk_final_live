@@ -67,7 +67,7 @@ const ToolsHub = ({ initialTool }) => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 16 }}>
         {TOOLS.map((t, i) => (
           <button key={t.id} type="button" onClick={() => setActive(t.id)} className="tool-card"
-            style={{ ...card, textAlign: 'left', cursor: 'pointer', padding: 20, display: 'flex', flexDirection: 'column', gap: 12, animation: `tabIn .35s ease ${i * 45}ms both` }}>
+            style={{ ...card, textAlign: 'left', cursor: 'pointer', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: t.color, opacity: .8 }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ width: 46, height: 46, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `color-mix(in srgb, ${t.color} 14%, transparent)`, color: t.color }}><t.Icon size={22} /></div>
