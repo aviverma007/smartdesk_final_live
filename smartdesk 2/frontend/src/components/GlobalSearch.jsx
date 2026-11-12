@@ -2,16 +2,16 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Sparkles, User, FileText, LayoutGrid, CalendarDays, Globe, ArrowRight, CornerDownLeft, RotateCcw, ExternalLink, Users, Activity, Megaphone, Loader2 } from 'lucide-react';
 import { employeeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { URA_API } from '../config/api';
+import { createAssistant, warmPolicies } from '../services/localAssistant';
 import { TABS } from '../config/tabs';
 import { HOLIDAYS } from '../config/holidays';
 
 /*
  * Global search (Ctrl+K)
  *  • Instant portal results while typing: people, pages, policies, holidays
- *  • "Ask SmartDesk AI" (Claude, via backend-userrights /api/ai/ask): answers from the
- *    directory, live attendance, HR announcements and the policy PDFs, plus web search for
- *    anything outside the company — with sources, people and page shortcuts. Follow-ups keep context.
+ *  • "Ask SmartDesk": answered entirely in the browser by services/localAssistant.js — no external
+ *    API. It reads the directory, live attendance, holidays, HR announcements, the policy PDFs and
+ *    SmartDesk's own pages/tools, with people cards and page shortcuts. Follow-ups keep context.
  */
 
 const POLICIES = [
@@ -22,16 +22,16 @@ const POLICIES = [
 ];
 const SUGGESTIONS = [
   'How many casual leaves do I get?', 'Who is in the IT team?', 'How many people are in office today?',
-  "What's the weather in Gurugram?", 'When is the next holiday?', 'Any announcements this week?',
+  'What is the dress code?', 'When is the next holiday?', 'How do I convert PDF to Word?',
 ];
 const QUESTION = /^(who|what|whats|what's|when|where|which|why|how|is|are|can|could|do|does|did|should|tell|show|list|find|give|explain|summari[sz]e|kya|kaun|kab|kaise|kitne|kitna)\b|\?\s*$/i;
 const USED = {
   web_search: { label: 'Web', Icon: Globe }, search_employees: { label: 'Directory', Icon: Users }, directory_stats: { label: 'Headcount', Icon: Users },
   attendance_today: { label: 'Attendance', Icon: Activity }, company_updates: { label: 'Announcements', Icon: Megaphone },
-  read_policy: { label: 'Policies', Icon: FileText }, list_policies: { label: 'Policies', Icon: FileText },
+  read_policy: { label: 'Policies', Icon: FileText }, list_policies: { label: 'Policies', Icon: FileText }, smartdesk: { label: 'SmartDesk', Icon: LayoutGrid },
   holidays: { label: 'Holidays', Icon: FileText },
 };
-const STAGES = ['Thinking…', 'Checking SmartDesk data…', 'Searching…', 'Putting the answer together…'];
+const STAGES = ['Checking SmartDesk data…', 'Reading company policies…', 'Putting the answer together…'];
 const font = { head: "'Plus Jakarta Sans',sans-serif", body: "'DM Sans',sans-serif" };
 
 /* Minimal, safe markdown: **bold**, *italic*, `code`, [links](url), bare URLs, bullets, numbered lists, headings */
@@ -73,7 +73,6 @@ function Markdown({ text }) {
   flush();
   return <div className="gs-md">{out}</div>;
 }
-const domainOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
 const initials = (n = '') => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
 const GlobalSearch = ({ onClose }) => {
@@ -84,7 +83,8 @@ const GlobalSearch = ({ onClose }) => {
   const [sel, setSel] = useState(0);
   const [thread, setThread] = useState([]);           // [{ q, a?, error?, loading }]
   const [stage, setStage] = useState(0);
-  const [aiStatus, setAiStatus] = useState(null);     // { enabled, model } | 'offline'
+  const assistantRef = useRef(null);
+  if (!assistantRef.current) assistantRef.current = createAssistant();
   const [recent, setRecent] = useState(() => { try { return JSON.parse(localStorage.getItem('sd-recent-search') || '[]'); } catch { return []; } });
   const inputRef = useRef(null);
   const bodyRef = useRef(null);
@@ -95,7 +95,7 @@ const GlobalSearch = ({ onClose }) => {
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
     employeeAPI.getAll().then(d => setEmployees(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoadingEmp(false));
-    fetch(`${URA_API}/ai/status`).then(r => r.json()).then(j => setAiStatus(j.success ? j : 'offline')).catch(() => setAiStatus('offline'));
+    warmPolicies(); // read the policy PDFs in the background so policy answers are instant
     return () => abortRef.current && abortRef.current.abort();
   }, []);
   useEffect(() => {
@@ -143,30 +143,14 @@ const GlobalSearch = ({ onClose }) => {
     if (!question || asking) return;
     remember(question);
     setQuery('');
-    const history = thread.filter(t => t.a).flatMap(t => [{ role: 'user', content: t.q }, { role: 'assistant', content: t.a.answer }]);
     setThread(th => [...th, { q: question, loading: true }]);
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
     try {
-      const r = await fetch(`${URA_API}/ai/ask`, {
-        method: 'POST', signal: ctrl.signal,
-        headers: { 'Content-Type': 'application/json', 'x-user-role': user?.role || '', 'x-user-id': user?.empId || '' },
-        body: JSON.stringify({
-          question, history,
-          context: {
-            userName: user?.name, tabs: allowedTabs,
-            holidays: HOLIDAYS.map(h => ({ date: h.date, name: h.name })),
-          },
-        }),
-      });
-      let j = {};
-      try { j = await r.json(); } catch (_) {}
-      if (!r.ok || !j.success) throw new Error(j.error || (r.status === 404 ? 'AI search needs the latest backend-userrights — pull and restart it.' : `The AI service returned an error (${r.status}).`));
-      setThread(th => th.map((t, i) => (i === th.length - 1 ? { q: t.q, a: j } : t)));
+      let emps = employees;
+      if (!emps.length) { try { const d = await employeeAPI.getAll(); emps = Array.isArray(d) ? d : []; } catch (_) { /* answer without the directory */ } }
+      const a = await assistantRef.current.answer(question, { user, allowedTabs, employees: emps });
+      setThread(th => th.map((t, i) => (i === th.length - 1 ? { q: t.q, a } : t)));
     } catch (e) {
-      if (e.name === 'AbortError') return;
-      const msg = /Failed to fetch|NetworkError|offline/i.test(e.message) ? 'Could not reach the SmartDesk server (backend-userrights). Is it running?' : e.message;
-      setThread(th => th.map((t, i) => (i === th.length - 1 ? { q: t.q, error: msg } : t)));
+      setThread(th => th.map((t, i) => (i === th.length - 1 ? { q: t.q, error: `Sorry, something went wrong while searching (${e.message}).` } : t)));
     }
     setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -190,10 +174,9 @@ const GlobalSearch = ({ onClose }) => {
   const reset = () => { abortRef.current && abortRef.current.abort(); setThread([]); setQuery(''); inputRef.current?.focus(); };
 
   const typeMeta = {
-    ask: { Icon: Sparkles, tag: 'Ask AI' }, employee: { Icon: User, tag: 'Person' }, page: { Icon: LayoutGrid, tag: 'Page' },
+    ask: { Icon: Sparkles, tag: 'Ask' }, employee: { Icon: User, tag: 'Person' }, page: { Icon: LayoutGrid, tag: 'Page' },
     policy: { Icon: FileText, tag: 'Policy' }, holiday: { Icon: CalendarDays, tag: 'Holiday' },
   };
-  const aiOff = aiStatus === 'offline' || (aiStatus && aiStatus.enabled === false);
 
   return (
     <div className="gs-overlay" onMouseDown={e => e.target === e.currentTarget && onClose(null)}>
@@ -217,7 +200,7 @@ const GlobalSearch = ({ onClose }) => {
                   <div className="gs-a">
                     <div className="gs-ahead">
                       <span className="gs-badge"><Sparkles size={11} /></span>
-                      <span className="gs-alabel">SmartDesk AI</span>
+                      <span className="gs-alabel">SmartDesk Assistant</span>
                       {t.a && (t.a.used || []).filter(u => USED[u]).filter((u, k, a) => a.findIndex(x => USED[x].label === USED[u].label) === k).map(u => {
                         const M = USED[u];
                         return <span key={u} className="gs-used"><M.Icon size={10} />{M.label}</span>;
@@ -236,24 +219,24 @@ const GlobalSearch = ({ onClose }) => {
                         {t.a.people && t.a.people.length > 0 && (
                           <div className="gs-people">
                             {t.a.people.map(p => (
-                              <button key={p.code} type="button" className="gs-person" onClick={() => onClose({ type: 'employee', navId: 'directory', empId: p.code, empName: p.name })} title={`Open ${p.name} in the directory`}>
+                              <button key={p.id} type="button" className="gs-person" onClick={() => onClose({ type: 'employee', navId: 'directory', empId: p.id, empName: p.name, data: p.data })} title={`Open ${p.name} in the directory`}>
                                 <span className="gs-av">{initials(p.name)}</span>
                                 <span className="gs-ptext"><b>{p.name}</b><span>{[p.designation, p.department].filter(Boolean).join(' · ')}</span></span>
                               </button>
                             ))}
                           </div>
                         )}
-                        {((t.a.actions && t.a.actions.length) || (t.a.sources && t.a.sources.length)) ? (
+                        {((t.a.actions && t.a.actions.length) || (t.a.links && t.a.links.length)) ? (
                           <div className="gs-foot">
                             {(t.a.actions || []).filter(a => allowedTabs.includes(a.page) || a.page === 'home').map(a => (
                               <button key={a.page} type="button" className="gs-action" onClick={() => onClose({ type: 'nav', navId: a.page })}>
                                 {a.label || `Open ${TABS.find(x => x.id === a.page)?.label || a.page}`}<ArrowRight size={12} />
                               </button>
                             ))}
-                            {(t.a.sources || []).map(s => (
+                            {(t.a.links || []).map(s => (
                               <a key={s.url} className="gs-source" href={s.url} target="_blank" rel="noopener noreferrer" title={s.title}>
-                                <img src={`https://www.google.com/s2/favicons?domain=${domainOf(s.url)}&sz=32`} alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                                {domainOf(s.url)}<ExternalLink size={10} />
+                                {/\.pdf($|#)/i.test(s.url) ? <FileText size={11} /> : <Globe size={11} />}
+                                {s.title}<ExternalLink size={10} />
                               </a>
                             ))}
                           </div>
@@ -277,7 +260,7 @@ const GlobalSearch = ({ onClose }) => {
                     <span className={`gs-icon t-${it.type}`}><M.Icon size={15} /></span>
                     <span className="gs-itext">
                       {it.type === 'ask'
-                        ? <><b>Ask SmartDesk AI</b><span>“{it.label}” — answers from company data and the web</span></>
+                        ? <><b>Ask SmartDesk</b><span>“{it.label}” — answers from SmartDesk data, policies and pages</span></>
                         : <><b>{it.label}</b><span>{it.sub}</span></>}
                     </span>
                     {on ? <CornerDownLeft size={13} className="gs-enter" /> : <span className={`gs-tag t-${it.type}`}>{M.tag}</span>}
@@ -300,16 +283,11 @@ const GlobalSearch = ({ onClose }) => {
               <div className="gs-chips">{SUGGESTIONS.map(s => <button key={s} type="button" className="gs-chip" onClick={() => ask(s)}><Sparkles size={11} />{s}</button>)}</div>
             </div>
           )}
-          {aiOff && (
-            <div className="gs-note">{aiStatus === 'offline'
-              ? 'AI answers need the SmartDesk server (backend-userrights). Portal search still works.'
-              : 'AI answers are not switched on yet — restart backend-userrights.'}</div>
-          )}
         </div>
 
         <div className="gs-footer">
           <span>↑↓ navigate</span><span>↵ {inChat ? 'ask' : 'select'}</span><span>esc close</span>
-          <span className="gs-brand">{loadingEmp ? 'Loading directory…' : `${employees.length} employees`} · AI by {aiStatus && aiStatus.label ? aiStatus.label : 'SmartDesk'}</span>
+          <span className="gs-brand">{loadingEmp ? 'Loading directory…' : `${employees.length} employees`} · answers from SmartDesk data</span>
         </div>
       </div>
 

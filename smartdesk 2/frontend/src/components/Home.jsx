@@ -28,7 +28,7 @@ const galleryImages = [
   "/images/gallery-9.jpg"
 ];
 
-const projectLinks = [
+export const projectLinks = [
   { name: "SKY ARC", url: "https://smartworlddevelopers.com/project/sky-arc/" },
   { name: "THE EDITION", url: "https://smartworlddevelopers.com/project/theedition/" },
   { name: "ONE DXP", url: "https://smartworlddevelopers.com/project/onedxp/" },
@@ -37,7 +37,7 @@ const projectLinks = [
   { name: "GEMS", url: "https://smartworlddevelopers.com/project/gems/" },
 ];
 
-const quickLinks = [
+export const quickLinks = [
   { title: "Adrenaline", desc: "HR Portal", url: "https://maxhr.myadrenalin.com/AdrenalinMax/", img: "/images/adrenaline-logo.png", color: "#00d4ff" },
   { title: "BIMABRO", desc: "Employee Portal", url: "https://employee.bimabro.com/", img: "/images/bimabro-logo.jpg", color: "#7b2fff" },
   { title: "ZOHO", desc: "Manage Engine", url: "https://sdpondemand.manageengine.com/app/itdesk/HomePage.do", img: "/images/zoho-logo.png", color: "#00ff88" },

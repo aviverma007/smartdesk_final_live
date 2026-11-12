@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, FileText, ExternalLink } from 'lucide-react';
 
-const POLICY_DATA = {
+export const POLICY_DATA = {
   "HR POLICY": [
     { title:"Working Hours & Attendance Policy", link:"/company policies/Working Hours & Attendance Policy.pdf", description:"Attendance requirements and working hours guidelines" },
+    { title:"Business Hours & Attendance Policy", link:"/company policies/_11_11_70bde4e9a0a04aed_Business Hours Attendance Policy.pdf", description:"Official timings, flexibility, late coming, missing punches and short leave" },
     { title:"SWD Code of Conduct Policy", link:"/company policies/_18_28_2f4a2728a8b54167_SWD-Code of Conduct Policy.pdf", description:"Standards of professional conduct expected of all employees" },
     { title:"SWD Sexual Harassment Policy", link:"/company policies/_19_47_bb01b0d300d84033_SWD-Sexual Harasment Policy.pdf", description:"Workplace harassment prevention and redressal procedures" },
     { title:"Dress Code Policy", link:"/company policies/_13_55_00673d13502c42da_Dress code policy.pdf", description:"Professional dress code guidelines and standards" },
