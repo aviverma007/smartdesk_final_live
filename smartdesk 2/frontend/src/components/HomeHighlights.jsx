@@ -106,7 +106,7 @@ function Celebrations({ cfg, people, CyberCard }) {
                 <span className="hh-badge" style={{ background: meta.color }}>{it.kind === 'anniversary' ? it.years : <meta.Icon size={11} />}</span>
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="hh-tag" style={{ color: meta.color }}>{it.tag}</div>
+                <div className="hh-tag" style={{ color: meta.color, '--tc': meta.color }}>{it.tag}</div>
                 <div className="hh-name">{it.name}</div>
                 {it.sub && <div className="hh-sub">{it.sub}</div>}
                 {it.note && <div className="hh-note">“{it.note}”</div>}
@@ -279,6 +279,13 @@ export default function HomeHighlights({ CyberCard }) {
         .hh-stat div{min-width:0;display:flex;flex-direction:column}
         .hh-stat b{font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem;color:var(--text-primary);line-height:1.1}
         .hh-stat span{font-family:'DM Sans',sans-serif;font-size:.62rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        /* keep the accent colours inside .home-card (which forces one text colour) */
+        html .home-card .hh-tag{color:var(--tc) !important}
+        html .home-card .hh-big{color:transparent !important;-webkit-text-fill-color:transparent}
+        html .home-card .hh-pill, html .home-card .hh-icon, html .home-card .hh-icon *, html .home-card .hh-date, html .home-card .hh-date b, html .home-card .hh-when, html .home-card .hh-stat > svg{color:var(--c) !important}
+        html .home-card .hh-avatar, html .home-card .hh-badge, html .home-card .hh-badge *, html .home-card .hh-newsicon, html .home-card .hh-newsicon *{color:#fff !important}
+        html .home-card .hh-sub, html .home-card .hh-newsbody, html .home-card .hh-stat span, html .home-card .hh-more{color:var(--text-muted) !important;font-weight:500 !important}
+        html .home-card .hh-note{color:var(--text-secondary) !important;font-weight:500 !important}
         @media (max-width: 1100px){ .hh-row{grid-template-columns:1fr !important} }
         @media (prefers-reduced-motion: reduce){ .hh-row *{animation:none !important} }
       `}</style>

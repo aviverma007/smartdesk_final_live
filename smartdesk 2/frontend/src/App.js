@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
+import { flushSync } from "react-dom";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
@@ -273,10 +274,13 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
   useEffect(() => { localStorage.setItem("sd-sidebar-collapsed", collapsed); }, [collapsed]);
 
   return (
-    <div style={{ position:"relative", flexShrink:0 }}>
-      {/* Collapse/expand arrow button */}
+    <div style={{ position:"sticky", top:0, height:"100vh", alignSelf:"flex-start", flexShrink:0, zIndex:30 }}>
+      {/* Collapse/expand arrow button (pinned with the sidebar) */}
       <button
         onClick={() => setCollapsed(c => !c)}
+        className="sd-collapse"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         style={{
           position:"absolute", top:24, right:-14, zIndex:40,
           width:28, height:28, borderRadius:"50%",
@@ -301,7 +305,7 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
         background:"linear-gradient(180deg, #105da9 0%, #0e4d8f 60%, #0a3d72 100%)",
         display:"flex", flexDirection:"column",
         padding: collapsed ? "22px 10px 16px" : "22px 12px 16px",
-        position:"sticky", top:0, height:"100vh",
+        height:"100vh",
         overflow:"hidden", zIndex:30,
         transition:"width .25s ease, min-width .25s ease, padding .25s ease",
         boxShadow:"4px 0 20px rgba(16,93,169,0.25)",
@@ -328,7 +332,7 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
         <div style={{ display:"flex", flexDirection:"column", gap:2, flex:1 }}>
           {NAV.filter(n => (n.adminOnly ? isAdmin : allowedTabs.includes(n.id))).map(({ id, label, Icon }) => (
             <div key={id}
-              className={`nav-item${active===id?" active":""}`}
+              className={`nav-item sd-nav${active===id?" active":""}`}
               onClick={() => setActive(id)}
               title={collapsed ? label : ""}
               style={{
@@ -339,6 +343,7 @@ const Sidebar = ({ active, setActive, theme, setTheme }) => {
                 border: `1px solid ${active===id ? "rgba(255,255,255,0.25)" : "transparent"}`,
                 boxShadow: active===id ? "0 2px 12px rgba(0,0,0,0.15)" : "none",
                 borderRadius: 9,
+                viewTransitionName: active===id ? "sd-nav-active" : undefined,
               }}
               onMouseEnter={e => { if (active!==id) { e.currentTarget.style.background="rgba(255,255,255,0.10)"; e.currentTarget.style.color="#fff"; }}}
               onMouseLeave={e => { if (active!==id) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="rgba(255,255,255,0.72)"; }}}
@@ -422,7 +427,7 @@ const TopBar = ({ active, theme, setTheme, onSearch }) => {
     <>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 28px", borderBottom:"1px solid var(--border)", background:"var(--topbar-bg, #fff)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", position:"sticky", top:0, zIndex:20, transition:"background .3s" }}>
         <div>
-          <h1 style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1 }}>{page?.label}</h1>
+          <h1 style={{ fontFamily:"Plus Jakarta Sans,sans-serif", fontWeight:700, fontSize:"1.05rem", color:"var(--text-primary)", lineHeight:1, viewTransitionName:"sd-title" }}>{page?.label}</h1>
           <p style={{ fontFamily:"DM Sans,sans-serif", fontSize:"0.72rem", color:"var(--text-muted)", marginTop:3 }}>Smart World Developers · Internal Portal</p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -477,12 +482,38 @@ const QuickTicker = () => {
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
   const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee, isDashboard, allowedTabs } = useAuth();
-  const [active, setActive] = useState(() => {
+  const [active, setActiveRaw] = useState(() => {
     const saved = localStorage.getItem('sd-user');
     if (saved) { try { const u = JSON.parse(saved); if (u.role==='dashboard') return 'dashboard'; } catch{} }
     return 'home';
   });
   const [theme, setTheme] = useState(() => localStorage.getItem("sd-theme") || "light");
+  const setActive = useCallback((id) => {
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!document.startViewTransition || reduce) { setActiveRaw(id); return; }
+    document.documentElement.classList.add("sd-vt");
+    const vt = document.startViewTransition(() => flushSync(() => setActiveRaw(id)));
+    vt.finished.finally(() => document.documentElement.classList.remove("sd-vt"));
+  }, []);
+
+  // Soft spotlight that follows the pointer over cards (sets --mx / --my)
+  useEffect(() => {
+    let raf = 0, last = null;
+    const onMove = (e) => {
+      last = e;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = last.target.closest && last.target.closest(".home-card, .tool-card, .ql-card, .sd-glow");
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--mx", `${last.clientX - r.left}px`);
+        el.style.setProperty("--my", `${last.clientY - r.top}px`);
+      });
+    };
+    document.addEventListener("pointermove", onMove, { passive: true });
+    return () => { document.removeEventListener("pointermove", onMove); cancelAnimationFrame(raf); };
+  }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sd-sidebar-collapsed") === "true");
   const [showSearch, setShowSearch] = useState(false);
   const [attendanceEmpCode, setAttendanceEmpCode] = useState("");
@@ -572,7 +603,7 @@ const AppContent = () => {
                 <TopBar active={shownTab} theme={theme} setTheme={setTheme} onSearch={() => setShowSearch(true)}/>
                 <QuickTicker/>
                 <div style={{ flex:1, overflowY:"auto", padding:"24px 28px 16px" }}>
-                  <div className="tab-fade-in" key={shownTab}>
+                  <div className="tab-fade-in sd-tab" key={shownTab}>
                     {CONTENT[shownTab]}
                   </div>
                 </div>
