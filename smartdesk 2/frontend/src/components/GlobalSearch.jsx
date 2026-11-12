@@ -29,6 +29,7 @@ const USED = {
   web_search: { label: 'Web', Icon: Globe }, search_employees: { label: 'Directory', Icon: Users }, directory_stats: { label: 'Headcount', Icon: Users },
   attendance_today: { label: 'Attendance', Icon: Activity }, company_updates: { label: 'Announcements', Icon: Megaphone },
   read_policy: { label: 'Policies', Icon: FileText }, list_policies: { label: 'Policies', Icon: FileText },
+  holidays: { label: 'Holidays', Icon: FileText },
 };
 const STAGES = ['Thinking…', 'Checking SmartDesk data…', 'Searching…', 'Putting the answer together…'];
 const font = { head: "'Plus Jakarta Sans',sans-serif", body: "'DM Sans',sans-serif" };
@@ -302,13 +303,13 @@ const GlobalSearch = ({ onClose }) => {
           {aiOff && (
             <div className="gs-note">{aiStatus === 'offline'
               ? 'AI answers need the SmartDesk server (backend-userrights). Portal search still works.'
-              : 'AI answers are not switched on yet — add ANTHROPIC_API_KEY to backend-userrights/.env and restart it.'}</div>
+              : 'AI answers are not switched on yet — restart backend-userrights.'}</div>
           )}
         </div>
 
         <div className="gs-footer">
           <span>↑↓ navigate</span><span>↵ {inChat ? 'ask' : 'select'}</span><span>esc close</span>
-          <span className="gs-brand">{loadingEmp ? 'Loading directory…' : `${employees.length} employees`} · AI by Claude</span>
+          <span className="gs-brand">{loadingEmp ? 'Loading directory…' : `${employees.length} employees`} · AI by {aiStatus && aiStatus.label ? aiStatus.label : 'SmartDesk'}</span>
         </div>
       </div>
 
