@@ -807,6 +807,10 @@ app.delete('/api/tab-access/:empId', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+/* ═══════════════════════ SMARTDESK AI SEARCH (Claude) ══════════════════════ */
+// POST /api/ai/ask — see ai.js. Needs ANTHROPIC_API_KEY in .env.
+require('./ai').mountAi(app, { getPool });
+
 /* ═══════════════════════ OFFICE TV DISPLAY ═════════════════════════════════ */
 // The TV page (no login) reads; HR / admin publish. TVs poll /version and only
 // download the full config (which can contain images) when it has changed.

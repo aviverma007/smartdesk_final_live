@@ -13,6 +13,22 @@ in the browser. Word / PowerPoint / Excel → PDF (and PDF → Word) are done he
 
 Up to 2 conversions run at once (the rest queue); each has a 2-minute timeout; temp files are deleted after every request.
 
+## SmartDesk AI search (Claude)
+
+The Ctrl+K search box asks Claude through `POST /api/ai/ask` (code in `ai.js`). The API key stays here:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...        # required — create one at https://platform.claude.com
+# ANTHROPIC_MODEL=claude-sonnet-5-5  # optional
+# ANTHROPIC_EFFORT=low               # optional (low = fastest)
+# ATTENDANCE_API_URL=http://localhost:5092/api
+```
+
+Claude answers from: the employee sheet (`frontend/public/employee_directory.xlsx`), live attendance
+(employees only see their own punch times; totals for everyone), HR announcements/events/stars (TV Display),
+the policy PDFs in `frontend/public/company policies`, and web search for outside information (cited).
+Limit: 20 questions per user per minute. `GET /api/ai/status` shows whether a key is configured.
+
 ## Office TV display
 
 HR edits the TV loop in the portal's **TV Display** tab; it is stored in `dbo.TvConfig`
