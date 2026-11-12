@@ -1,5 +1,6 @@
 /**
- * SmartDesk AI search — answers questions with Claude (Anthropic API).
+ * SmartDesk AI search — answers with Claude when ANTHROPIC_API_KEY is set; otherwise with the free
+ * engine in freeai.js (SmartDesk data + free web sources, optional free Groq/Gemini key).
  *
  * The API key stays on this server (ANTHROPIC_API_KEY in .env); the browser never sees it.
  * Claude can call these tools to answer from real company data, then reply with sources:
@@ -11,6 +12,7 @@
  *   web_search (Anthropic server tool)   weather, news, anything current outside the company
  */
 const fs = require('fs');
+const { createFreeEngine, askFree, llmConfig } = require('./freeai');
 const path = require('path');
 
 const API_URL = process.env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
@@ -266,10 +268,28 @@ async function callClaude(body) {
   return j;
 }
 
-async function ask({ question, history = [], context = {} }, user, getPool) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    const e = new Error('AI search is not set up yet: add ANTHROPIC_API_KEY to backend-userrights/.env and restart the backend.'); e.status = 503; throw e;
+async function ask(args, user, getPool) {
+  // No Claude key → free engine (SmartDesk data + free web sources, optional free Groq/Gemini key)
+  if (!process.env.ANTHROPIC_API_KEY) return askFree(freeEngine(getPool), args, user);
+  try { return await askClaude(args, user, getPool); }
+  catch (e) {
+    console.warn(`   ! AI (Claude): ${e.message} — answering with the free engine instead`);
+    return askFree(freeEngine(getPool), args, user);
   }
+}
+
+let _free = null;
+function freeEngine(getPool) {
+  if (!_free) _free = createFreeEngine({ employees, searchEmployees, directoryStats, attendanceToday, companyUpdates: () => companyUpdates(getPool), policies });
+  return _free;
+}
+function aiMode() {
+  if (process.env.ANTHROPIC_API_KEY) return { mode: 'claude', label: 'Claude', model: MODEL };
+  const c = llmConfig();
+  return c ? { mode: 'free-llm', label: c.name, model: c.model } : { mode: 'free', label: 'SmartDesk', model: 'smartdesk-free' };
+}
+
+async function askClaude({ question, history = [], context = {} }, user, getPool) {
   const people = new Map(), actions = [], used = new Set();
   const messages = [];
   (Array.isArray(history) ? history : []).slice(-6).forEach(h => {
@@ -340,7 +360,7 @@ async function ask({ question, history = [], context = {} }, user, getPool) {
 /* ── express routes ──────────────────────────────────────────────────────── */
 function mountAi(app, { getPool }) {
   const hits = new Map(); // simple per-user rate limit: 20 questions / minute
-  app.get('/api/ai/status', (req, res) => res.json({ success: true, enabled: !!process.env.ANTHROPIC_API_KEY, model: MODEL }));
+  app.get('/api/ai/status', (req, res) => res.json({ success: true, enabled: true, ...aiMode() }));
   app.post('/api/ai/ask', async (req, res) => {
     const user = { role: String(req.headers['x-user-role'] || '').toLowerCase(), empId: String(req.headers['x-user-id'] || ''), name: String((req.body && req.body.context && req.body.context.userName) || '') };
     if (!user.role) return res.status(401).json({ success: false, error: 'Please sign in to SmartDesk first.' });
@@ -360,7 +380,7 @@ function mountAi(app, { getPool }) {
     }
   });
   // Warm the policy text in the background so the first question is fast
-  setTimeout(() => { policies().then(p => console.log(`   AI: ${p.length} policy documents ready${process.env.ANTHROPIC_API_KEY ? '' : ' (set ANTHROPIC_API_KEY to enable AI search)'}`)).catch(() => {}); }, 2000);
+  setTimeout(() => { policies().then(p => { const m = aiMode(); console.log(`   AI: ${p.length} policy documents ready · answers by ${m.mode === 'free' ? 'built-in engine + free web sources (Wikipedia, DuckDuckGo, Open-Meteo, Google News)' : `${m.label} (${m.model})`}`); }).catch(() => {}); }, 2000);
 }
 
-module.exports = { mountAi, searchEmployees, directoryStats, readPolicy, policies };
+module.exports = { mountAi, searchEmployees, directoryStats, readPolicy, policies, employees, freeEngine };
