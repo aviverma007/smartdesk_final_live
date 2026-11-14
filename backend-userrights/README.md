@@ -79,3 +79,23 @@ TVs check `/version` every minute and only download the content when it changed.
 ## Roles (set in the portal's AuthContext)
 - `hr` / `it` / `manager` — fixed logins (default password `SmartWorld@2026`, change these).
 - New employees set their own password via the emailed link, then log in with their Employee ID or email.
+
+## HR shared folder (gallery photos + employee Excel)
+
+On start the backend creates `C:\SmartDesk_Shared` (change with `SHARED_DIR` in `.env`):
+
+| Folder | What HR puts there | Where it shows |
+|---|---|---|
+| `Gallery\` | Photos (JPG/PNG/WEBP/GIF), any file name | Home page gallery slideshow, in file-name order |
+| `Employee Data\` | The employee Excel (.xlsx/.xls/.csv) — newest file is used | Directory, search, Home, TV display, everywhere |
+
+Excel columns (first row, any of these names work): Code / Emp Code, Name / Employee Name, Mobile No / Mobile,
+DOJ / Date of Joining, Designation, Department / Dept, Location, Email ID / Email.
+The portal re-checks every 2 minutes (photos every 3) — no restart needed.
+
+Share it with HR (PowerShell as Administrator on this PC):
+```powershell
+New-SmbShare -Name "SmartDesk_Shared" -Path "C:\SmartDesk_Shared" -ChangeAccess "SMARTWORLDDEVEL\hr.user1","SMARTWORLDDEVEL\hr.user2" -FullAccess "SMARTWORLDDEVEL\Anirudh.Verma"
+icacls "C:\SmartDesk_Shared" /grant "SMARTWORLDDEVEL\hr.user1:(OI)(CI)M" "SMARTWORLDDEVEL\hr.user2:(OI)(CI)M"
+```
+HR opens `\\192.168.66.28\SmartDesk_Shared` in File Explorer.

@@ -1,5 +1,31 @@
 import * as XLSX from 'xlsx';
-import { ATT_API } from '../config/api';
+import { ATT_API, URA_API } from '../config/api';
+
+// HR's shared folder on the server (C:\SmartDesk_Shared\Employee Data) is the live source;
+// the copy bundled with the portal (/employee_directory.xlsx) is only the fallback.
+const EMP_META = `${URA_API}/shared/employees/meta`;
+const EMP_FILE = `${URA_API}/shared/employees/file`;
+const EMP_CHECK_MS = 2 * 60 * 1000;
+
+// Column headers HR might use, matched without case/spaces/dots
+const COLS = {
+  code: ['code', 'empcode', 'employeecode', 'employeeid', 'empid', 'ecode', 'staffcode', 'employeeno', 'empno'],
+  name: ['name', 'employeename', 'empname', 'fullname'],
+  mobile: ['mobileno', 'mobile', 'mobilenumber', 'phone', 'phoneno', 'contactno', 'contactnumber', 'cellno'],
+  doj: ['doj', 'dateofjoining', 'joiningdate', 'datejoined', 'joindate'],
+  designation: ['designation', 'title', 'jobtitle', 'position', 'role'],
+  department: ['department', 'dept', 'function'],
+  location: ['location', 'site', 'office', 'worklocation', 'branch'],
+  email: ['emailid', 'email', 'officialemail', 'officialemailid', 'mailid', 'emailaddress'],
+};
+const keyOf = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+function pickCols(row) {
+  const m = {};
+  Object.keys(row).forEach(k => { m[keyOf(k)] = row[k]; });
+  const out = {};
+  Object.entries(COLS).forEach(([field, names]) => { const hit = names.find(n => m[n] !== undefined && m[n] !== ''); out[field] = hit ? m[hit] : ''; });
+  return out;
+}
 
 class DataService {
   constructor() {
@@ -37,6 +63,7 @@ class DataService {
       this.initializeDemoAlerts();
       
       this.isLoaded = true;
+      this.startEmployeeWatch();
       console.log('All data loaded successfully');
       
       return {
@@ -54,21 +81,16 @@ class DataService {
   // Load employee data from Excel
   async loadEmployeeData() {
     try {
-      const response = await fetch('/employee_directory.xlsx');
-      const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const { rows: jsonData, source } = await this.readEmployeeSheet();
 
-      this.employees = jsonData.map((row, index) => {
-        // New Excel: Code, Name, Mobile No, DOJ, Designation, Department, Location, Email ID
-        const mobile = row['Mobile No'] ? String(row['Mobile No']) : '';
+      this.employees = jsonData.map((raw, index) => {
+        const row = pickCols(raw);
+        const mobile = row.mobile ? String(row.mobile).replace(/\.0$/, '') : '';
 
         let dateJoining = '';
-        if (row['DOJ']) {
+        if (row.doj) {
           try {
-            const rawDate = row['DOJ'];
+            const rawDate = row.doj;
             if (typeof rawDate === 'number') {
               const jsDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
               dateJoining = jsDate.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
@@ -80,21 +102,21 @@ class DataService {
           } catch(e) { dateJoining = ''; }
         }
 
-        const nameParts = String(row['Name'] || '').split(' ').filter(Boolean);
+        const nameParts = String(row.name || '').split(' ').filter(Boolean);
         const initials = nameParts.slice(0,2).map(w => w[0].toUpperCase()).join('');
 
         return {
-          id: String(row['Code'] || index + 1),
-          name: String(row['Name'] || '').trim(),
-          department: String(row['Department'] || '').trim(),
-          grade: String(row['Designation'] || '').trim(),
-          designation: String(row['Designation'] || '').trim(),
+          id: String(row.code || index + 1).replace(/\.0$/, '').trim(),
+          name: String(row.name || '').trim(),
+          department: String(row.department || '').trim(),
+          grade: String(row.designation || '').trim(),
+          designation: String(row.designation || '').trim(),
           reportingManager: '',
           reportingId: null,
-          location: String(row['Location'] || '').trim(),
+          location: String(row.location || '').trim(),
           mobile: mobile,
           extension: '',
-          email: String(row['Email ID'] || '').trim(),
+          email: String(row.email || '').trim(),
           dateOfJoining: dateJoining,
           profileImage: '/api/placeholder/150/150',
           initials: initials,
@@ -109,11 +131,54 @@ class DataService {
       this.departments = ['All Departments', ...new Set(this.employees.map(emp => emp.department).filter(dept => dept))];
       this.locations = ['All Locations', ...new Set(this.employees.map(emp => emp.location).filter(loc => loc))];
 
-      console.log(`Loaded ${this.employees.length} employees`);
+      console.log(`Loaded ${this.employees.length} employees from ${source}`);
     } catch (error) {
       console.error('Error loading employee data:', error);
       throw error;
     }
+  }
+
+  /** Reads HR's shared Excel (live), or the bundled copy if the server/folder isn't available. */
+  async readEmployeeSheet() {
+    const parse = (buf) => {
+      const wb = XLSX.read(buf, { type: 'array' });
+      return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    };
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      const [meta, res] = await Promise.all([
+        fetch(EMP_META, { cache: 'no-store', signal: ctrl.signal }).then(r => r.json()).catch(() => null),
+        fetch(EMP_FILE, { cache: 'no-store', signal: ctrl.signal }),
+      ]);
+      clearTimeout(t);
+      if (res.ok && (res.headers.get('content-type') || '').indexOf('json') === -1) {
+        const rows = parse(await res.arrayBuffer());
+        if (rows.length) {
+          this.employeeVersion = (meta && meta.version) || String(Date.now());
+          this.employeeSource = (meta && meta.file) || 'shared folder';
+          return { rows, source: `shared folder (${this.employeeSource})` };
+        }
+      }
+    } catch (_) { /* server or folder not available — fall back */ }
+    const response = await fetch('/employee_directory.xlsx', { cache: 'no-store' });
+    this.employeeVersion = this.employeeVersion || 'bundled';
+    this.employeeSource = 'built-in list';
+    return { rows: parse(await response.arrayBuffer()), source: 'built-in list' };
+  }
+
+  /** Every 2 minutes: if HR saved a new Excel, reload the employees and tell the open pages. */
+  startEmployeeWatch() {
+    if (this._empWatch) return;
+    this._empWatch = setInterval(async () => {
+      try {
+        const meta = await fetch(EMP_META, { cache: 'no-store' }).then(r => r.json());
+        if (!meta || !meta.success || !meta.version || meta.version === this.employeeVersion) return;
+        await this.loadEmployeeData();
+        this.dataVersion = (this.dataVersion || 0) + 1;
+        window.dispatchEvent(new CustomEvent('sd-employees-updated', { detail: { count: this.employees.length, file: meta.file } }));
+      } catch (_) { /* try again next time */ }
+    }, EMP_CHECK_MS);
   }
 
   // Codes from the live attendance backend (backend-attendance) that aren't in Excel.

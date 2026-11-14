@@ -146,10 +146,10 @@ export function parseDate(v) {
 
 let empCache = { at: 0, list: [] };
 async function employees() {
-  if (Date.now() - empCache.at < 30 * 60 * 1000 && empCache.list.length) return empCache.list;
+  if (Date.now() - empCache.at < 30 * 60 * 1000 && empCache.list.length && empCache.v === dataService.dataVersion) return empCache.list;
   try {
     const list = await dataService.getEmployees({});
-    empCache = { at: Date.now(), list: Array.isArray(list) ? list : [] };
+    empCache = { at: Date.now(), v: dataService.dataVersion, list: Array.isArray(list) ? list : [] };
   } catch (_) { /* keep last */ }
   return empCache.list;
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { employeeAPI } from '../services/api';
+import { URA_API } from "../config/api";
 import HomeHighlights from "./HomeHighlights";
 import {
   ChevronLeft, ChevronRight, Users,
@@ -16,17 +17,12 @@ const bannerImages = [
   "/images/smart-world-sky-arc.webp"
 ];
 
-const galleryImages = [
-  "/images/gallery-1.jpg",
-  "/images/gallery-2.jpg",
-  "/images/gallery-3.jpeg",
-  "/images/gallery-4.jpg",
-  "/images/gallery-5.jpg",
-  "/images/gallery-6.jpg",
-  "/images/gallery-7.jpg",
-  "/images/gallery-8.jpg",
-  "/images/gallery-9.jpg"
+// Fallback photos when HR's shared Gallery folder (C:\\SmartDesk_Shared\\Gallery on the server) is empty or unreachable
+const defaultGallery = [
+  "/images/gallery-1.jpg", "/images/gallery-2.jpg", "/images/gallery-3.jpeg", "/images/gallery-4.jpg", "/images/gallery-5.jpg",
+  "/images/gallery-6.jpg", "/images/gallery-7.jpg", "/images/gallery-8.jpg", "/images/gallery-9.jpg",
 ];
+const GALLERY_REFRESH_MS = 3 * 60 * 1000;
 
 export const projectLinks = [
   { name: "SKY ARC", url: "https://smartworlddevelopers.com/project/sky-arc/" },
@@ -165,13 +161,39 @@ const Home = () => {
     return () => clearInterval(t);
   }, []);
 
+  // Gallery photos come live from HR's shared folder (any file names); re-checked every few minutes
+  const [galleryImages, setGalleryImages] = useState(defaultGallery);
+  useEffect(() => {
+    let alive = true;
+    const load = () => fetch(`${URA_API}/shared/gallery`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => {
+        if (!alive || !j || !j.success) return;
+        const list = (j.images || []).map(im => `${URA_API}${im.url}`);
+        setGalleryImages(prev => {
+          const next = list.length ? list : defaultGallery;
+          return prev.join("|") === next.join("|") ? prev : next;
+        });
+      })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, GALLERY_REFRESH_MS);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  useEffect(() => { setGalleryIdx(i => (i < galleryImages.length ? i : 0)); }, [galleryImages]);
+  useEffect(() => {
+    // preload the next photo so the slide change is instant
+    const next = galleryImages[(galleryIdx + 1) % galleryImages.length];
+    if (next) { const im = new window.Image(); im.src = next; }
+  }, [galleryIdx, galleryImages]);
+
   useEffect(() => {
     const t = setInterval(() => {
-      setGalleryIdx(i => (i + 1) % galleryImages.length);
+      setGalleryIdx(i => (i + 1) % Math.max(1, galleryImages.length));
     }, 4000);
 
     return () => clearInterval(t);
-  }, []);
+  }, [galleryImages.length]);
 
   useEffect(() => {
     if (employees.length > 3) {
@@ -420,10 +442,12 @@ const Home = () => {
         <CyberCard style={{ overflow: "hidden", height: 240 }}>
           <div style={{ position: "absolute", inset: 0 }}>
             <img
+              key={galleryImages[galleryIdx]}
               src={galleryImages[galleryIdx]}
               alt=""
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "opacity .5s" }}
-              onError={e => e.target.style.opacity = "0"}
+              onLoad={e => { e.target.style.opacity = "1"; }}
+              onError={e => { e.target.style.opacity = "0"; }}
             />
             <div
               style={{
@@ -455,7 +479,11 @@ const Home = () => {
                 gap: 4
               }}
             >
-              {galleryImages.map((_, i) => (
+              {galleryImages.length > 12 ? (
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: ".62rem", fontWeight: 700, color: "#fff", background: "rgba(0,0,0,.35)", padding: "2px 8px", borderRadius: 10 }}>
+                  {galleryIdx + 1} / {galleryImages.length}
+                </span>
+              ) : galleryImages.map((_, i) => (
                 <div
                   key={i}
                   onClick={() => setGalleryIdx(i)}

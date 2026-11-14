@@ -495,6 +495,13 @@ const QuickTicker = () => {
 
 /* ── AppContent ─────────────────────────────────────────────────────────── */
 const AppContent = () => {
+  // HR saved a new employee Excel in the shared folder → re-open the current page with fresh data
+  const [dataRev, setDataRev] = useState(0);
+  useEffect(() => {
+    const onUpdate = () => setDataRev(r => r + 1);
+    window.addEventListener("sd-employees-updated", onUpdate);
+    return () => window.removeEventListener("sd-employees-updated", onUpdate);
+  }, []);
   const { isAuthenticated, showLoading, initializeAuth, user, isAdmin, isEmployee, isDashboard, allowedTabs } = useAuth();
   const [active, setActiveRaw] = useState(() => {
     const saved = localStorage.getItem('sd-user');
@@ -612,7 +619,7 @@ const AppContent = () => {
                 <TopBar active={shownTab} theme={theme} setTheme={setTheme} onSearch={() => setShowSearch(true)}/>
                 <QuickTicker/>
                 <div style={{ flex:1, overflowY:"auto", padding:"24px 28px 16px" }}>
-                  <div className="tab-fade-in sd-tab" key={shownTab}>
+                  <div className="tab-fade-in sd-tab" key={`${shownTab}-${dataRev}`}>
                     {CONTENT[shownTab]}
                   </div>
                 </div>

@@ -19,7 +19,7 @@ const API_URL = process.env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/m
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 const EFFORT = process.env.ANTHROPIC_EFFORT || 'low';
 const FRONTEND_PUBLIC = process.env.FRONTEND_PUBLIC_DIR || path.join(__dirname, '..', 'smartdesk 2', 'frontend', 'public');
-const EMP_XLSX = process.env.EMPLOYEE_XLSX || path.join(FRONTEND_PUBLIC, 'employee_directory.xlsx');
+const DEFAULT_EMP_XLSX = process.env.EMPLOYEE_XLSX || path.join(FRONTEND_PUBLIC, 'employee_directory.xlsx');
 const POLICY_DIR = process.env.POLICY_DIR || path.join(FRONTEND_PUBLIC, 'company policies');
 const ATT_URL = (process.env.ATTENDANCE_API_URL || 'http://localhost:5092/api').replace(/\/$/, '');
 const PRIVILEGED = ['admin', 'hr', 'manager'];
@@ -34,8 +34,11 @@ function excelDate(v) {
 }
 function employees() {
   try {
+    // HR's shared folder wins over the copy bundled with the frontend
+    const shared = require('./shared').currentEmployeeFile();
+    const EMP_XLSX = shared ? shared.path : DEFAULT_EMP_XLSX;
     const st = fs.statSync(EMP_XLSX);
-    if (st.mtimeMs === empCache.mtime) return empCache.list;
+    if (st.mtimeMs === empCache.mtime && EMP_XLSX === empCache.file) return empCache.list;
     const XLSX = require('xlsx');
     const wb = XLSX.readFile(EMP_XLSX, { cellDates: false });
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
@@ -49,10 +52,10 @@ function employees() {
       mobile: String(r['Mobile No'] || '').trim(),
       joined: excelDate(r['DOJ']),
     })).filter(e => e.name && e.code);
-    empCache = { mtime: st.mtimeMs, list };
+    empCache = { mtime: st.mtimeMs, file: EMP_XLSX, list };
     return list;
   } catch (e) {
-    console.warn(`   ! AI: could not read ${EMP_XLSX} (${e.message})`);
+    console.warn(`   ! AI: could not read the employee Excel (${e.message})`);
     return empCache.list;
   }
 }
